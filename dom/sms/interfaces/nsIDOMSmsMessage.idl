@@ -13,6 +13,8 @@ interface nsIDOMMozSmsMessage : nsISupports
   readonly attribute DOMString delivery;  // Should be "sent" or "received".
   readonly attribute DOMString sender;
   readonly attribute DOMString receiver;
+  readonly attribute DOMString smsc;
+  readonly attribute boolean   hasReplyPath;
   readonly attribute DOMString body;
   [implicit_jscontext]
   readonly attribute jsval     timestamp; // jsval is for Date.

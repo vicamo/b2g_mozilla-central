@@ -17,7 +17,7 @@ interface nsIDOMMozSmsFilter;
 interface nsISmsDatabaseService : nsISupports
 {
   // Takes some information required to save the message and returns its id.
-  long saveReceivedMessage(in DOMString aSender, in DOMString aBody, in unsigned long long aDate);
+  long saveReceivedMessage(in DOMString aSender, in DOMString aSMSC, in boolean aHasReplyPath, in DOMString aBody, in unsigned long long aDate);
   // Takes some information required to save the message and returns its id.
   long saveSentMessage(in DOMString aReceiver, in DOMString aBody, in unsigned long long aDate);
 

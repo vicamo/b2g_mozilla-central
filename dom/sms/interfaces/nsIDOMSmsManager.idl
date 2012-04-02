@@ -17,7 +17,7 @@ interface nsIDOMMozSmsManager : nsIDOMEventTarget
   // of DOMStrings.
   // The method returns a SmsRequest object if one number has been passed.
   // An array of SmsRequest objects otherwise.
-  jsval send(in jsval number, in DOMString message);
+  jsval send(in jsval number, in DOMString smsc, in DOMString message);
 
   [binaryname(GetMessageMoz)] nsIDOMMozSmsRequest getMessage(in long id);
 

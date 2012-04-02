@@ -16,7 +16,7 @@ interface nsISmsService : nsISupports
 {
   boolean        hasSupport();
   unsigned short getNumberOfMessagesForText(in DOMString text);
-            void send(in DOMString number, in DOMString message,
+            void send(in DOMString number, in DOMString smsc, in DOMString message,
                       in long requestId, [optional] in unsigned long long processId);
 
   [implicit_jscontext]
@@ -24,6 +24,8 @@ interface nsISmsService : nsISupports
                                        in DOMString delivery,
                                        in DOMString sender,
                                        in DOMString receiver,
+                                       in DOMString smsc,
+                                       in boolean   hasReplyPath,
                                        in DOMString body,
                                        in jsval     timestamp,
                                        in bool      read);
