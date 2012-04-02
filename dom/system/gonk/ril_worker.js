@@ -1561,24 +1561,14 @@ let RIL = {
    *        String containing the recipient number.
    * @param body
    *        String containing the message text.
+   * @param SMSC
+   *        SMS center address.
    * @param requestId
    *        String identifying the sms request used by the SmsRequestManager.
    * @param processId
    *        String containing the processId for the SmsRequestManager.
    */
   sendSMS: function sendSMS(options) {
-    // Get the SMS Center address
-    if (!this.SMSC) {
-      // We request the SMS center address again, passing it the SMS options
-      // in order to try to send it again after retrieving the SMSC number.
-      this.getSMSCAddress(options);
-      return;
-    }
-    // We explicitly save this information on the options object so that we
-    // can refer to it later, in particular on the main thread (where this
-    // object may get sent eventually.)
-    options.SMSC = this.SMSC;
-
     //TODO: verify values on 'options'
 
     if (!options.retryCount) {
@@ -1654,8 +1644,8 @@ let RIL = {
    * @param pendingSMS
    *        Object containing the parameters of an SMS waiting to be sent.
    */
-  getSMSCAddress: function getSMSCAddress(pendingSMS) {
-    Buf.simpleRequest(REQUEST_GET_SMSC_ADDRESS, pendingSMS);
+  getSMSCAddress: function getSMSCAddress() {
+    Buf.simpleRequest(REQUEST_GET_SMSC_ADDRESS);
   },
 
   /**
@@ -3050,13 +3040,6 @@ RIL[REQUEST_GET_SMSC_ADDRESS] = function REQUEST_GET_SMSC_ADDRESS(length, option
   }
 
   this.SMSC = Buf.readString();
-  // If the SMSC was not retrieved on RIL initialization, an attempt to
-  // get it is triggered from this.sendSMS followed by the 'options'
-  // parameter of the SMS, so that we can send it after successfully
-  // retrieving the SMSC.
-  if (this.SMSC && options.body) {
-    this.sendSMS(options);
-  }
 };
 RIL[REQUEST_SET_SMSC_ADDRESS] = null;
 RIL[REQUEST_REPORT_SMS_MEMORY_STATUS] = null;

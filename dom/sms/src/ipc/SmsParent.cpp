@@ -136,18 +136,21 @@ SmsParent::RecvGetNumberOfMessagesForText(const nsString& aText, PRUint16* aResu
 }
 
 bool
-SmsParent::RecvSendMessage(const nsString& aNumber, const nsString& aMessage,
-                           const PRInt32& aRequestId, const PRUint64& aProcessId)
+SmsParent::RecvSendMessage(const nsString& aNumber, const nsString& aSMSC,
+                           const nsString& aMessage, const PRInt32& aRequestId,
+                           const PRUint64& aProcessId)
 {
   nsCOMPtr<nsISmsService> smsService = do_GetService(SMS_SERVICE_CONTRACTID);
   NS_ENSURE_TRUE(smsService, true);
 
-  smsService->Send(aNumber, aMessage, aRequestId, aProcessId);
+  smsService->Send(aNumber, aSMSC, aMessage, aRequestId, aProcessId);
   return true;
 }
 
 bool
 SmsParent::RecvSaveReceivedMessage(const nsString& aSender,
+                                   const nsString& aSMSC,
+                                   bool aHasReplyPath,
                                    const nsString& aBody,
                                    const PRUint64& aDate, PRInt32* aId)
 {
@@ -157,7 +160,7 @@ SmsParent::RecvSaveReceivedMessage(const nsString& aSender,
     do_GetService(SMS_DATABASE_SERVICE_CONTRACTID);
   NS_ENSURE_TRUE(smsDBService, true);
 
-  smsDBService->SaveReceivedMessage(aSender, aBody, aDate, aId);
+  smsDBService->SaveReceivedMessage(aSender, aSMSC, aHasReplyPath, aBody, aDate, aId);
   return true;
 }
 

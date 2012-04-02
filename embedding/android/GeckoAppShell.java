@@ -89,18 +89,18 @@ public class GeckoAppShell
 
     public static native void notifyBatteryChange(double aLevel, boolean aCharging, double aRemainingTime);
 
-    public static native void notifySmsReceived(String aSender, String aBody, long aTimestamp);
+    public static native void notifySmsReceived(String aSender, String aSMSC, boolean aHasReplyPath, String aBody, long aTimestamp);
     public static native int  saveMessageInSentbox(String aReceiver, String aBody, long aTimestamp);
     public static native void notifySmsSent(int aId, String aReceiver, String aBody, long aTimestamp, int aRequestId, long aProcessId);
     public static native void notifySmsDelivered(int aId, String aReceiver, String aBody, long aTimestamp);
     public static native void notifySmsSendFailed(int aError, int aRequestId, long aProcessId);
-    public static native void notifyGetSms(int aId, String aReceiver, String aSender, String aBody, long aTimestamp, int aRequestId, long aProcessId);
+    public static native void notifyGetSms(int aId, String aReceiver, String aSender, String aSMSC, boolean aHasReplyPath, String aBody, long aTimestamp, int aRequestId, long aProcessId);
     public static native void notifyGetSmsFailed(int aError, int aRequestId, long aProcessId);
     public static native void notifySmsDeleted(boolean aDeleted, int aRequestId, long aProcessId);
     public static native void notifySmsDeleteFailed(int aError, int aRequestId, long aProcessId);
     public static native void notifyNoMessageInList(int aRequestId, long aProcessId);
-    public static native void notifyListCreated(int aListId, int aMessageId, String aReceiver, String aSender, String aBody, long aTimestamp, int aRequestId, long aProcessId);
-    public static native void notifyGotNextMessage(int aMessageId, String aReceiver, String aSender, String aBody, long aTimestamp, int aRequestId, long aProcessId);
+    public static native void notifyListCreated(int aListId, int aMessageId, String aReceiver, String aSender, String aSMSC, boolean aHasReplyPath, String aBody, long aTimestamp, int aRequestId, long aProcessId);
+    public static native void notifyGotNextMessage(int aMessageId, String aReceiver, String aSender, String aSMSC, boolean aHasReplyPath, String aBody, long aTimestamp, int aRequestId, long aProcessId);
     public static native void notifyReadingMessageListFailed(int aError, int aRequestId, long aProcessId);
 
     // A looper thread, accessed by GeckoAppShell.getHandler
@@ -1725,12 +1725,12 @@ public class GeckoAppShell
         return SmsManager.getInstance().getNumberOfMessagesForText(aText);
     }
 
-    public static void sendMessage(String aNumber, String aMessage, int aRequestId, long aProcessId) {
+    public static void sendMessage(String aNumber, String aSMSC, String aMessage, int aRequestId, long aProcessId) {
         if (SmsManager.getInstance() == null) {
             return;
         }
 
-        SmsManager.getInstance().send(aNumber, aMessage, aRequestId, aProcessId);
+        SmsManager.getInstance().send(aNumber, aSMSC, aMessage, aRequestId, aProcessId);
     }
 
     public static int saveSentMessage(String aRecipient, String aBody, long aDate) {

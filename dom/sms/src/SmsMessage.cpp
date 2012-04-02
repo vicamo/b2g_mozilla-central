@@ -26,8 +26,9 @@ NS_IMPL_RELEASE(SmsMessage)
 
 SmsMessage::SmsMessage(PRInt32 aId, DeliveryState aDelivery,
                        const nsString& aSender, const nsString& aReceiver,
+                       const nsString& aSMSC, bool aHasReplyPath,
                        const nsString& aBody, PRUint64 aTimestamp, bool aRead)
-  : mData(aId, aDelivery, aSender, aReceiver, aBody, aTimestamp, aRead)
+  : mData(aId, aDelivery, aSender, aReceiver, aSMSC, aHasReplyPath, aBody, aTimestamp, aRead)
 {
 }
 
@@ -41,6 +42,8 @@ SmsMessage::Create(PRInt32 aId,
                    const nsAString& aDelivery,
                    const nsAString& aSender,
                    const nsAString& aReceiver,
+                   const nsAString& aSMSC,
+                   bool             aHasReplyPath,
                    const nsAString& aBody,
                    const jsval& aTimestamp,
                    const bool aRead,
@@ -55,6 +58,8 @@ SmsMessage::Create(PRInt32 aId,
   data.id() = aId;
   data.sender() = nsString(aSender);
   data.receiver() = nsString(aReceiver);
+  data.smsc() = nsString(aSMSC);
+  data.hasReplyPath() = aHasReplyPath;
   data.body() = nsString(aBody);
   data.read() = aRead;
 

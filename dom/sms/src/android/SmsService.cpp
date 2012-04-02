@@ -34,14 +34,15 @@ SmsService::GetNumberOfMessagesForText(const nsAString& aText, PRUint16* aResult
 }
 
 NS_IMETHODIMP
-SmsService::Send(const nsAString& aNumber, const nsAString& aMessage,
-                 PRInt32 aRequestId, PRUint64 aProcessId)
+SmsService::Send(const nsAString& aNumber, const nsAString& aSMSC,
+                 const nsAString& aMessage, PRInt32 aRequestId,
+                 PRUint64 aProcessId)
 {
   if (!AndroidBridge::Bridge()) {
     return NS_OK;
   }
 
-  AndroidBridge::Bridge()->SendMessage(aNumber, aMessage, aRequestId,
+  AndroidBridge::Bridge()->SendMessage(aNumber, aSMSC, aMessage, aRequestId,
                                        aProcessId);
   return NS_OK;
 }
@@ -51,14 +52,17 @@ SmsService::CreateSmsMessage(PRInt32 aId,
                              const nsAString& aDelivery,
                              const nsAString& aSender,
                              const nsAString& aReceiver,
+                             const nsAString& aSMSC,
+                             bool aHasReplyPath,
                              const nsAString& aBody,
                              const jsval& aTimestamp,
                              const bool aRead,
                              JSContext* aCx,
                              nsIDOMMozSmsMessage** aMessage)
 {
-  return SmsMessage::Create(aId, aDelivery, aSender, aReceiver, aBody,
-                            aTimestamp, aRead, aCx, aMessage);
+  return SmsMessage::Create(aId, aDelivery, aSender, aReceiver, aSMSC,
+                            aHasReplyPath, aBody, aTimestamp, aRead,
+                            aCx, aMessage);
 }
 
 } // namespace sms

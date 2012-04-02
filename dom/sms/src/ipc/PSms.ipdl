@@ -19,6 +19,8 @@ struct SmsMessageData {
   DeliveryState delivery;
   nsString      sender;
   nsString      receiver;
+  nsString      smsc;
+  bool          hasReplyPath;
   nsString      body;
   PRUint64      timestamp; // ms since epoch.
   bool          read;
@@ -80,10 +82,10 @@ parent:
     sync GetNumberOfMessagesForText(nsString aText)
         returns (PRUint16 aNumber);
 
-    SendMessage(nsString aNumber, nsString aMessage, PRInt32 aRequestId,
+    SendMessage(nsString aNumber, nsString aSMSC, nsString aMessage, PRInt32 aRequestId,
                 PRUint64 aProcessId);
 
-    sync SaveReceivedMessage(nsString aSender, nsString aBody, PRUint64 aDate)
+    sync SaveReceivedMessage(nsString aSender, nsString aSMSC, bool aHasReplyPath, nsString aBody, PRUint64 aDate)
         returns (PRInt32 aId);
 
     sync SaveSentMessage(nsString aReceiver, nsString aBody, PRUint64 aDate)

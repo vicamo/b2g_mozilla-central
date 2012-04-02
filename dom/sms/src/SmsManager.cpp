@@ -102,7 +102,8 @@ SmsManager::GetNumberOfMessagesForText(const nsAString& aText, PRUint16* aResult
 
 nsresult
 SmsManager::Send(JSContext* aCx, JSObject* aGlobal, JSString* aNumber,
-                 const nsAString& aMessage, jsval* aRequest)
+                 const nsAString& aSMSC, const nsAString& aMessage,
+                 jsval* aRequest)
 {
   nsCOMPtr<nsISmsService> smsService = do_GetService(SMS_SERVICE_CONTRACTID);
   if (!smsService) {
@@ -125,7 +126,7 @@ SmsManager::Send(JSContext* aCx, JSObject* aGlobal, JSString* aNumber,
   nsDependentJSString number;
   number.init(aCx, aNumber);
 
-  smsService->Send(number, aMessage, requestId, 0);
+  smsService->Send(number, aSMSC, aMessage, requestId, 0);
 
   rv = nsContentUtils::WrapNative(aCx, aGlobal, request, aRequest);
   if (NS_FAILED(rv)) {
@@ -137,7 +138,8 @@ SmsManager::Send(JSContext* aCx, JSObject* aGlobal, JSString* aNumber,
 }
 
 NS_IMETHODIMP
-SmsManager::Send(const jsval& aNumber, const nsAString& aMessage, jsval* aReturn)
+SmsManager::Send(const jsval& aNumber, const nsAString& aSMSC,
+                 const nsAString& aMessage, jsval* aReturn)
 {
   nsresult rv;
   nsIScriptContext* sc = GetContextForEventHandlers(&rv);
@@ -161,7 +163,7 @@ SmsManager::Send(const jsval& aNumber, const nsAString& aMessage, jsval* aReturn
   }
 
   if (aNumber.isString()) {
-    return Send(cx, global, aNumber.toString(), aMessage, aReturn);
+    return Send(cx, global, aNumber.toString(), aSMSC, aMessage, aReturn);
   }
 
   // Must be an array then.
@@ -178,7 +180,7 @@ SmsManager::Send(const jsval& aNumber, const nsAString& aMessage, jsval* aReturn
       return NS_ERROR_INVALID_ARG;
     }
 
-    nsresult rv = Send(cx, global, number.toString(), aMessage, &requests[i]);
+    nsresult rv = Send(cx, global, number.toString(), aSMSC, aMessage, &requests[i]);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 

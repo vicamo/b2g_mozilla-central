@@ -567,6 +567,8 @@ RadioInterfaceLayer.prototype = {
                                            DOM_SMS_DELIVERY_RECEIVED,
                                            message.sender || null,
                                            message.receiver || null,
+                                           message.SMSC || null,
+                                           message.hasReplyPath || false,
                                            message.fullBody || null,
                                            message.timestamp,
                                            false);
@@ -604,6 +606,8 @@ RadioInterfaceLayer.prototype = {
                                            DOM_SMS_DELIVERY_SENT,
                                            null,
                                            options.number,
+                                           null,
+                                           false,
                                            options.fullBody,
                                            timestamp,
                                            true);
@@ -1203,10 +1207,11 @@ RadioInterfaceLayer.prototype = {
     return this._fragmentText(text).segmentMaxSeq;
   },
 
-  sendSMS: function sendSMS(number, message, requestId, processId) {
+  sendSMS: function sendSMS(number, smsc, message, requestId, processId) {
     let options = this._calculateUserDataLength(message);
     options.type = "sendSMS";
     options.number = number;
+    options.SMSC = smsc;
     options.requestId = requestId;
     options.processId = processId;
     options.requestStatusReport = true;

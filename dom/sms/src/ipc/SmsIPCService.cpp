@@ -49,11 +49,13 @@ SmsIPCService::GetNumberOfMessagesForText(const nsAString& aText, PRUint16* aRes
 }
 
 NS_IMETHODIMP
-SmsIPCService::Send(const nsAString& aNumber, const nsAString& aMessage,
-                    PRInt32 aRequestId, PRUint64 aProcessId)
+SmsIPCService::Send(const nsAString& aNumber, const nsAString& aSMSC,
+                    const nsAString& aMessage, PRInt32 aRequestId,
+                    PRUint64 aProcessId)
 {
-  GetSmsChild()->SendSendMessage(nsString(aNumber), nsString(aMessage),
-                                 aRequestId, ContentChild::GetSingleton()->GetID());
+  GetSmsChild()->SendSendMessage(nsString(aNumber), nsString(aSMSC),
+                                 nsString(aMessage), aRequestId,
+                                 ContentChild::GetSingleton()->GetID());
 
   return NS_OK;
 }
@@ -63,14 +65,17 @@ SmsIPCService::CreateSmsMessage(PRInt32 aId,
                                 const nsAString& aDelivery,
                                 const nsAString& aSender,
                                 const nsAString& aReceiver,
+                                const nsAString& aSMSC,
+                                bool aHasReplyPath,
                                 const nsAString& aBody,
                                 const jsval& aTimestamp,
                                 const bool aRead,
                                 JSContext* aCx,
                                 nsIDOMMozSmsMessage** aMessage)
 {
-  return SmsMessage::Create(aId, aDelivery, aSender, aReceiver, aBody,
-                            aTimestamp, aRead, aCx, aMessage);
+  return SmsMessage::Create(aId, aDelivery, aSender, aReceiver, aReceiver,
+                            aSMSC, aHasReplyPath, aBody, aTimestamp, aRead,
+                            aCx, aMessage);
 }
 
 /*
@@ -78,10 +83,13 @@ SmsIPCService::CreateSmsMessage(PRInt32 aId,
  */
 NS_IMETHODIMP
 SmsIPCService::SaveReceivedMessage(const nsAString& aSender,
+                                   const nsAString& aSMSC,
+                                   bool aHasReplyPath,
                                    const nsAString& aBody,
                                    PRUint64 aDate, PRInt32* aId)
 {
-  GetSmsChild()->SendSaveReceivedMessage(nsString(aSender), nsString(aBody),
+  GetSmsChild()->SendSaveReceivedMessage(nsString(aSender), nsString(aSMSC),
+                                         aHasReplyPath, nsString(aBody),
                                          aDate, aId);
 
   return NS_OK;

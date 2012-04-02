@@ -144,7 +144,7 @@ AndroidBridge::Init(JNIEnv *jEnv,
     jMarkUriVisited = (jmethodID) jEnv->GetStaticMethodID(jGeckoAppShellClass, "markUriVisited", "(Ljava/lang/String;)V");
 
     jNumberOfMessages = (jmethodID) jEnv->GetStaticMethodID(jGeckoAppShellClass, "getNumberOfMessagesForText", "(Ljava/lang/String;)I");
-    jSendMessage = (jmethodID) jEnv->GetStaticMethodID(jGeckoAppShellClass, "sendMessage", "(Ljava/lang/String;Ljava/lang/String;IJ)V");
+    jSendMessage = (jmethodID) jEnv->GetStaticMethodID(jGeckoAppShellClass, "sendMessage", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IJ)V");
     jSaveSentMessage = (jmethodID) jEnv->GetStaticMethodID(jGeckoAppShellClass, "saveSentMessage", "(Ljava/lang/String;Ljava/lang/String;J)I");
     jGetMessage = (jmethodID) jEnv->GetStaticMethodID(jGeckoAppShellClass, "getMessage", "(IIJ)V");
     jDeleteMessage = (jmethodID) jEnv->GetStaticMethodID(jGeckoAppShellClass, "deleteMessage", "(IIJ)V");
@@ -1674,7 +1674,7 @@ AndroidBridge::GetNumberOfMessagesForText(const nsAString& aText)
 }
 
 void
-AndroidBridge::SendMessage(const nsAString& aNumber, const nsAString& aMessage, PRInt32 aRequestId, PRUint64 aProcessId)
+AndroidBridge::SendMessage(const nsAString& aNumber, const nsAString& aSMSC, const nsAString& aMessage, PRInt32 aRequestId, PRUint64 aProcessId)
 {
     ALOG_BRIDGE("AndroidBridge::SendMessage");
 
@@ -1684,9 +1684,10 @@ AndroidBridge::SendMessage(const nsAString& aNumber, const nsAString& aMessage, 
 
     AutoLocalJNIFrame jniFrame(env);
     jstring jNumber = env->NewString(PromiseFlatString(aNumber).get(), aNumber.Length());
+    jstring jSMSC = env->NewString(PromiseFlatString(aSMSC).get(), aSMSC.Length());
     jstring jMessage = env->NewString(PromiseFlatString(aMessage).get(), aMessage.Length());
 
-    env->CallStaticVoidMethod(mGeckoAppShellClass, jSendMessage, jNumber, jMessage, aRequestId, aProcessId);
+    env->CallStaticVoidMethod(mGeckoAppShellClass, jSendMessage, jNumber, jSMSC, jMessage, aRequestId, aProcessId);
 }
 
 PRInt32

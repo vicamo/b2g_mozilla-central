@@ -317,6 +317,8 @@ SmsDatabaseService.prototype = {
                                                message.delivery,
                                                message.sender,
                                                message.receiver,
+                                               message.smsc,
+                                               message.hasReplyPath,
                                                message.body,
                                                message.timestamp,
                                                message.read);
@@ -346,10 +348,12 @@ SmsDatabaseService.prototype = {
    * nsISmsDatabaseService API
    */
 
-  saveReceivedMessage: function saveReceivedMessage(sender, body, date) {
+  saveReceivedMessage: function saveReceivedMessage(sender, smsc, hasReplyPath, body, date) {
     let message = {delivery:  DELIVERY_RECEIVED,
                    sender:    sender,
                    receiver:  this.mRIL.radioState.msisdn, 
+                   smsc:      smsc,
+                   hasReplyPath: hasReplyPath,
                    body:      body,
                    timestamp: date,
                    read:      FILTER_READ_UNREAD};
@@ -360,6 +364,8 @@ SmsDatabaseService.prototype = {
     let message = {delivery:  DELIVERY_SENT,
                    sender:    this.mRIL.radioState.msisdn,
                    receiver:  receiver,
+                   smsc:      null,
+                   hasReplyPath: false,
                    body:      body,
                    timestamp: date,
                    read:      FILTER_READ_READ};
@@ -405,6 +411,8 @@ SmsDatabaseService.prototype = {
                                                    data.delivery,
                                                    data.sender,
                                                    data.receiver,
+                                                   data.smsc,
+                                                   data.hasReplyPath,
                                                    data.body,
                                                    data.timestamp,
                                                    data.read);
@@ -629,6 +637,8 @@ SmsDatabaseService.prototype = {
                                                message.delivery,
                                                message.sender,
                                                message.receiver,
+                                               message.smsc,
+                                               message.hasReplyPath,
                                                message.body,
                                                message.timestamp,
                                                message.read);

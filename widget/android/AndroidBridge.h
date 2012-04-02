@@ -316,7 +316,7 @@ public:
     void GetCurrentBatteryInformation(hal::BatteryInformation* aBatteryInfo);
 
     PRUint16 GetNumberOfMessagesForText(const nsAString& aText);
-    void SendMessage(const nsAString& aNumber, const nsAString& aText, PRInt32 aRequestId, PRUint64 aProcessId);
+    void SendMessage(const nsAString& aNumber, const nsAString& aSMSC, const nsAString& aText, PRInt32 aRequestId, PRUint64 aProcessId);
     PRInt32 SaveSentMessage(const nsAString& aRecipient, const nsAString& aBody, PRUint64 aDate);
     void GetMessage(PRInt32 aMessageId, PRInt32 aRequestId, PRUint64 aProcessId);
     void DeleteMessage(PRInt32 aMessageId, PRInt32 aRequestId, PRUint64 aProcessId);

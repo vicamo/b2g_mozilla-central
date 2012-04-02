@@ -195,6 +195,8 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyBatteryChange(JNIEnv* jenv, jclass,
 NS_EXPORT void JNICALL
 Java_org_mozilla_gecko_GeckoAppShell_notifySmsReceived(JNIEnv* jenv, jclass,
                                                        jstring aSender,
+                                                       jstring aSMSC,
+                                                       jboolean aHasReplyPath,
                                                        jstring aBody,
                                                        jlong aTimestamp)
 {
@@ -220,6 +222,7 @@ Java_org_mozilla_gecko_GeckoAppShell_notifySmsReceived(JNIEnv* jenv, jclass,
     };
 
     SmsMessageData message(0, eDeliveryState_Received, nsJNIString(aSender, jenv), EmptyString(),
+                           nsJNIString(aSMSC, jenv), aHasReplyPath,
                            nsJNIString(aBody, jenv), aTimestamp, false);
 
     nsCOMPtr<nsIRunnable> runnable = new NotifySmsReceivedRunnable(message);
@@ -403,6 +406,8 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGetSms(JNIEnv* jenv, jclass,
                                                   jint aId,
                                                   jstring aReceiver,
                                                   jstring aSender,
+                                                  jstring aSMSC,
+                                                  jboolean aHasReplyPath,
                                                   jstring aBody,
                                                   jlong aTimestamp,
                                                   jint aRequestId,
@@ -451,6 +456,7 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGetSms(JNIEnv* jenv, jclass,
 
     // TODO Need to add the message `read` parameter value. Bug 748391
     SmsMessageData message(aId, state, nsJNIString(aSender, jenv), receiver,
+                           nsJNIString(aSMSC, jeng), aHasReplyPath,
                            nsJNIString(aBody, jenv), aTimestamp, true);
 
     nsCOMPtr<nsIRunnable> runnable = new NotifyGetSmsRunnable(message, aRequestId, aProcessId);
@@ -652,6 +658,8 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyListCreated(JNIEnv* jenv, jclass,
                                                        jint aMessageId,
                                                        jstring aReceiver,
                                                        jstring aSender,
+                                                       jstring aSMSC,
+                                                       jboolean aHasReplyPath,
                                                        jstring aBody,
                                                        jlong aTimestamp,
                                                        jint aRequestId,
@@ -707,7 +715,8 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyListCreated(JNIEnv* jenv, jclass,
 
     // TODO Need to add the message `read` parameter value. Bug 748391
     SmsMessageData message(aMessageId, state, nsJNIString(aSender, jenv),
-                           receiver, nsJNIString(aBody, jenv), aTimestamp, true);
+                           receiver, nsJNIString(aSMSC, jenv), aHasReplyPath,
+                           nsJNIString(aBody, jenv), aTimestamp, true);
 
     nsCOMPtr<nsIRunnable> runnable =
       new NotifyCreateMessageListRunnable(aListId, message, aRequestId, aProcessId);
@@ -719,6 +728,8 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGotNextMessage(JNIEnv* jenv, jclass,
                                                           jint aMessageId,
                                                           jstring aReceiver,
                                                           jstring aSender,
+                                                          jstring aSMSC,
+                                                          jboolean aHasReplyPath,
                                                           jstring aBody,
                                                           jlong aTimestamp,
                                                           jint aRequestId,
@@ -768,7 +779,8 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGotNextMessage(JNIEnv* jenv, jclass,
  
     // TODO Need to add the message `read` parameter value. Bug 748391
     SmsMessageData message(aMessageId, state, nsJNIString(aSender, jenv),
-                           receiver, nsJNIString(aBody, jenv), aTimestamp, true);
+                           receiver, nsJNIString(aSMSC, jenv), aHasReplyPath,
+                           nsJNIString(aBody, jenv), aTimestamp, true);
 
     nsCOMPtr<nsIRunnable> runnable =
       new NotifyGotNextMessageRunnable(message, aRequestId, aProcessId);

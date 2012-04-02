@@ -358,6 +358,8 @@ public class GeckoSmsManager
         SmsMessage msg = SmsMessage.createFromPdu((byte[])pdus[i]);
 
         GeckoAppShell.notifySmsReceived(msg.getDisplayOriginatingAddress(),
+                                        msg.getServiceCenterAddress(),
+                                        msg.isReplace(),
                                         msg.getDisplayMessageBody(),
                                         System.currentTimeMillis());
       }
@@ -463,7 +465,7 @@ public class GeckoSmsManager
     return SmsManager.getDefault().divideMessage(aText).size();
   }
 
-  public void send(String aNumber, String aMessage, int aRequestId, long aProcessId) {
+  public void send(String aNumber, String aSMSC, String aMessage, int aRequestId, long aProcessId) {
     int envelopeId = Postman.kUnknownEnvelopeId;
 
     try {
@@ -506,7 +508,7 @@ public class GeckoSmsManager
                                      PendingIntentUID.generate(), deliveredIntent,
                                      PendingIntent.FLAG_CANCEL_CURRENT);
 
-        sm.sendTextMessage(aNumber, "", aMessage,
+        sm.sendTextMessage(aNumber, aSMSC, aMessage,
                            sentPendingIntent, deliveredPendingIntent);
       } else {
         ArrayList<String> parts = sm.divideMessage(aMessage);
@@ -535,7 +537,7 @@ public class GeckoSmsManager
           );
         }
 
-        sm.sendMultipartTextMessage(aNumber, "", parts, sentPendingIntents,
+        sm.sendMultipartTextMessage(aNumber, aSMSC, parts, sentPendingIntents,
                                     deliveredPendingIntents);
       }
     } catch (Exception e) {
@@ -633,6 +635,8 @@ public class GeckoSmsManager
 
           GeckoAppShell.notifyGetSms(cursor.getInt(cursor.getColumnIndex("_id")),
                                      receiver, sender,
+                                     cursor.getString(cursor.getColumnIndex("service_center")),
+                                     cursor.getInt(cursor.getColumnIndex("reply_path_present")),
                                      cursor.getString(cursor.getColumnIndex("body")),
                                      cursor.getLong(cursor.getColumnIndex("date")),
                                      mRequestId, mProcessId);
@@ -806,6 +810,8 @@ public class GeckoSmsManager
           GeckoAppShell.notifyListCreated(listId,
                                           cursor.getInt(cursor.getColumnIndex("_id")),
                                           receiver, sender,
+                                          cursor.getString(cursor.getColumnIndex("service_center")),
+                                          cursor.getInt(cursor.getColumnIndex("reply_path_present")),
                                           cursor.getString(cursor.getColumnIndex("body")),
                                           cursor.getLong(cursor.getColumnIndex("date")),
                                           mRequestId, mProcessId);
@@ -872,6 +878,8 @@ public class GeckoSmsManager
           int listId = MessagesListManager.getInstance().add(cursor);
           GeckoAppShell.notifyGotNextMessage(cursor.getInt(cursor.getColumnIndex("_id")),
                                              receiver, sender,
+                                             cursor.getString(cursor.getColumnIndex("service_center")),
+                                             cursor.getInt(cursor.getColumnIndex("reply_path_present")),
                                              cursor.getString(cursor.getColumnIndex("body")),
                                              cursor.getLong(cursor.getColumnIndex("date")),
                                              mRequestId, mProcessId);

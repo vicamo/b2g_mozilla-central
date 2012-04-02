@@ -23,7 +23,8 @@ public:
   NS_DECL_NSIDOMMOZSMSMESSAGE
 
   SmsMessage(PRInt32 aId, DeliveryState aDelivery, const nsString& aSender,
-             const nsString& aReceiver, const nsString& aBody,
+             const nsString& aReceiver, const nsString& aSMSC,
+             bool aHasReplyPath, const nsString& aBody,
              PRUint64 aTimestamp, bool aRead);
   SmsMessage(const SmsMessageData& aData);
 
@@ -31,6 +32,8 @@ public:
                          const nsAString& aDelivery,
                          const nsAString& aSender,
                          const nsAString& aReceiver,
+                         const nsAString& aSMSC,
+                         bool             aHasReplyPath,
                          const nsAString& aBody,
                          const JS::Value& aTimestamp,
                          const bool aRead,
