@@ -1035,6 +1035,10 @@ let Parameter = {
 /**
  * Header = Message-header | Shift-sequence
  * Message-header = Well-known-header | Application-header
+ * Shift-sequence = (Shift-delimiter Page-identity) | Short-cut-shift-delimiter
+ * Shift-delimiter = <Octet 127>
+ * Page-identity = <Any octet 1-255>
+ * Short-cut-shift-delimiter = <Any octet 1-31>
  *
  * @see WAP-230-WSP-20010705-a clause 8.4.2.6
  */
@@ -1052,6 +1056,22 @@ let Header = {
     return decodeAlternatives(data, null, WellKnownHeader, ApplicationHeader);
   },
 
+  decodeShiftSequence: function decodeShiftSequence(data, options) {
+    let value = Octet.decode(data);
+    if (value == 127) {
+      let pageId = Octet.decode(data);
+      if ((pageId >= 1)  && (pageId <= 255)) {
+        options.pageId = pageId;
+        return null;
+      }
+    } else if ((value >= 1) && (value <= 31)) {
+      options.pageId = value;
+      return null;
+    }
+
+    throw new CodeError();
+  },
+
   /**
    * @param data
    *        A wrapped object containing raw PDU data.
@@ -1061,9 +1081,14 @@ let Header = {
    *         but the `value` property can be many different types depending on
    *         `name`.
    */
-  decode: function decode(data) {
-    // TODO: support header code page shift-sequence
-    return this.decodeMessageHeader(data);
+  decode: function decode(data, options) {
+    let begin = data.offset;
+    try {
+      return this.decodeMessageHeader(data, options);
+    } catch (e if e instanceof DecodeError) {
+      data.offset = begin;
+      return this.decodeShiftSequence(data, options);
+    }
   },
 };
 
@@ -1543,7 +1568,7 @@ let PduHelper = {
     let header;
     while (data.offset < end) {
       try {
-        header = Header.decode(data);
+        header = Header.decode(data, headers);
       } catch (e) {
         break;
       }

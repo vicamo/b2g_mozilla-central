@@ -572,7 +572,7 @@ add_test(function test_Parameter_decodeMultiple() {
 // Test target: Header
 //
 
-//// Header.decode ////
+//// Header.decodeMessageHeader ////
 
 add_test(function test_Header_decode() {
   wsp_decode_test(WSP.Header, [0x34 | 0x80, 0x80], {name: "push-flag", value: 0});
@@ -580,6 +580,8 @@ add_test(function test_Header_decode() {
 
   run_next_test();
 });
+
+//// Header.decodeShiftSequence ////
 
 //
 // Test target: WellKnownHeader
