@@ -1190,6 +1190,86 @@ let FieldName = {
 };
 
 /**
+ * Accept-value = Constrained-media | Accept-general-form
+ * Accept-general-form = Value-length Media-range [Accept-parameters]
+ * Media-range = (Well-known-media | Extension-Media) *(Parameter)
+ * Accept-parameters = Q-token Q-value *(Accept-extension)
+ * Accept-extension = Parameter
+ * Q-token = <Octet 128>
+ *
+ * @see WAP-230-WSP-20010705-a clause 8.4.2.7
+ * @see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+ */
+let AcceptValue = {
+  decodeAcceptParameters: function decodeAcceptParameters(data, end, result) {
+    Octet.decodeEqualTo(data, 128);
+
+    if (!result.params) {
+      result.params = {};
+    }
+
+    // `Note: Use of the "q" parameter name to separate media type parameters
+    // from Accept extension parameters is due to historical practice. Although
+    // this prevents any media type parameter named "q" from being used with a
+    // media range, such an event is believed to be unlikely given the lack of
+    // any "q" parameters in the IANA media type registry and the rare usage of
+    // any media type parameters in Accept. Future media types are discouraged
+    // from registering any parameter named "q".` ~ RFC2616 section 14.1
+    result.params.q = QValue.decode(data);
+
+    result.extensions = Parameter.decodeMultiple(data, end);
+
+    return result;
+  },
+
+  /**
+   * @return A decoded object containing `media`, `params`, `q`, and
+   *         `extensions` properties or null in case of a failed parsing. The
+   *         `media` property must be a string; `params` and `extensions` are
+   *         hash maps from a string to an value of its corresponding type; `q`
+   */
+  decodeAcceptGeneralForm: function decodeAcceptGeneralForm(data) {
+    let length = ValueLength.decode(data);
+    let end = data.offset + length;
+
+    let result = ContentTypeValue.decodeMediaType(data, end);
+    if (data.offset < end) {
+      try {
+        this.decodeAcceptParameters(data, end, result);
+      } catch (e) {
+        // Do nothing.
+      }
+    }
+
+    if (data.offset != end) {
+      data.offset = end;
+    }
+
+    return result;
+  },
+
+  /**
+   * @param data
+   *        A nsIBinaryInputStream for decoding.
+   *
+   * @return A decoded object containing `media`, `params` and `extensions`
+   *         properties or null in case of a failed parsing. The `media`
+   *         property must be a string, and the `params` and `extensions`
+   *         properties are hash maps from a string to an value of its
+   *         corresponding type.
+   */
+  decode: function decode(data) {
+    let begin = data.offset;
+    try {
+      return ContentTypeValue.decodeConstrainedMedia(data);
+    } catch (e) {
+      data.offset = begin;
+      return this.decodeAcceptGeneralForm(data);
+    }
+  },
+};
+
+/**
  * Accept-charset-value = Constrained-charset | Accept-charset-general-form
  * Constrained-charset = Any-charset | Constrained-encoding
  * Any-charset = <Octet 128>
@@ -1694,7 +1774,7 @@ const WSP_HEADER_FIELDS = (function () {
     names[name] = names[number] = entry;
   }
 
-  //add("accept",               0x00);
+  add("accept",                 0x00, AcceptValue);
   //add("accept-charset",       0x01); Deprecated
   //add("accept-encoding",      0x02); Deprecated
   //add("accept-language",      0x03);
@@ -1936,6 +2016,7 @@ const EXPORTED_SYMBOLS = ALL_CONST_SYMBOLS.concat([
   "WellKnownHeader",
   "ApplicationHeader",
   "FieldName",
+  "AcceptValue",
   "AcceptCharsetValue",
   "WellKnownCharset",
   "ContentTypeValue",

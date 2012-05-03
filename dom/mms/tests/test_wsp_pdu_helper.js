@@ -643,6 +643,37 @@ add_test(function test_FieldName_decode() {
 });
 
 //
+// Test target: AcceptValue
+//
+
+//// AcceptValue.decodeAcceptParameters ////
+
+new_wsp_decode_test_ex(function (data) {
+    return WSP.AcceptValue.decodeAcceptParameters(data, 15, {});
+  }, [128, 100, 1, 0x19, 60, 115, 109, 105, 108, 62, 0, 65, 0, 66, 0],
+  {params: {q: 0.99}, extensions: {start: "<smil>", a: "B"}}
+);
+
+//// AcceptValue.decodeAcceptGeneralForm ////
+
+new_wsp_decode_test_ex(function (data) {
+    return WSP.AcceptValue.decodeAcceptGeneralForm(data);
+  }, [1, 0x3E | 0x80], {media: "application/vnd.wap.mms-message", params: null}
+);
+new_wsp_decode_test_ex(function (data) {
+    return WSP.AcceptValue.decodeAcceptGeneralForm(data);
+  }, [16, 0x3E | 0x80, 128, 100, 1, 0x19, 60, 115, 109, 105, 108, 62, 0, 65, 0, 66, 0],
+  {media: "application/vnd.wap.mms-message", params: {q: 0.99}, extensions: {start: "<smil>", a: "B"}}
+);
+/*new_wsp_decode_test_ex(function (data) {
+    return WSP.AcceptValue.decodeAcceptGeneralForm(data);
+  }, [0x3E | 0x80, 1, 0x19, 60, 115, 109, 105, 108, 62, 0, 65, 0, 66, 0],
+  {media: "application/vnd.wap.mms-message", params: {start: "<smil>", a: "B"}}
+);*/
+
+//// AcceptValue.decode ////
+
+//
 // Test target: AcceptCharsetValue
 //
 
