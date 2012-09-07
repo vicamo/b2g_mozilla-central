@@ -177,7 +177,6 @@ function testSendMultipartMessage() {
 
 function testSendMessageToMultipleRecipients() {
   log("Testing sending message to multiple receivers:");
-  // TODO: bug 788928 - add test cases for nsIDOMSmsManager.ondelivered event
   doSendMessageAndCheckSuccess(["1", "2"], SHORT_BODY, cleanUp);
 }
 
