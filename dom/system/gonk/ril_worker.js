@@ -704,6 +704,9 @@ let RIL = {
      */
     this.appType = null,
 
+    this.reportSMSMemoryStatusPending = null;
+    this.smsStorageAvailable = true;
+
     this.networkSelectionMode = null;
 
     this.voiceRegistrationState = {};
@@ -2534,6 +2537,19 @@ let RIL = {
   },
 
   /**
+   * Report SMS storage status to RIL.
+   */
+  reportSMSMemoryStatus: function reportSMSMemoryStatus(options) {
+    // Keep options for later retry if necessary.
+    this.reportSMSMemoryStatusPending = options;
+
+    Buf.newParcel(REQUEST_REPORT_SMS_MEMORY_STATUS);
+    Buf.writeUint32(1);
+    Buf.writeUint32(options.available ? 1 : 0);
+    Buf.sendParcel();
+  },
+
+  /**
    * Check a given number against the list of emergency numbers provided by the RIL.
    *
    * @param number
@@ -2624,6 +2640,9 @@ let RIL = {
     this.getSignalStrength();
     if (newCardState == GECKO_CARDSTATE_READY) {
       this.fetchICCRecords();
+      if (this.reportSMSMemoryStatusPending != null) {
+        this.reportSMSMemoryStatus(this.reportSMSMemoryStatusPending);
+      }
     }
 
     this.cardState = newCardState;
@@ -3485,8 +3504,8 @@ let RIL = {
       }
     }
 
-    // TODO: Bug 739143: B2G SMS: Support SMS Storage Full event
-    if ((message.messageClass != PDU_DCS_MSG_CLASS_0) && !true) {
+    if ((message.messageClass != PDU_DCS_MSG_CLASS_0)
+        && !this.smsStorageAvailable) {
       // `When a mobile terminated message is class 0..., the MS shall display
       // the message immediately and send a ACK to the SC ..., irrespective of
       // whether there is memory available in the (U)SIM or ME.` ~ 3GPP 23.038
@@ -4511,7 +4530,11 @@ RIL[REQUEST_GET_SMSC_ADDRESS] = function REQUEST_GET_SMSC_ADDRESS(length, option
   this.SMSC = Buf.readString();
 };
 RIL[REQUEST_SET_SMSC_ADDRESS] = null;
-RIL[REQUEST_REPORT_SMS_MEMORY_STATUS] = null;
+RIL[REQUEST_REPORT_SMS_MEMORY_STATUS] = function REQUEST_REPORT_SMS_MEMORY_STATUS(length, options) {
+  if (options.rilRequestError == ERROR_SUCCESS) {
+    this.reportSMSMemoryStatusPending = null;
+  }
+};
 RIL[REQUEST_REPORT_STK_SERVICE_IS_RUNNING] = null;
 RIL[REQUEST_ACKNOWLEDGE_INCOMING_GSM_SMS_WITH_PDU] = null;
 RIL[REQUEST_STK_SEND_ENVELOPE_WITH_STATUS] = function REQUEST_STK_SEND_ENVELOPE_WITH_STATUS(length, options) {
@@ -4697,7 +4720,9 @@ RIL[UNSOLICITED_STK_EVENT_NOTIFY] = function UNSOLICITED_STK_EVENT_NOTIFY() {
   this.processStkProactiveCommand();
 };
 RIL[UNSOLICITED_STK_CALL_SETUP] = null;
-RIL[UNSOLICITED_SIM_SMS_STORAGE_FULL] = null;
+RIL[UNSOLICITED_SIM_SMS_STORAGE_FULL] = function UNSOLICITED_SIM_SMS_STORAGE_FULL() {
+  this.smsStorageAvailable = false;
+};
 RIL[UNSOLICITED_SIM_REFRESH] = null;
 RIL[UNSOLICITED_CALL_RING] = function UNSOLICITED_CALL_RING() {
   let info;

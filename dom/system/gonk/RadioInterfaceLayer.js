@@ -458,6 +458,11 @@ RadioInterfaceLayer.prototype = {
         break;
       case "cardstatechange":
         this.rilContext.cardState = message.cardState;
+        if (message.cardState == RIL.GECKO_CARDSTATE_ABSENT) {
+          // We only send this once, the worker will retry if neccessary.
+          this.worker.postMessage({rilMessageType: "reportSMSMemoryStatus",
+                                   available: true});
+        }
         ppmm.broadcastAsyncMessage("RIL:CardStateChanged", message);
         break;
       case "setCallWaiting":
