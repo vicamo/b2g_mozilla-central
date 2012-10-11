@@ -73,6 +73,7 @@ struct SmsFilterData
   uint64_t      endDate;
   nsString[]    numbers;
   DeliveryState delivery;
+  MessageClass  messageClass;
   ReadState     read;
   uint64_t      threadId;
 };

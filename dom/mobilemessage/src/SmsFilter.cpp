@@ -35,6 +35,7 @@ SmsFilter::SmsFilter()
   mData.startDate() = 0;
   mData.endDate() = 0;
   mData.delivery() = eDeliveryState_Unknown;
+  mData.messageClass() = eMessageClass_Unknown;
   mData.read() = eReadState_Unknown;
   mData.threadId() = 0;
 }
@@ -235,6 +236,72 @@ SmsFilter::SetDelivery(const nsAString& aDelivery)
 
   if (aDelivery.Equals(DELIVERY_SENT)) {
     mData.delivery() = eDeliveryState_Sent;
+    return NS_OK;
+  }
+
+  return NS_ERROR_INVALID_ARG;
+}
+
+NS_IMETHODIMP
+SmsFilter::GetMessageClass(nsAString& aMessageClass)
+{
+  switch (mData.messageClass()) {
+    case eMessageClass_Unknown:
+      SetDOMStringToNull(aMessageClass);
+      break;
+    case eMessageClass_Normal:
+      aMessageClass = MESSAGE_CLASS_NORMAL;
+      break;
+    case eMessageClass_Class0:
+      aMessageClass = MESSAGE_CLASS_CLASS_0;
+      break;
+    case eMessageClass_Class1:
+      aMessageClass = MESSAGE_CLASS_CLASS_1;
+      break;
+    case eMessageClass_Class2:
+      aMessageClass = MESSAGE_CLASS_CLASS_2;
+      break;
+    case eMessageClass_Class3:
+      aMessageClass = MESSAGE_CLASS_CLASS_3;
+      break;
+    default:
+      MOZ_NOT_REACHED("We shouldn't get another message class!");
+      return NS_ERROR_UNEXPECTED;
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+SmsFilter::SetMessageClass(const nsAString& aMessageClass)
+{
+  if (aMessageClass.IsEmpty()) {
+    mData.messageClass() = eMessageClass_Unknown;
+    return NS_OK;
+  }
+
+  if (aMessageClass.Equals(MESSAGE_CLASS_NORMAL)) {
+    mData.messageClass() = eMessageClass_Normal;
+    return NS_OK;
+  }
+
+  if (aMessageClass.Equals(MESSAGE_CLASS_CLASS_0)) {
+    mData.messageClass() = eMessageClass_Class0;
+    return NS_OK;
+  }
+
+  if (aMessageClass.Equals(MESSAGE_CLASS_CLASS_1)) {
+    mData.messageClass() = eMessageClass_Class1;
+    return NS_OK;
+  }
+
+  if (aMessageClass.Equals(MESSAGE_CLASS_CLASS_2)) {
+    mData.messageClass() = eMessageClass_Class2;
+    return NS_OK;
+  }
+
+  if (aMessageClass.Equals(MESSAGE_CLASS_CLASS_3)) {
+    mData.messageClass() = eMessageClass_Class3;
     return NS_OK;
   }
 

@@ -49,7 +49,8 @@ enum ReadState {
 
 // For {Mms,Sms}FilterData.messageClass.
 enum MessageClass {
-  eMessageClass_Normal = 0,
+  eMessageClass_Unknown = -1,
+  eMessageClass_Normal,
   eMessageClass_Class0,
   eMessageClass_Class1,
   eMessageClass_Class2,
@@ -108,7 +109,7 @@ struct ParamTraits<mozilla::dom::mobilemessage::ReadState>
 template <>
 struct ParamTraits<mozilla::dom::mobilemessage::MessageClass>
   : public EnumSerializer<mozilla::dom::mobilemessage::MessageClass,
-                          mozilla::dom::mobilemessage::eMessageClass_Normal,
+                          mozilla::dom::mobilemessage::eMessageClass_Unknown,
                           mozilla::dom::mobilemessage::eMessageClass_EndGuard>
 {};
 
