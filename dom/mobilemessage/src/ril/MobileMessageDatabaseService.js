@@ -21,7 +21,7 @@ const RIL_GETTHREADSCURSOR_CID =
 
 const DEBUG = false;
 const DB_NAME = "sms";
-const DB_VERSION = 11;
+const DB_VERSION = 12;
 const MESSAGE_STORE_NAME = "sms";
 const THREAD_STORE_NAME = "thread";
 const PARTICIPANT_STORE_NAME = "participant";
@@ -43,6 +43,7 @@ const FILTER_TIMESTAMP = "timestamp";
 const FILTER_NUMBERS = "numbers";
 const FILTER_DELIVERY = "delivery";
 const FILTER_READ = "read";
+const FILTER_MESSAGE_CLASS = "messageClass";
 
 // We can´t create an IDBKeyCursor with a boolean, so we need to use numbers
 // instead.
@@ -212,6 +213,10 @@ MobileMessageDatabaseService.prototype = {
           case 10:
             if (DEBUG) debug("Upgrade to version 11. Add last message type into threadRecord.");
             self.upgradeSchema10(event.target.transaction);
+            break;
+          case 11:
+            if (DEBUG) debug("Upgrade to version 12. Including `messageClass` index.");
+            self.upgradeSchema11(event.target.transaction);
             break;
           default:
             event.target.transaction.abort();
@@ -667,6 +672,27 @@ MobileMessageDatabaseService.prototype = {
     };
   },
 
+  upgradeSchema11: function upgradeSchema11(transaction) {
+    let objectStore = transaction.objectStore(MESSAGE_STORE_NAME);
+    objectStore.createIndex("messageClass", "messageClassIndex");
+
+    objectStore.openCursor().onsuccess = function(event) {
+      let cursor = event.target.result;
+      if (!cursor) {
+        return;
+      }
+
+      let messageRecord = cursor.value;
+      if (messageRecord.type == "sms") {
+        let timestamp = messageRecord.timestamp;
+        messageRecord.messageClassIndex = [messageRecord.messageClass, timestamp];
+        cursor.update(messageRecord);
+      }
+
+      cursor.continue();
+    };
+  },
+
   createDomMessageFromRecord: function createDomMessageFromRecord(aMessageRecord) {
     if (DEBUG) {
       debug("createDomMessageFromRecord: " + JSON.stringify(aMessageRecord));
@@ -1106,6 +1132,10 @@ MobileMessageDatabaseService.prototype = {
     }
     aMessage.deliveryIndex = [aMessage.delivery, timestamp];
 
+    if (aMessage.type == "sms") {
+      aMessage.messageClassIndex = [aMessage.messageClass, timestamp];
+    }
+
     return this.saveRecord(aMessage, threadParticipants, aCallback);
   },
 
@@ -1156,6 +1186,9 @@ MobileMessageDatabaseService.prototype = {
     aMessage.readIndex = [FILTER_READ_READ, timestamp];
     aMessage.delivery = DELIVERY_SENDING;
     aMessage.messageClass = MESSAGE_CLASS_NORMAL;
+    if (aMessage.type == "sms") {
+      aMessage.messageClassIndex = [aMessage.messageClass, timestamp];
+    }
     aMessage.read = FILTER_READ_READ;
 
     let addresses;
@@ -1482,6 +1515,7 @@ MobileMessageDatabaseService.prototype = {
             " endDate: " + filter.endDate +
             " delivery: " + filter.delivery +
             " numbers: " + filter.numbers +
+            " messageClass: " + filter.messageClass +
             " read: " + filter.read +
             " threadId: " + filter.threadId +
             " reverse: " + reverse);
@@ -1694,6 +1728,7 @@ let FilterSearcherHelper = {
     // We support filtering by date range only (see `else` block below) or by
     // number/delivery status/read status with an optional date range.
     if (filter.delivery == null &&
+        filter.messageClass == null &&
         filter.numbers == null &&
         filter.read == null &&
         filter.threadId == null) {
@@ -1721,6 +1756,7 @@ let FilterSearcherHelper = {
     {
       let num = 0;
       if (filter.delivery) num++;
+      if (filter.messageClass) num++;
       if (filter.numbers) num++;
       if (filter.read != undefined) num++;
       if (filter.threadId != undefined) num++;
@@ -1738,6 +1774,16 @@ let FilterSearcherHelper = {
       let delivery = filter.delivery;
       let range = IDBKeyRange.bound([delivery, startDate], [delivery, endDate]);
       this.filterIndex("delivery", range, direction, txn,
+                       single ? collect : intersectionCollector.newContext());
+    }
+
+    // Retrieve the keys from the 'messageClass' index that matches the value of
+    // filter.messageClass.
+    if (filter.messageClass) {
+      if (DEBUG) debug("filter.messageClass " + filter.messageClass);
+      let messageClass = filter.messageClass;
+      let range = IDBKeyRange.bound([messageClass, startDate], [messageClass, endDate]);
+      this.filterIndex("messageClass", range, direction, txn,
                        single ? collect : intersectionCollector.newContext());
     }
 
