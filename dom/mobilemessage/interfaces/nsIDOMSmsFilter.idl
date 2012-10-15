@@ -4,7 +4,7 @@
 
 #include "nsISupports.idl"
 
-[scriptable, builtinclass, uuid(17890b60-0367-45c6-9729-62e5bf349b2b)]
+[scriptable, builtinclass, uuid(e9c5252b-1652-4d67-b3bd-635fe01872e1)]
 interface nsIDOMMozSmsFilter : nsISupports
 {
   // A date that can return null.
@@ -22,6 +22,13 @@ interface nsIDOMMozSmsFilter : nsISupports
   // A DOMString that can return and be set to "sent", "received" or null.
   [Null(Empty)]
   attribute DOMString delivery;
+
+  /**
+   * A DOMString that can return and be set to "not-applicable", "success",
+   * "pending", "error" or null.
+   */
+  [Null(Empty)]
+  attribute DOMString deliveryStatus;
 
   // A read flag that can return and be set to a boolean or null.
   [implicit_jscontext]
