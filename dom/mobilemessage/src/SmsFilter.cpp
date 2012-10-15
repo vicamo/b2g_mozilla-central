@@ -35,6 +35,7 @@ SmsFilter::SmsFilter()
   mData.startDate() = 0;
   mData.endDate() = 0;
   mData.delivery() = eDeliveryState_Unknown;
+  mData.deliveryStatus() = eDeliveryStatus_Unknown;
   mData.read() = eReadState_Unknown;
   mData.threadId() = 0;
 }
@@ -235,6 +236,64 @@ SmsFilter::SetDelivery(const nsAString& aDelivery)
 
   if (aDelivery.Equals(DELIVERY_SENT)) {
     mData.delivery() = eDeliveryState_Sent;
+    return NS_OK;
+  }
+
+  return NS_ERROR_INVALID_ARG;
+}
+
+NS_IMETHODIMP
+SmsFilter::GetDeliveryStatus(nsAString& aDeliveryStatus)
+{
+  switch (mData.deliveryStatus()) {
+    case eDeliveryStatus_Unknown:
+      SetDOMStringToNull(aDeliveryStatus);
+      break;
+    case eDeliveryStatus_NotApplicable:
+      aDeliveryStatus = DELIVERY_STATUS_NOT_APPLICABLE;
+      break;
+    case eDeliveryStatus_Success:
+      aDeliveryStatus = DELIVERY_STATUS_SUCCESS;
+      break;
+    case eDeliveryStatus_Pending:
+      aDeliveryStatus = DELIVERY_STATUS_PENDING;
+      break;
+    case eDeliveryStatus_Error:
+      aDeliveryStatus = DELIVERY_STATUS_ERROR;
+      break;
+    default:
+      MOZ_NOT_REACHED("We shouldn't get another delivery status!");
+      return NS_ERROR_UNEXPECTED;
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+SmsFilter::SetDeliveryStatus(const nsAString& aDeliveryStatus)
+{
+  if (aDeliveryStatus.IsEmpty()) {
+    mData.deliveryStatus() = eDeliveryStatus_Unknown;
+    return NS_OK;
+  }
+
+  if (aDeliveryStatus.Equals(DELIVERY_STATUS_NOT_APPLICABLE)) {
+    mData.deliveryStatus() = eDeliveryStatus_NotApplicable;
+    return NS_OK;
+  }
+
+  if (aDeliveryStatus.Equals(DELIVERY_STATUS_SUCCESS)) {
+    mData.deliveryStatus() = eDeliveryStatus_Success;
+    return NS_OK;
+  }
+
+  if (aDeliveryStatus.Equals(DELIVERY_STATUS_PENDING)) {
+    mData.deliveryStatus() = eDeliveryStatus_Pending;
+    return NS_OK;
+  }
+
+  if (aDeliveryStatus.Equals(DELIVERY_STATUS_ERROR)) {
+    mData.deliveryStatus() = eDeliveryStatus_Error;
     return NS_OK;
   }
 

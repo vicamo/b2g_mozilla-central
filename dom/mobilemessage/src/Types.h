@@ -28,7 +28,8 @@ enum DeliveryState {
 
 // For {Mms,Sms}MessageData.deliveryStatus.
 enum DeliveryStatus {
-  eDeliveryStatus_NotApplicable = 0,
+  eDeliveryStatus_Unknown = -1,
+  eDeliveryStatus_NotApplicable,
   eDeliveryStatus_Success,
   eDeliveryStatus_Pending,
   eDeliveryStatus_Error,
@@ -88,7 +89,7 @@ struct ParamTraits<mozilla::dom::mobilemessage::DeliveryState>
 template <>
 struct ParamTraits<mozilla::dom::mobilemessage::DeliveryStatus>
   : public EnumSerializer<mozilla::dom::mobilemessage::DeliveryStatus,
-                          mozilla::dom::mobilemessage::eDeliveryStatus_NotApplicable,
+                          mozilla::dom::mobilemessage::eDeliveryStatus_Unknown,
                           mozilla::dom::mobilemessage::eDeliveryStatus_EndGuard>
 {};
 

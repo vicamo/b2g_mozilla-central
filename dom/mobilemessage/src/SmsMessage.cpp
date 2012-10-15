@@ -201,6 +201,7 @@ SmsMessage::GetDeliveryStatus(nsAString& aDeliveryStatus)
     case eDeliveryStatus_Error:
       aDeliveryStatus = DELIVERY_STATUS_ERROR;
       break;
+    case eDeliveryStatus_Unknown:
     case eDeliveryStatus_EndGuard:
     default:
       MOZ_NOT_REACHED("We shouldn't get any other delivery status!");
