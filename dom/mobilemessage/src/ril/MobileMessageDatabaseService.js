@@ -21,7 +21,7 @@ const RIL_GETTHREADSCURSOR_CID =
 
 const DEBUG = false;
 const DB_NAME = "sms";
-const DB_VERSION = 11;
+const DB_VERSION = 12;
 const MESSAGE_STORE_NAME = "sms";
 const THREAD_STORE_NAME = "thread";
 const PARTICIPANT_STORE_NAME = "participant";
@@ -43,6 +43,7 @@ const FILTER_TIMESTAMP = "timestamp";
 const FILTER_NUMBERS = "numbers";
 const FILTER_DELIVERY = "delivery";
 const FILTER_READ = "read";
+const FILTER_DELIVERY_STATUS = "deliveryStatus";
 
 // We can´t create an IDBKeyCursor with a boolean, so we need to use numbers
 // instead.
@@ -212,6 +213,10 @@ MobileMessageDatabaseService.prototype = {
           case 10:
             if (DEBUG) debug("Upgrade to version 11. Add last message type into threadRecord.");
             self.upgradeSchema10(event.target.transaction);
+            break;
+          case 11:
+            if (DEBUG) debug("Upgrade to version 12. Including `deliveryStatus` index.");
+            self.upgradeSchema11(event.target.transaction);
             break;
           default:
             event.target.transaction.abort();
@@ -667,6 +672,27 @@ MobileMessageDatabaseService.prototype = {
     };
   },
 
+  upgradeSchema11: function upgradeSchema11(transaction) {
+    let objectStore = transaction.objectStore(MESSAGE_STORE_NAME);
+    objectStore.createIndex("deliveryStatus", "deliveryStatusIndex");
+
+    objectStore.openCursor().onsuccess = function(event) {
+      let cursor = event.target.result;
+      if (!cursor) {
+        return;
+      }
+
+      let messageRecord = cursor.value;
+      if (messageRecord.type == "sms") {
+        let timestamp = messageRecord.timestamp;
+        messageRecord.deliveryStatusIndex = [messageRecord.deliveryStatus, timestamp];
+        cursor.update(messageRecord);
+      }
+
+      cursor.continue();
+    };
+  },
+
   createDomMessageFromRecord: function createDomMessageFromRecord(aMessageRecord) {
     if (DEBUG) {
       debug("createDomMessageFromRecord: " + JSON.stringify(aMessageRecord));
@@ -1103,6 +1129,7 @@ MobileMessageDatabaseService.prototype = {
     if (aMessage.type == "sms") {
       aMessage.delivery = DELIVERY_RECEIVED;
       aMessage.deliveryStatus = DELIVERY_STATUS_SUCCESS;
+      aMessage.deliveryStatusIndex: [aMessage.deliveryStatus, aDate];
     }
     aMessage.deliveryIndex = [aMessage.delivery, timestamp];
 
@@ -1128,6 +1155,7 @@ MobileMessageDatabaseService.prototype = {
                        : DELIVERY_STATUS_NOT_APPLICABLE;
     if (aMessage.type == "sms") {
       aMessage.deliveryStatus = deliveryStatus;
+      aMessage.deliveryStatusIndex: [deliveryStatus, aDate];
     } else if (aMessage.type == "mms") {
       let receivers = aMessage.receivers
       if (!Array.isArray(receivers)) {
@@ -1227,6 +1255,7 @@ MobileMessageDatabaseService.prototype = {
           if (messageRecord.type == "sms") {
             if (messageRecord.deliveryStatus != deliveryStatus) {
               messageRecord.deliveryStatus = deliveryStatus;
+              messageRecord.deliveryStatusIndex: [deliveryStatus, aDate];
               isRecordUpdated = true;
             }
           } else if (messageRecord.type == "mms") {
@@ -1481,6 +1510,7 @@ MobileMessageDatabaseService.prototype = {
             " startDate: " + filter.startDate +
             " endDate: " + filter.endDate +
             " delivery: " + filter.delivery +
+            " deliveryStatus: " + filter.deliveryStatus +
             " numbers: " + filter.numbers +
             " read: " + filter.read +
             " threadId: " + filter.threadId +
@@ -1694,6 +1724,7 @@ let FilterSearcherHelper = {
     // We support filtering by date range only (see `else` block below) or by
     // number/delivery status/read status with an optional date range.
     if (filter.delivery == null &&
+        filter.deliveryStatus == null &&
         filter.numbers == null &&
         filter.read == null &&
         filter.threadId == null) {
@@ -1721,6 +1752,7 @@ let FilterSearcherHelper = {
     {
       let num = 0;
       if (filter.delivery) num++;
+      if (filter.deliveryStatus) num++;
       if (filter.numbers) num++;
       if (filter.read != undefined) num++;
       if (filter.threadId != undefined) num++;
@@ -1738,6 +1770,17 @@ let FilterSearcherHelper = {
       let delivery = filter.delivery;
       let range = IDBKeyRange.bound([delivery, startDate], [delivery, endDate]);
       this.filterIndex("delivery", range, direction, txn,
+                       single ? collect : intersectionCollector.newContext());
+    }
+
+    // Retrieve the keys from the 'deliveryStatus' index that matches the value of
+    // filter.deliveryStatus.
+    if (filter.deliveryStatus) {
+      if (DEBUG) debug("filter.deliveryStatus " + filter.deliveryStatus);
+      let deliveryStatus = filter.deliveryStatus;
+      let range = IDBKeyRange.bound([deliveryStatus, startDate],
+                                    [deliveryStatus, endDate]);
+      this.filterIndex("deliveryStatus", range, direction, txn,
                        single ? collect : intersectionCollector.newContext());
     }
 
