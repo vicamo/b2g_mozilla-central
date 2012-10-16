@@ -1183,11 +1183,11 @@ RadioInterfaceLayer.prototype = {
       // Wait for that.
       return;
     }
-    if (!this._sysMsgListenerReady) {
+    /*if (!this._sysMsgListenerReady) {
       // The UI's system app isn't ready yet for us to receive any
       // events (e.g. incoming SMS, etc.). Wait for that.
       return;
-    }
+    }*/
     if (this.rilContext.radioState == RIL.GECKO_RADIOSTATE_UNKNOWN) {
       // We haven't received a radio state notification from the RIL
       // yet. Wait for that.
