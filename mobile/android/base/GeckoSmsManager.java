@@ -325,6 +325,7 @@ public class GeckoSmsManager
    * Keep the following status codes in sync with |DeliveryStatus| in:
    * dom/mobilemessage/src/Types.h
    */
+  private final static int kDeliveryStatusUnknown       = -1;
   private final static int kDeliveryStatusNotApplicable = 0;
   private final static int kDeliveryStatusSuccess       = 1;
   private final static int kDeliveryStatusPending       = 2;
@@ -731,22 +732,24 @@ public class GeckoSmsManager
   }
 
   @Override
-  public void createMessageList(long aStartDate, long aEndDate, String[] aNumbers, int aNumbersCount, int aDeliveryState, boolean aReverse, int aRequestId) {
+  public void createMessageList(long aStartDate, long aEndDate, String[] aNumbers, int aNumbersCount, int aDeliveryState, int aDeliveryStatus, boolean aReverse, int aRequestId) {
     class CreateMessageListRunnable implements Runnable {
       private long     mStartDate;
       private long     mEndDate;
       private String[] mNumbers;
       private int      mNumbersCount;
       private int      mDeliveryState;
+      private int      mDeliveryStatus;
       private boolean  mReverse;
       private int      mRequestId;
 
-      CreateMessageListRunnable(long aStartDate, long aEndDate, String[] aNumbers, int aNumbersCount, int aDeliveryState, boolean aReverse, int aRequestId) {
+      CreateMessageListRunnable(long aStartDate, long aEndDate, String[] aNumbers, int aNumbersCount, int aDeliveryState, int aDeliveryStatus, boolean aReverse, int aRequestId) {
         mStartDate = aStartDate;
         mEndDate = aEndDate;
         mNumbers = aNumbers;
         mNumbersCount = aNumbersCount;
         mDeliveryState = aDeliveryState;
+        mDeliveryStatus = aDeliveryStatus;
         mReverse = aReverse;
         mRequestId = aRequestId;
       }
@@ -788,6 +791,20 @@ public class GeckoSmsManager
           } else {
             throw new UnexpectedDeliveryStateException();
           }
+
+	  if (mDeliveryStatus == kDeliveryStatusNotApplicable) {
+            restrictions.add("status = " + Telephony.Sms.STATUS_NONE);
+	  } else if (mDeliveryStatus == kDeliveryStatusSuccess) {
+            restrictions.add("status >= " + Telephony.Sms.STATUS_COMPLETE);
+            restrictions.add("status < " + Telephony.Sms.STATUS_PENDING);
+	  } else if (mDeliveryStatus == kDeliveryStatusPending) {
+            restrictions.add("status >= " + Telephony.Sms.STATUS_PENDING);
+            restrictions.add("status < " + Telephony.Sms.STATUS_FAILED);
+	  } else if (mDeliveryStatus == kDeliveryStatusError) {
+            restrictions.add("status >= " + Telephony.Sms.STATUS_FAILED);
+          } else if (mDeliveryStatus != kDeliveryStatusUnknown) {
+            throw new UnexpectedDeliveryStatusException();
+	  }
 
           String restrictionText = restrictions.size() > 0 ? restrictions.get(0) : "";
 
@@ -833,6 +850,9 @@ public class GeckoSmsManager
         } catch (UnexpectedDeliveryStateException e) {
           Log.e("GeckoSmsManager", "Unexcepted delivery state type", e);
           notifyReadingMessageListFailed(kUnknownError, mRequestId);
+        } catch (UnexpectedDeliveryStatusException e) {
+          Log.e("GeckoSmsManager", "Unexcepted delivery status", e);
+          notifyReadingMessageListFailed(kUnknownError, mRequestId);
         } catch (Exception e) {
           Log.e("GeckoSmsManager", "Error while trying to create a message list cursor", e);
           notifyReadingMessageListFailed(kUnknownError, mRequestId);
@@ -847,7 +867,7 @@ public class GeckoSmsManager
       }
     }
 
-    if (!SmsIOThread.getInstance().execute(new CreateMessageListRunnable(aStartDate, aEndDate, aNumbers, aNumbersCount, aDeliveryState, aReverse, aRequestId))) {
+    if (!SmsIOThread.getInstance().execute(new CreateMessageListRunnable(aStartDate, aEndDate, aNumbers, aNumbersCount, aDeliveryState, aDeliveryStatus, aReverse, aRequestId))) {
       Log.e("GeckoSmsManager", "Failed to add CreateMessageListRunnable to the SmsIOThread");
       notifyReadingMessageListFailed(kUnknownError, aRequestId);
     }
@@ -975,6 +995,10 @@ public class GeckoSmsManager
 
   class UnexpectedDeliveryStateException extends Exception {
     private static final long serialVersionUID = 494122763684005716L;
+  }
+
+  class UnexpectedDeliveryStatusException extends Exception {
+    private static final long serialVersionUID = 5857568966307680L;
   }
 
   class UnmatchingIdException extends Exception {
