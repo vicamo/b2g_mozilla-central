@@ -36,6 +36,7 @@ is(filter.startDate, null, "Parameters shouldn't be initialized");
 is(filter.endDate, null, "Parameters shouldn't be initialized");
 is(filter.numbers, null, "Parameters shouldn't be initialized");
 is(filter.delivery, null, "Parameters shouldn't be initialized");
+is(filter.deliveryStatus, null, "Parameters shouldn't be initialized");
 is(filter.read, null, "Parameters shouldn't be initialized");
 is(filter.threadId, null, "Parameters shouldn't be initialized");
 
@@ -68,6 +69,20 @@ is(filter.delivery, null, "The empty string should revert the value to default."
 filter.delivery = null;
 is(filter.delivery, null, "'null' should revert the value to default.");
 throwingCheck(filter, 'delivery', [ "foo", 42, [1, 2], function () {}, new Date(), undefined ]);
+
+filter.deliveryStatus = "not-applicable";
+is(filter.deliveryStatus, "not-applicable", "Setters and getters should work!");
+filter.deliveryStatus = "success";
+is(filter.deliveryStatus, "success", "Setters and getters should work!");
+filter.deliveryStatus = "pending";
+is(filter.deliveryStatus, "pending", "Setters and getters should work!");
+filter.deliveryStatus = "error";
+is(filter.deliveryStatus, "error", "Setters and getters should work!");
+filter.deliveryStatus = "";
+is(filter.deliveryStatus, null, "The empty string should revert the value to default.");
+filter.deliveryStatus = null;
+is(filter.deliveryStatus, null, "'null' should revert the value to default.");
+throwingCheck(filter, 'deliveryStatus', [ "foo", 42, [1, 2], function () {}, new Date(), undefined ]);
 
 filter.read = true;
 is(filter.read, true, "Setters and getters should work!");
