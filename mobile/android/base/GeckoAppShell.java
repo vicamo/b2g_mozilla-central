@@ -2303,12 +2303,12 @@ public class GeckoAppShell
         SmsManager.getInstance().deleteMessage(aMessageId, aRequestId);
     }
 
-    public static void createMessageList(long aStartDate, long aEndDate, String[] aNumbers, int aNumbersCount, int aDeliveryState, boolean aReverse, int aRequestId) {
+    public static void createMessageList(long aStartDate, long aEndDate, String[] aNumbers, int aNumbersCount, int aDeliveryState, int aMessageClass, boolean aReverse, int aRequestId) {
         if (SmsManager.getInstance() == null) {
             return;
         }
 
-        SmsManager.getInstance().createMessageList(aStartDate, aEndDate, aNumbers, aNumbersCount, aDeliveryState, aReverse, aRequestId);
+        SmsManager.getInstance().createMessageList(aStartDate, aEndDate, aNumbers, aNumbersCount, aDeliveryState, aMessageClass, aReverse, aRequestId);
     }
 
     public static void getNextMessageInList(int aListId, int aRequestId) {
