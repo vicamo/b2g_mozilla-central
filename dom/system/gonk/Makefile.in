@@ -89,6 +89,7 @@ EXTRA_JS_MODULES = \
   net_worker.js \
   ril_consts.js \
   ril_worker.js \
+  ril_worker_icc.js \
   systemlibs.js \
   $(NULL)
 
