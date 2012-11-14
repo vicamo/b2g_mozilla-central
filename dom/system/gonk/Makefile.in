@@ -90,6 +90,7 @@ EXTRA_JS_MODULES = \
   ril_consts.js \
   ril_worker.js \
   ril_worker_icc.js \
+  ril_worker_sms.js \
   systemlibs.js \
   $(NULL)
 
