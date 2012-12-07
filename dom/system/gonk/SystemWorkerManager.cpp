@@ -38,6 +38,14 @@
 #include "nsRadioInterfaceLayer.h"
 #include "WifiWorker.h"
 
+#undef LOG
+#if defined(MOZ_WIDGET_GONK)
+#include <android/log.h>
+#define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "Gonk", args)
+#else
+#define LOG(args...)  printf(args);
+#endif
+
 USING_WORKERS_NAMESPACE
 
 using namespace mozilla::dom::gonk;
@@ -49,6 +57,12 @@ using namespace mozilla::system;
 #define NS_NETWORKMANAGER_CID \
   { 0x33901e46, 0x33b8, 0x11e1, \
   { 0x98, 0x69, 0xf4, 0x6d, 0x04, 0xd2, 0x5b, 0xcc } }
+
+#ifdef MOZ_B2G_MULTI_SIM
+const int SUB_ID_SIZE = 4;
+const int DATA_SIZE = 4;
+const int HEADER_SIZE = SUB_ID_SIZE + DATA_SIZE;
+#endif
 
 namespace {
 
@@ -116,8 +130,19 @@ PostToRIL(JSContext *cx, unsigned argc, jsval *vp)
     return false;
   }
 
+#ifdef MOZ_B2G_MULTI_SIM
+  // TODO Bug 814581, Determine subId
+  int subId = 0;
+  rm->mSize = size + SUB_ID_SIZE;
+  rm->mData[0] = (subId >> 24) & 0xff;
+  rm->mData[1] = (subId >> 16) & 0xff;
+  rm->mData[2] = (subId >> 8) & 0xff;
+  rm->mData[3] = subId & 0xff;
+  memcpy(&rm->mData[SUB_ID_SIZE], data, size);
+#else
   rm->mSize = size;
   memcpy(rm->mData, data, size);
+#endif
 
   RilRawData *tosend = rm.forget();
   JS_ALWAYS_TRUE(SendRilRawData(&tosend));
@@ -157,14 +182,39 @@ public:
     : mDispatcher(aDispatcher)
   { }
 
-  virtual void MessageReceived(RilRawData *aMessage) {
-    nsRefPtr<DispatchRILEvent> dre(new DispatchRILEvent(aMessage));
-    mDispatcher->PostTask(dre);
-  }
+  virtual void MessageReceived(RilRawData *aMessage);
 
 private:
   nsRefPtr<WorkerCrossThreadDispatcher> mDispatcher;
 };
+
+void
+RILReceiver::MessageReceived(RilRawData *aMessage)
+{
+#ifdef MOZ_B2G_MULTI_SIM
+  int offset = 0, totalSize = aMessage->mSize;
+
+  while (offset < totalSize) {
+    uint8_t* ptr = &aMessage->mData[offset];
+    unsigned int subId, dataSize;
+    subId = ptr[0] << 24 | ptr[1] << 16 | ptr[2] << 8 | ptr[3];
+    dataSize = ptr[4] << 24 | ptr[5] << 16 | ptr[6] << 8 | ptr[7];
+    nsAutoPtr<RilRawData> data(new RilRawData());
+    data->mSize = dataSize;
+    memcpy(data->mData, &aMessage->mData[offset + HEADER_SIZE], dataSize);
+
+    RilRawData *event = data.forget();
+    nsRefPtr<DispatchRILEvent> dre(new DispatchRILEvent(event));
+
+    // TODO, Bug 814581, Dispatch to Multi ril_worker by subId.
+    mDispatcher->PostTask(dre);
+    offset += HEADER_SIZE + dataSize;
+  };
+#else
+  nsRefPtr<DispatchRILEvent> dre(new DispatchRILEvent(aMessage));
+  mDispatcher->PostTask(dre);
+#endif
+}
 
 bool
 RILReceiver::DispatchRILEvent::RunTask(JSContext *aCx)

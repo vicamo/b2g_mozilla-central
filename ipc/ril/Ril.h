@@ -25,7 +25,11 @@ namespace ipc {
  */
 struct RilRawData
 {
+#ifdef MOZ_B2G_MULTI_SIM
+    static const size_t MAX_DATA_SIZE = 1024 + 8;
+#else
     static const size_t MAX_DATA_SIZE = 1024;
+#endif
     uint8_t mData[MAX_DATA_SIZE];
 
     // Number of octets in mData.
