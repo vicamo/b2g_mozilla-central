@@ -15,6 +15,9 @@
 
 #include "VoicemailEvent.h"
 
+// TODO Determine default phone.
+#define DEFAULT_PHONE_INDEX 0
+
 DOMCI_DATA(MozVoicemail, mozilla::dom::telephony::Voicemail)
 
 USING_TELEPHONY_NAMESPACE
@@ -38,12 +41,12 @@ Voicemail::Voicemail(nsPIDOMWindow* aWindow, nsIRILContentHelper* aRIL)
 
   mRILVoicemailCallback = new RILVoicemailCallback(this);
 
-  nsresult rv = aRIL->RegisterVoicemailCallback(mRILVoicemailCallback);
+  nsresult rv = aRIL->RegisterVoicemailCallback(DEFAULT_PHONE_INDEX, mRILVoicemailCallback);
   if (NS_FAILED(rv)) {
     NS_WARNING("Failed registering voicemail callback with RIL");
   }
 
-  rv = aRIL->RegisterVoicemailMsg();
+  rv = aRIL->RegisterVoicemailMsg(DEFAULT_PHONE_INDEX);
   if (NS_FAILED(rv)) {
     NS_WARNING("Failed registering voicemail messages with RIL");
   }
@@ -52,7 +55,7 @@ Voicemail::Voicemail(nsPIDOMWindow* aWindow, nsIRILContentHelper* aRIL)
 Voicemail::~Voicemail()
 {
   if (mRIL && mRILVoicemailCallback) {
-    mRIL->UnregisterVoicemailCallback(mRILVoicemailCallback);
+    mRIL->UnregisterVoicemailCallback(DEFAULT_PHONE_INDEX, mRILVoicemailCallback);
   }
 }
 
@@ -64,7 +67,7 @@ Voicemail::GetStatus(nsIDOMMozVoicemailStatus** aStatus)
   *aStatus = nullptr;
 
   NS_ENSURE_STATE(mRIL);
-  return mRIL->GetVoicemailStatus(aStatus);
+  return mRIL->GetVoicemailStatus(DEFAULT_PHONE_INDEX, aStatus);
 }
 
 NS_IMETHODIMP
@@ -73,7 +76,7 @@ Voicemail::GetNumber(nsAString& aNumber)
   NS_ENSURE_STATE(mRIL);
   aNumber.SetIsVoid(true);
 
-  return mRIL->GetVoicemailNumber(aNumber);
+  return mRIL->GetVoicemailNumber(DEFAULT_PHONE_INDEX, aNumber);
 }
 
 NS_IMETHODIMP
@@ -82,7 +85,7 @@ Voicemail::GetDisplayName(nsAString& aDisplayName)
   NS_ENSURE_STATE(mRIL);
   aDisplayName.SetIsVoid(true);
 
-  return mRIL->GetVoicemailDisplayName(aDisplayName);
+  return mRIL->GetVoicemailDisplayName(DEFAULT_PHONE_INDEX, aDisplayName);
 }
 
 NS_IMPL_EVENT_HANDLER(Voicemail, statuschanged)
