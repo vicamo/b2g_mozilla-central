@@ -327,6 +327,7 @@ function RILContentHelper() {
   this.initRequests();
   this.initMessageListener(RIL_IPC_MSG_NAMES);
   Services.obs.addObserver(this, "xpcom-shutdown", false);
+  this._callbackManagerById = {};
 }
 
 RILContentHelper.prototype = {
@@ -711,9 +712,8 @@ RILContentHelper.prototype = {
     return request;
   },
 
-  _telephonyCallbacks: null,
-  _voicemailCallbacks: null,
-  _enumerateTelephonyCallbacks: null,
+  _callbackManagerById: null,
+  _enumerateTelephonyCallbackManagerById: null,
 
   voicemailStatus: null,
 
@@ -737,22 +737,33 @@ RILContentHelper.prototype = {
     return this.getVoicemailInfo().displayName;
   },
 
-  registerCallback: function registerCallback(callbackType, callback) {
-    let callbacks = this[callbackType];
-    if (!callbacks) {
-      callbacks = this[callbackType] = [];
+  registerCallback: function registerCallback(subscriptionId, callbackType, callback) {
+    if (!this._callbackManagerById) {
+      this._callbackManagerById = [];
     }
 
+    let mgr = this._callbackManagerById[subscriptionId];
+    if (!mgr) {
+      mgr = this._callbackManagerById[subscriptionId] = [];
+    }
+
+    let callbacks = mgr[callbackType];
+    if (!callbacks) {
+      callbacks = this._callbackManagerById[subscriptionId][callbackType] = [];
+    }
     if (callbacks.indexOf(callback) != -1) {
-      throw new Error("Already registered this callback!");
+      debug("Already registered this telephonyCallback.");
+      return;
     }
 
     callbacks.push(callback);
     if (DEBUG) debug("Registered " + callbackType + " callback: " + callback);
   },
 
-  unregisterCallback: function unregisterCallback(callbackType, callback) {
-    let callbacks = this[callbackType];
+  unregisterCallback: function unregisterCallback(subscriptionId, callbackType, callback) {
+    let callbacks;
+    callbacks = this._callbackManagerById[subscriptionId][callbackType];
+
     if (!callbacks) {
       return;
     }
@@ -760,24 +771,26 @@ RILContentHelper.prototype = {
     let index = callbacks.indexOf(callback);
     if (index != -1) {
       callbacks.splice(index, 1);
-      if (DEBUG) debug("Unregistered telephony callback: " + callback);
+      if (DEBUG) debug("Unregistered " + callbackType + " callback: " + callback);
     }
   },
 
   registerTelephonyCallback: function registerTelephonyCallback(subscriptionId, callback) {
-    this.registerCallback("_telephonyCallbacks", callback);
+    this.registerCallback(subscriptionId, "_telephonyCallbacks", callback);
   },
 
   unregisterTelephonyCallback: function unregisteTelephonyCallback(subscriptionId, callback) {
-    this.unregisterCallback("_telephonyCallbacks", callback);
+    this.unregisterCallback(subscriptionId, "_telephonyCallbacks", callback);
   },
 
   registerVoicemailCallback: function registerVoicemailCallback(callback) {
-    this.registerCallback("_voicemailCallbacks", callback);
+    // TODO Bug 818352 - add subscriptionId in Voicemail API
+    this.registerCallback(0, "_voicemailCallbacks", callback);
   },
 
   unregisterVoicemailCallback: function unregisteVoicemailCallback(callback) {
-    this.unregisterCallback("_voicemailCallbacks", callback);
+    // TODO Bug 818352 - add subscriptionId in Voicemail API
+    this.unregisterCallback(0, "_voicemailCallbacks", callback);
   },
 
   registerCellBroadcastCallback: function registerCellBroadcastCallback(callback) {
@@ -812,6 +825,17 @@ RILContentHelper.prototype = {
 
   enumerateCalls: function enumerateCalls(subscriptionId, callback) {
     debug("Requesting enumeration of calls for callback: " + callback);
+    if (!this._enumerateTelephonyCallbackManagerById) {
+      this._enumerateTelephonyCallbackManagerById = [];
+    }
+
+    let mgr = this._enumerateTelephonyCallbackManagerById[subscriptionId];
+    if (!mgr) {
+      mgr = this._enumerateTelephonyCallbackManagerById[subscriptionId] = [];
+    }
+
+    mgr.push(callback);
+
     // We need 'requestId' to meet the 'RILContentHelper <--> RadioInterfaceLayer'
     // protocol.
     let requestId = this._getRandomId();
@@ -821,10 +845,6 @@ RILContentHelper.prototype = {
         requestId: requestId
       }
     });
-    if (!this._enumerateTelephonyCallbacks) {
-      this._enumerateTelephonyCallbacks = [];
-    }
-    this._enumerateTelephonyCallbacks.push(callback);
   },
 
   startTone: function startTone(subscriptionId, dtmfChar) {
@@ -1006,7 +1026,8 @@ RILContentHelper.prototype = {
         Services.obs.notifyObservers(null, kDataChangedTopic, null);
         break;
       case "RIL:EnumerateCalls":
-        this.handleEnumerateCalls(msg.json.data.calls);
+        this.handleEnumerateCalls(msg.json.subscriptionId || 0,
+                                  msg.json.data.calls);
         break;
       case "RIL:GetAvailableNetworks":
         this.handleGetAvailableNetworks(msg.json.data);
@@ -1023,13 +1044,15 @@ RILContentHelper.prototype = {
                                  RIL.GECKO_NETWORK_SELECTION_AUTOMATIC);
         break;
       case "RIL:CallStateChanged":
-        this._deliverCallback("_telephonyCallbacks",
+        this._deliverCallback(msg.json.subscriptionId || 0,
+                              "_telephonyCallbacks",
                               "callStateChanged",
                               [msg.json.data.callIndex, msg.json.data.state,
                                msg.json.data.number, msg.json.data.isActive]);
         break;
       case "RIL:CallError":
-        this._deliverCallback("_telephonyCallbacks",
+        this._deliverCallback(msg.json.subscriptionId || 0,
+                              "_telephonyCallbacks",
                               "notifyError",
                               [msg.json.data.callIndex,
                                msg.json.data.error]);
@@ -1097,9 +1120,9 @@ RILContentHelper.prototype = {
     }
   },
 
-  handleEnumerateCalls: function handleEnumerateCalls(calls) {
-    debug("handleEnumerateCalls: " + JSON.stringify(calls));
-    let callback = this._enumerateTelephonyCallbacks.shift();
+  handleEnumerateCalls: function handleEnumerateCalls(subscriptionId, calls) {
+    debug("handleEnumerateCalls: no. " + subscriptionId + " " + JSON.stringify(calls));
+    let callback = this._enumerateTelephonyCallbackManagerById[subscriptionId].shift();
     for (let i in calls) {
       let call = calls[i];
       let keepGoing;
@@ -1187,7 +1210,9 @@ RILContentHelper.prototype = {
     }
 
     if (changed) {
-      this._deliverCallback("_voicemailCallbacks",
+      // TODO Bug 818352 - add subscriptionId in Voicemail API
+      this._deliverCallback(0,
+                            "_voicemailCallbacks",
                             "voicemailNotification",
                             [this.voicemailStatus]);
     }
@@ -1257,17 +1282,15 @@ RILContentHelper.prototype = {
     return gUUIDGenerator.generateUUID().toString();
   },
 
-  _deliverCallback: function _deliverCallback(callbackType, name, args) {
-    let thisCallbacks = this[callbackType];
+  _deliverCallback: function _deliverCallback(subscriptionId, callbackType, name, args) {
+    debug("_deliverCallback type: " + callbackType + " to subscription no. " + subscriptionId);
+    let thisCallbacks = this._callbackManagerById[subscriptionId][callbackType];
     if (!thisCallbacks) {
       return;
     }
 
     let callbacks = thisCallbacks.slice();
     for each (let callback in callbacks) {
-      if (thisCallbacks.indexOf(callback) == -1) {
-        continue;
-      }
       let handler = callback[name];
       if (typeof handler != "function") {
         throw new Error("No handler for " + name);
