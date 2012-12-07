@@ -764,11 +764,11 @@ RILContentHelper.prototype = {
     }
   },
 
-  registerTelephonyCallback: function registerTelephonyCallback(callback) {
+  registerTelephonyCallback: function registerTelephonyCallback(subscriptionId, callback) {
     this.registerCallback("_telephonyCallbacks", callback);
   },
 
-  unregisterTelephonyCallback: function unregisteTelephonyCallback(callback) {
+  unregisterTelephonyCallback: function unregisteTelephonyCallback(subscriptionId, callback) {
     this.unregisterCallback("_telephonyCallbacks", callback);
   },
 
@@ -788,9 +788,11 @@ RILContentHelper.prototype = {
     this.unregisterCallback("_cellBroadcastCallbacks", callback);
   },
 
-  registerTelephonyMsg: function registerTelephonyMsg() {
+  registerTelephonyMsg: function registerTelephonyMsg(subscriptionId) {
     debug("Registering for telephony-related messages");
-    cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg", {});
+    cpmm.sendAsyncMessage("RIL:RegisterTelephonyMsg", {
+      subscriptionId: subscriptionId
+    });
   },
 
   registerMobileConnectionMsg: function registerMobileConnectionMsg() {
@@ -808,12 +810,13 @@ RILContentHelper.prototype = {
     cpmm.sendAsyncMessage("RIL:RegisterCellBroadcastMsg", {});
   },
 
-  enumerateCalls: function enumerateCalls(callback) {
+  enumerateCalls: function enumerateCalls(subscriptionId, callback) {
     debug("Requesting enumeration of calls for callback: " + callback);
     // We need 'requestId' to meet the 'RILContentHelper <--> RadioInterfaceLayer'
     // protocol.
     let requestId = this._getRandomId();
     cpmm.sendAsyncMessage("RIL:EnumerateCalls", {
+      subscriptionId: subscriptionId,
       data: {
         requestId: requestId
       }
@@ -824,61 +827,95 @@ RILContentHelper.prototype = {
     this._enumerateTelephonyCallbacks.push(callback);
   },
 
-  startTone: function startTone(dtmfChar) {
+  startTone: function startTone(subscriptionId, dtmfChar) {
     debug("Sending Tone for " + dtmfChar);
-    cpmm.sendAsyncMessage("RIL:StartTone", {data: dtmfChar});
+    cpmm.sendAsyncMessage("RIL:StartTone", {
+      subscriptionId: subscriptionId,
+      data: dtmfChar
+    });
   },
 
-  stopTone: function stopTone() {
+  stopTone: function stopTone(subscriptionId) {
     debug("Stopping Tone");
-    cpmm.sendAsyncMessage("RIL:StopTone", {});
+    cpmm.sendAsyncMessage("RIL:StopTone", {subscriptionId: subscriptionId});
   },
 
-  dial: function dial(number) {
+  dial: function dial(subscriptionId, number) {
     debug("Dialing " + number);
-    cpmm.sendAsyncMessage("RIL:Dial", {data: number});
+    cpmm.sendAsyncMessage("RIL:Dial", {
+      subscriptionId: subscriptionId,
+      data: number
+    });
   },
 
-  dialEmergency: function dialEmergency(number) {
+  dialEmergency: function dialEmergency(subscriptionId, number) {
     debug("Dialing emergency " + number);
-    cpmm.sendAsyncMessage("RIL:DialEmergency", {data: number});
+    cpmm.sendAsyncMessage("RIL:DialEmergency", {
+      subscriptionId: subscriptionId,
+      data: number
+    });
   },
 
-  hangUp: function hangUp(callIndex) {
+  hangUp: function hangUp(subscriptionId, callIndex) {
     debug("Hanging up call no. " + callIndex);
-    cpmm.sendAsyncMessage("RIL:HangUp", {data: callIndex});
+    cpmm.sendAsyncMessage("RIL:HangUp", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  answerCall: function answerCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:AnswerCall", {data: callIndex});
+  answerCall: function answerCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:AnswerCall", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  rejectCall: function rejectCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:RejectCall", {data: callIndex});
+  rejectCall: function rejectCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:RejectCall", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  holdCall: function holdCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:HoldCall", {data: callIndex});
+  holdCall: function holdCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:HoldCall", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  resumeCall: function resumeCall(callIndex) {
-    cpmm.sendAsyncMessage("RIL:ResumeCall", {data: callIndex});
+  resumeCall: function resumeCall(subscriptionId, callIndex) {
+    cpmm.sendAsyncMessage("RIL:ResumeCall", {
+      subscriptionId: subscriptionId,
+      data: callIndex
+    });
   },
 
-  get microphoneMuted() {
-    return cpmm.sendSyncMessage("RIL:GetMicrophoneMuted")[0];
+  getMicrophoneMuted: function getMicrophoneMuted(subscriptionId) {
+    return cpmm.sendSyncMessage("RIL:GetMicrophoneMuted", {
+      subscriptionId: subscriptionId
+    })[0];
   },
 
-  set microphoneMuted(value) {
-    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", {data: value});
+  setMicrophoneMuted: function getMicrophoneMuted(subscriptionId, value) {
+    cpmm.sendAsyncMessage("RIL:SetMicrophoneMuted", {
+      subscriptionId: subscriptionId,
+      data: value
+    });
   },
 
-  get speakerEnabled() {
-    return cpmm.sendSyncMessage("RIL:GetSpeakerEnabled")[0];
+  getSpeakerEnabled: function getSpeakerEnabled(subscriptionId) {
+    return cpmm.sendSyncMessage("RIL:GetSpeakerEnabled", {
+      subscriptionId: subscriptionId
+    })[0];
   },
 
-  set speakerEnabled(value) {
-    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", {data: value});
+  setSpeakerEnabled: function setSpeakerEnabled(subscriptionId, value) {
+    cpmm.sendAsyncMessage("RIL:SetSpeakerEnabled", {
+      subscriptionId: subscriptionId,
+      data: value
+    });
   },
 
   // nsIObserver
