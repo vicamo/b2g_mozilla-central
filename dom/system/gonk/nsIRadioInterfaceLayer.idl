@@ -359,3 +359,9 @@ interface nsIRadioInterfaceLayer : nsISupports
   void getICCContacts(in DOMString contactType,
                       in nsIRILContactCallback callback);
 };
+
+[scriptable, uuid(76f084ab-30ef-489a-bc64-af7c83007bc1)]
+interface nsIMSimRadioInterfaceLayer : nsISupports
+{
+  readonly attribute jsval mRILs; // nsIRadioterfaceLayer[]
+};

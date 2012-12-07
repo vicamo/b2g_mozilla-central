@@ -55,13 +55,21 @@ private:
   SystemWorkerManager();
   ~SystemWorkerManager();
 
+#ifdef MOZ_B2G_MULTI_SIM
+  nsresult InitMSimRIL(JSContext *cx);
+#else
   nsresult InitRIL(JSContext *cx);
+#endif
 #ifdef MOZ_WIDGET_GONK
   nsresult InitNetd(JSContext *cx);
 #endif
   nsresult InitWifi(JSContext *cx);
 
+#ifdef MOZ_B2G_MULTI_SIM
+  nsCOMPtr<nsIMSimRadioInterfaceLayer> mMSimRIL;
+#else
   nsCOMPtr<nsIRadioInterfaceLayer> mRIL;
+#endif
 #ifdef MOZ_WIDGET_GONK
   nsCOMPtr<nsIWorkerHolder> mNetdWorker;
 #endif

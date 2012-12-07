@@ -9,3 +9,11 @@ interface nsIWorkerHolder : nsISupports
 {
   readonly attribute jsval worker;
 };
+
+[scriptable, uuid(ea0fa763-30a9-4bf2-93bc-469e4a5026e1)]
+interface nsIMSimWorkerHolder : nsISupports
+{
+  readonly attribute jsval workers;
+
+  jsval getWorker(in unsigned short index);
+};

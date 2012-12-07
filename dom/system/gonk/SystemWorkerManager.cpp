@@ -35,7 +35,11 @@
 #include "nsContentUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "nsThreadUtils.h"
+#ifdef MOZ_B2G_MULTI_SIM
+#include "nsMSimRadioInterfaceLayer.h"
+#else
 #include "nsRadioInterfaceLayer.h"
+#endif
 #include "WifiWorker.h"
 
 #undef LOG
@@ -74,8 +78,16 @@ SystemWorkerManager *gInstance = nullptr;
 
 class ConnectWorkerToRIL : public WorkerTask
 {
-public:
   virtual bool RunTask(JSContext *aCx);
+#ifdef MOZ_B2G_MULTI_SIM
+public:
+  ConnectWorkerToRIL(int subId)
+    : mSubId(subId)
+  { }
+
+private:
+  int mSubId;
+#endif
 };
 
 JSBool
@@ -131,8 +143,13 @@ PostToRIL(JSContext *cx, unsigned argc, jsval *vp)
   }
 
 #ifdef MOZ_B2G_MULTI_SIM
-  // TODO Bug 814581, Determine subId
-  int subId = 0;
+  JSObject *workerGlobal = JS_GetGlobalObject(cx);
+  jsval subIdVal;
+  if (!JS_GetProperty(cx, workerGlobal, "subscriptionId", &subIdVal)) {
+    return false;
+  }
+  int subId = subIdVal.toInt32();
+
   rm->mSize = size + SUB_ID_SIZE;
   rm->mData[0] = (subId >> 24) & 0xff;
   rm->mData[1] = (subId >> 16) & 0xff;
@@ -157,9 +174,14 @@ ConnectWorkerToRIL::RunTask(JSContext *aCx)
   NS_ASSERTION(!NS_IsMainThread(), "Expecting to be on the worker thread");
   NS_ASSERTION(!JS_IsRunning(aCx), "Are we being called somehow?");
   JSObject *workerGlobal = JS_GetGlobalObject(aCx);
-
-  return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage", PostToRIL, 1,
-                             0);
+#ifdef MOZ_B2G_MULTI_SIM
+  if (!JS_DefineProperty(aCx, workerGlobal, "subscriptionId",
+                         INT_TO_JSVAL(mSubId), nullptr, nullptr, 0)) {
+    return false;
+  }
+#endif
+  return !!JS_DefineFunction(aCx, workerGlobal, "postRILMessage",
+                             PostToRIL, 1, 0);
 }
 
 class RILReceiver : public RilConsumer
@@ -179,13 +201,28 @@ class RILReceiver : public RilConsumer
 
 public:
   RILReceiver(WorkerCrossThreadDispatcher *aDispatcher)
+#ifndef MOZ_B2G_MULTI_SIM
     : mDispatcher(aDispatcher)
+#endif
   { }
 
+#ifdef MOZ_B2G_MULTI_SIM
+  RILReceiver() { }
+#endif
+
   virtual void MessageReceived(RilRawData *aMessage);
+#ifdef MOZ_B2G_MULTI_SIM
+  void RegisterRILEvent(int subId, WorkerCrossThreadDispatcher *aDispatcher) {
+    mDispatchers[subId] = aDispatcher;
+  }
+#endif
 
 private:
+#ifdef MOZ_B2G_MULTI_SIM
+  nsRefPtr<WorkerCrossThreadDispatcher> mDispatchers[2];
+#else
   nsRefPtr<WorkerCrossThreadDispatcher> mDispatcher;
+#endif
 };
 
 void
@@ -199,6 +236,7 @@ RILReceiver::MessageReceived(RilRawData *aMessage)
     unsigned int subId, dataSize;
     subId = ptr[0] << 24 | ptr[1] << 16 | ptr[2] << 8 | ptr[3];
     dataSize = ptr[4] << 24 | ptr[5] << 16 | ptr[6] << 8 | ptr[7];
+
     nsAutoPtr<RilRawData> data(new RilRawData());
     data->mSize = dataSize;
     memcpy(data->mData, &aMessage->mData[offset + HEADER_SIZE], dataSize);
@@ -206,8 +244,8 @@ RILReceiver::MessageReceived(RilRawData *aMessage)
     RilRawData *event = data.forget();
     nsRefPtr<DispatchRILEvent> dre(new DispatchRILEvent(event));
 
-    // TODO, Bug 814581, Dispatch to Multi ril_worker by subId.
-    mDispatcher->PostTask(dre);
+    mDispatchers[subId]->PostTask(dre);
+
     offset += HEADER_SIZE + dataSize;
   };
 #else
@@ -416,11 +454,19 @@ SystemWorkerManager::Init()
     return NS_ERROR_FAILURE;
   }
 
+#ifdef MOZ_B2G_MULTI_SIM
+  nsresult rv = InitMSimRIL(cx);
+  if (NS_FAILED(rv)) {
+    NS_WARNING("Failed to initialize Multi-SIM RIL/Telephony!");
+    return rv;
+  }
+#else
   nsresult rv = InitRIL(cx);
   if (NS_FAILED(rv)) {
     NS_WARNING("Failed to initialize RIL/Telephony!");
     return rv;
   }
+#endif
 
   rv = InitWifi(cx);
   if (NS_FAILED(rv)) {
@@ -464,7 +510,11 @@ SystemWorkerManager::Shutdown()
 
   StopRil();
 
+#ifdef MOZ_B2G_MULTI_SIM
+  mMSimRIL = nullptr;
+#else
   mRIL = nullptr;
+#endif
 
 #ifdef MOZ_WIDGET_GONK
   StopNetd();
@@ -518,10 +568,18 @@ SystemWorkerManager::GetInterface(const nsIID &aIID, void **aResult)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
+#ifdef MOZ_B2G_MULTI_SIM
+  if (aIID.Equals(NS_GET_IID(nsIMSimRadioInterfaceLayer))) {
+    NS_IF_ADDREF(*reinterpret_cast<nsIMSimRadioInterfaceLayer**>(aResult) =
+                 mMSimRIL);
+    return NS_OK;
+  }
+#else
   if (aIID.Equals(NS_GET_IID(nsIRadioInterfaceLayer))) {
     NS_IF_ADDREF(*reinterpret_cast<nsIRadioInterfaceLayer**>(aResult) = mRIL);
     return NS_OK;
   }
+#endif
 
   if (aIID.Equals(NS_GET_IID(nsIWifi))) {
     return CallQueryInterface(mWifiWorker,
@@ -539,6 +597,52 @@ SystemWorkerManager::GetInterface(const nsIID &aIID, void **aResult)
   return NS_ERROR_NO_INTERFACE;
 }
 
+#ifdef MOZ_B2G_MULTI_SIM
+nsresult
+SystemWorkerManager::InitMSimRIL(JSContext *cx)
+{
+  nsCOMPtr<nsIMSimRadioInterfaceLayer> mSimRIL = do_CreateInstance("@mozilla.org/msim_ril;1");
+  NS_ENSURE_TRUE(mSimRIL, NS_ERROR_FAILURE);
+
+  mozilla::RefPtr<RILReceiver> receiver = new RILReceiver();
+
+  //TODO define 2
+  for (int i = 0; i < 2; i++) {
+    nsCOMPtr<nsIMSimWorkerHolder> workers = do_QueryInterface(mSimRIL);
+    if (!workers) {
+      break;
+    }
+
+    jsval workerval;
+    nsresult rv = workers->GetWorker(i, &workerval);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    NS_ENSURE_TRUE(!JSVAL_IS_PRIMITIVE(workerval), NS_ERROR_UNEXPECTED);
+
+    JSAutoRequest ar(cx);
+    JSAutoCompartment ac(cx, JSVAL_TO_OBJECT(workerval));
+
+    WorkerCrossThreadDispatcher *wctd =
+      GetWorkerCrossThreadDispatcher(cx, workerval);
+    if (!wctd) {
+      return NS_ERROR_FAILURE;
+    }
+
+    nsRefPtr<ConnectWorkerToRIL> connection = new ConnectWorkerToRIL(i);
+    if (!wctd->PostTask(connection)) {
+      return NS_ERROR_UNEXPECTED;
+    }
+
+    receiver->RegisterRILEvent(i, wctd);
+  }
+
+  // Now that we're set up, connect ourselves to the RIL thread.
+  StartRil(receiver);
+  mMSimRIL = mSimRIL ;
+  return NS_OK;
+}
+
+#else
 nsresult
 SystemWorkerManager::InitRIL(JSContext *cx)
 {
@@ -578,6 +682,7 @@ SystemWorkerManager::InitRIL(JSContext *cx)
   mRIL = ril;
   return NS_OK;
 }
+#endif
 
 #ifdef MOZ_WIDGET_GONK
 nsresult
