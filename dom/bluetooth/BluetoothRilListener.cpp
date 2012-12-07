@@ -11,6 +11,8 @@
 #include "nsServiceManagerUtils.h"
 #include "nsString.h"
 
+// TODO Determine default phone.
+#define DEFAULT_PHONE_INDEX 0
 USING_BLUETOOTH_NAMESPACE
 
 class BluetoothRILTelephonyCallback : public nsIRILTelephonyCallback
@@ -70,9 +72,10 @@ BluetoothRilListener::StartListening()
     return false;
   }
 
-  nsresult rv = ril->RegisterTelephonyCallback(mRILTelephonyCallback);
+  nsresult rv = ril->RegisterTelephonyCallback(DEFAULT_PHONE_INDEX,
+                                               mRILTelephonyCallback);
   NS_ENSURE_SUCCESS(rv, false);
-  rv = ril->RegisterTelephonyMsg();
+  rv = ril->RegisterTelephonyMsg(DEFAULT_PHONE_INDEX);
   NS_ENSURE_SUCCESS(rv, false);
 
   return true;
@@ -87,7 +90,7 @@ BluetoothRilListener::StopListening()
     return false;
   }
 
-  nsresult rv = ril->UnregisterTelephonyCallback(mRILTelephonyCallback);
+  nsresult rv = ril->UnregisterTelephonyCallback(DEFAULT_PHONE_INDEX, mRILTelephonyCallback);
 
   return NS_FAILED(rv) ? false : true;
 }
