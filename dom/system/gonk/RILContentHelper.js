@@ -717,24 +717,26 @@ RILContentHelper.prototype = {
 
   voicemailStatus: null,
 
-  getVoicemailInfo: function getVoicemailInfo() {
+  getVoicemailInfo: function getVoicemailInfo(subscriptionId) {
     // Get voicemail infomation by IPC only on first time.
-    this.getVoicemailInfo = function getVoicemailInfo() {
-      return this.voicemailInfo;
+    this.getVoicemailInfo = function getVoicemailInfo(subscriptionId) {
+      return this.voicemailInfo[subscriptionId];
     };
 
-    let voicemailInfo = cpmm.sendSyncMessage("RIL:GetVoicemailInfo")[0];
+    let voicemailInfo = cpmm.sendSyncMessage("RIL:GetVoicemailInfo",
+                                             {subscriptionId: subscriptionId})[0];
+    let info = this.voicemailInfo[subscriptionId];
     if (voicemailInfo) {
-      this.updateVoicemailInfo(voicemailInfo, this.voicemailInfo);
+      this.updateVoicemailInfo(voicemailInfo, info);
     }
 
-    return this.voicemailInfo;
+    return info;
   },
-  get voicemailNumber() {
-    return this.getVoicemailInfo().number;
+  getVoicemailNumber: function getVoicemailNumber(subscriptionId) {
+    return this.getVoicemailInfo(subscriptionId).number;
   },
-  get voicemailDisplayName() {
-    return this.getVoicemailInfo().displayName;
+  getVoicemailDisplayName: function getVoicemailDisplayName(subscriptionId) {
+    return this.getVoicemailInfo(subscriptionId).displayName;
   },
 
   registerCallback: function registerCallback(subscriptionId, callbackType, callback) {
@@ -783,14 +785,12 @@ RILContentHelper.prototype = {
     this.unregisterCallback(subscriptionId, "_telephonyCallbacks", callback);
   },
 
-  registerVoicemailCallback: function registerVoicemailCallback(callback) {
-    // TODO Bug 818352 - add subscriptionId in Voicemail API
-    this.registerCallback(0, "_voicemailCallbacks", callback);
+  registerVoicemailCallback: function registerVoicemailCallback(subscriptionId, callback) {
+    this.registerCallback(subscriptionId, "_voicemailCallbacks", callback);
   },
 
-  unregisterVoicemailCallback: function unregisteVoicemailCallback(callback) {
-    // TODO Bug 818352 - add subscriptionId in Voicemail API
-    this.unregisterCallback(0, "_voicemailCallbacks", callback);
+  unregisterVoicemailCallback: function unregisteVoicemailCallback(subscriptionId, callback) {
+    this.unregisterCallback(subscriptionId, "_voicemailCallbacks", callback);
   },
 
   registerCellBroadcastCallback: function registerCellBroadcastCallback(callback) {
@@ -813,9 +813,10 @@ RILContentHelper.prototype = {
     cpmm.sendAsyncMessage("RIL:RegisterMobileConnectionMsg", {});
   },
 
-  registerVoicemailMsg: function registerVoicemailMsg() {
+  registerVoicemailMsg: function registerVoicemailMsg(subscriptionId) {
     debug("Registering for voicemail-related messages");
-    cpmm.sendAsyncMessage("RIL:RegisterVoicemailMsg", {});
+    cpmm.sendAsyncMessage("RIL:RegisterVoicemailMsg",
+                          {subscriptionId: subscriptionId});
   },
 
   registerCellBroadcastMsg: function registerCellBroadcastMsg() {
@@ -1058,10 +1059,12 @@ RILContentHelper.prototype = {
                                msg.json.data.error]);
         break;
       case "RIL:VoicemailNotification":
-        this.handleVoicemailNotification(msg.json.data);
+        this.handleVoicemailNotification(msg.json.subscriptionId || 0,
+                                         msg.json.data);
         break;
       case "RIL:VoicemailInfoChanged":
-        this.updateVoicemailInfo(msg.json.data, this.voicemailInfo);
+        let info = this.voicemailInfo[msg.json.subscriptionId];
+        this.updateVoicemailInfo(msg.json.data, info);
         break;
       case "RIL:CardLockResult":
         if (msg.json.data.success) {
@@ -1183,38 +1186,38 @@ RILContentHelper.prototype = {
     }
   },
 
-  handleVoicemailNotification: function handleVoicemailNotification(message) {
+  handleVoicemailNotification: function handleVoicemailNotification(subscriptionId, message) {
     let changed = false;
-    if (!this.voicemailStatus) {
-      this.voicemailStatus = new VoicemailStatus();
+    let status = this.voicemailStatus[subscriptionId];
+    if (!status) {
+      status = this.voicemailStatus[subscriptionId] = new VoicemailStatus();
     }
 
-    if (this.voicemailStatus.hasMessages != message.active) {
+    if (status.hasMessages != message.active) {
       changed = true;
-      this.voicemailStatus.hasMessages = message.active;
+      status.hasMessages = message.active;
     }
 
-    if (this.voicemailStatus.messageCount != message.msgCount) {
+    if (status.messageCount != message.msgCount) {
       changed = true;
-      this.voicemailStatus.messageCount = message.msgCount;
+      status.messageCount = message.msgCount;
     }
 
-    if (this.voicemailStatus.returnNumber != message.returnNumber) {
+    if (status.returnNumber != message.returnNumber) {
       changed = true;
-      this.voicemailStatus.returnNumber = message.returnNumber;
+      status.returnNumber = message.returnNumber;
     }
 
-    if (this.voicemailStatus.returnMessage != message.returnMessage) {
+    if (status.returnMessage != message.returnMessage) {
       changed = true;
-      this.voicemailStatus.returnMessage = message.returnMessage;
+      status.returnMessage = message.returnMessage;
     }
 
     if (changed) {
-      // TODO Bug 818352 - add subscriptionId in Voicemail API
-      this._deliverCallback(0,
+      this._deliverCallback(subscriptionId,
                             "_voicemailCallbacks",
                             "voicemailNotification",
-                            [this.voicemailStatus]);
+                            [status]);
     }
   },
 
