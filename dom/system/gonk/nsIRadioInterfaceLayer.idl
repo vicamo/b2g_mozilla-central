@@ -154,7 +154,7 @@ interface nsIRILCellBroadcastCallback : nsISupports
  * Helper that runs in the content process and exposes information
  * to the DOM.
  */
-[scriptable, uuid(b1c0c5cc-04b6-4ae0-a99c-2fda64694fb7)]
+[scriptable, uuid(483a7c55-6f14-42eb-82d1-278300caf5c2)]
 interface nsIRILContentHelper : nsIMobileConnectionProvider
 {
   void registerTelephonyCallback(in unsigned long subscriptionId,
@@ -162,8 +162,10 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
   void unregisterTelephonyCallback(in unsigned long subscriptionId,
                                    in nsIRILTelephonyCallback callback);
 
-  void registerVoicemailCallback(in nsIRILVoicemailCallback callback);
-  void unregisterVoicemailCallback(in nsIRILVoicemailCallback callback);
+  void registerVoicemailCallback(in unsigned long subscriptionId,
+                                 in nsIRILVoicemailCallback callback);
+  void unregisterVoicemailCallback(in unsigned long subscriptionId,
+                                   in nsIRILVoicemailCallback callback);
 
   void registerCellBroadcastCallback(in nsIRILCellBroadcastCallback callback);
   void unregisterCellBroadcastCallback(in nsIRILCellBroadcastCallback callback);
@@ -186,7 +188,7 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
    * the registration list once the chrome receives a 'child-process-shutdown'
    * message.
    */
-  void registerVoicemailMsg();
+  void registerVoicemailMsg(in unsigned long subscriptionId);
 
   /**
    * Called when a content process registers receiving unsolicited messages from
@@ -227,9 +229,9 @@ interface nsIRILContentHelper : nsIMobileConnectionProvider
   bool getSpeakerEnabled(in unsigned long subscriptionId);
   void setSpeakerEnabled(in unsigned long subscriptionId, in bool enabled);
 
-  readonly attribute nsIDOMMozVoicemailStatus voicemailStatus;
-  readonly attribute DOMString voicemailNumber;
-  readonly attribute DOMString voicemailDisplayName;
+  nsIDOMMozVoicemailStatus getVoicemailStatus(in unsigned long subscriptionId);
+  DOMString getVoicemailNumber(in unsigned long subscriptionId);
+  DOMString getVoicemailDisplayName(in unsigned long subscriptionId);
 };
 
 [scriptable, uuid(886251a4-18d9-4a54-a6a1-57d5c1d61ceb)]
