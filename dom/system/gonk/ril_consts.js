@@ -1168,6 +1168,12 @@ this.CB_ETWS_WARNING_TYPE_NAMES = [
   "other"
 ];
 
+// UMTS Message Type
+// see 3GPP TS 25.324 section 11.1
+this.CB_UMTS_MESSAGE_TYPE_CBS      = 1;
+this.CB_UMTS_MESSAGE_TYPE_SCHEDULE = 2;
+this.CB_UMTS_MESSAGE_TYPE_CBS41    = 3;
+
 /**
  * GSM PDU constants
  */

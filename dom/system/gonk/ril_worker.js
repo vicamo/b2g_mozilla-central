@@ -7389,6 +7389,66 @@ let GsmPDUHelper = {
   },
 
   /**
+   * Read UMTS CB Data
+   *
+   * Octet Number(s)  Parameter
+   *               1  Number-of-Pages
+   *          2 - 83  CBS-Message-Information-Page 1
+   *              84  CBS-Message-Information-Length 1
+   *             ...
+   *                  CBS-Message-Information-Page n
+   *                  CBS-Message-Information-Length n
+   *
+   * @see 3GPP TS 23.041 section 9.4.2.2.5
+   */
+  readUmtsCbData: function readUmtsCbData() {
+    let numOfPages = Buf.readUint8();
+    if (!numOfPages) {
+      return;
+    }
+
+    let totalLength = 0, length, pageLengths = [];
+    for (let i = 0; i < numOfPages; i++) {
+      Buf.seekIncoming(CB_MAX_CONTENT_8BIT);
+      length = Buf.readUint8();
+      totalLength += length;
+      pageLengths.push(length);
+    }
+
+    // Seek back to beginning of CB Data.
+    Buf.seekIncoming(-numOfPages * (CB_MAX_CONTENT_8BIT + 1));
+
+    if (msg.encoding == PDU_DCS_MSG_CODING_8BITS_ALPHABET) {
+      msg.data = new Uint8Array(totalLength);
+
+      for (let i = 0, j = 0; i < numOfPages; i++) {
+        for (length = pageLengths[i]; length > 0; length--) {
+          msg.data[j++] = Buf.readUint8();
+        }
+
+        // Read off page length again. We might read a padding octet instead of
+        // the expected `length` one at the last round, but that's fine here.
+        Buf.readUint8();
+      }
+
+      return;
+    }
+
+    // 7 Bits alphabet or UCS-2 here.
+    let body = "";
+    for (let i = 0; i < numOfPages; i++) {
+      this.readGsmCbData(msg, pageLengths[i]);
+      body += msg.body;
+
+      // Read off page length again. We might read a padding octet instead of
+      // the expected `length` one at the last round, but that's fine here.
+      Buf.readUint8();
+    }
+
+    msg.body = body;
+  },
+
+  /**
    * Read Cell GSM/ETWS/UMTS Broadcast Message.
    *
    * @param pduLength
@@ -7435,7 +7495,8 @@ let GsmPDUHelper = {
       return this.readGsmCbMessage(msg, pduLength);
     }
 
-    return null;
+    msg.format = CB_FORMAT_UMTS;
+    return this.readUmtsCbMessage(msg);
   },
 
   /**
@@ -7476,6 +7537,29 @@ let GsmPDUHelper = {
     // Octet 7..56 is Warning Security Information. However, according to
     // section 9.4.1.3.6, `The UE shall ignore this parameter.` So we just skip
     // processing it here.
+
+    return msg;
+  },
+
+  /**
+   * Read UMTS CBS Message.
+   *
+   * @param msg
+   *        message object for output.
+   *
+   * @see 3GPP TS 23.041 section 9.4.2
+   * @see 3GPP TS 25.324 section 10.2
+   */
+  readUmtsCbMessage: function readUmtsCbMessage(msg) {
+    let type = Buf.readUint8();
+    if (type != CB_UMTS_MESSAGE_TYPE_CBS) {
+      throw new Error("Unsupported UMTS Cell Broadcast message type: " + type);
+    }
+
+    this.readCbMessageIdentifier(msg);
+    this.readCbSerialNumber(msg);
+    this.readCbDataCodingScheme(msg);
+    this.readUmtsCbData(msg);
 
     return msg;
   },
