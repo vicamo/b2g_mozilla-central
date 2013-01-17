@@ -14,7 +14,7 @@
  */
 
 // Set to true to debug all RIL layers
-this.DEBUG_ALL = false;
+this.DEBUG_ALL = true;
 
 // Set individually to debug specific layers
 this.DEBUG_WORKER = false || DEBUG_ALL;
