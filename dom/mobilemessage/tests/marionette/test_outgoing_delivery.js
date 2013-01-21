@@ -74,7 +74,7 @@ function sendEmulatorCommand(cmd, callback) {
   });
 }
 
-function sendSmsDrpt(values, callback) {
+function sendSmsDrptValues(values, callback) {
   let cmd;
   if (!values) {
     cmd = "sms drpt off";
@@ -94,11 +94,17 @@ function getSmsMref(callback) {
   });
 }
 
+/**
+ * Steps to test:
+ * 1. send emulator command "sms drpt on,[...]" with desired drpt values,
+ * 2. wait for either deliverystatus or deliveryerror event,
+ * 3. verify related message attributes
+ */
 function doSimpleTest(body, status, drpt) {
   log("Simple test with body: \"" + body + "\", status: " + status
       + ", drpt: " + JSON.stringify(drpt));
 
-  sendSmsDrpt(drpt, function (emulatorOk) {
+  sendSmsDrptValues(drpt, function (emulatorOk) {
     if (!emulatorOk) {
       tasks.next();
       return;
@@ -129,47 +135,46 @@ function doSimpleTest(body, status, drpt) {
   });
 }
 
+/**
+ * Steps to test:
+ * 1. 
+ */
 function doPendingTest(body, status, drpt) {
   log("Pending test with body: \"" + body + "\", status: " + status
       + ", drpt: " + JSON.stringify(drpt));
 
-  sendSmsDrpt([PDU_ST_1_CONGESTION], function (emulatorOk) {
+  function okOrNext(callback, emulatorOk, extra) {
     if (!emulatorOk) {
       tasks.next();
       return;
     }
+    callback(extra);
+  }
 
+  sendSmsDrpt([PDU_ST_1_CONGESTION],
+              okOrNext.bind(null, function () {
     let request = sms.send("123456789", body);
-    request.onsuccess = getSmsMref.bind(null, function (emulatorOk, mref) {
-      if (!emulatorOk) {
-        tasks.next();
-        return;
-      }
-
-      sendSmsDrpt(drpt, function (emulatorOk) {
-        if (!emulatorOk) {
-          tasks.next();
-          return;
-        }
-
-      });
-    });
-  });
+    request.onsuccess =
+      getSmsMref.bind(null, okOrNext.bind(null, function (mref) {
+        sendSmsDrpt(drpt, okOrNext.bind(null, function () {
+	}));
+      }));
+  }));
 }
 
 // Normal success.
 tasks.push(doSimpleTest.bind(null, "a", "success", [PDU_ST_0_RECEIVED]));
 
 // Pending delivery status.
-//tasks.push(doPendingTest.bind(null, "a", "success", [PDU_ST_0_RECEIVED]));
-//tasks.push(doPendingTest.bind(null, "a", "false",   [PDU_ST_0_RECEIVED]));
+tasks.push(doPendingTest.bind(null, "a", "success", [PDU_ST_0_RECEIVED]));
+tasks.push(doPendingTest.bind(null, "a", "false",   [PDU_ST_2_RPC_ERROR]));
 
 // Any reserved but not SC specific status code is considered failed.
 tasks.push(doSimpleTest.bind(null, "a", "error",   [PDU_ST_0_RESERVED_BEGIN]));
 tasks.push(doSimpleTest.bind(null, "a", "success", [PDU_ST_0_SC_SPECIFIC_BEGIN]));
 tasks.push(doSimpleTest.bind(null, "a", "error",   [PDU_ST_1_RESERVED_BEGIN]));
 // Following test times out because ril_worker waits the pending status
-// forever. This is expected and tested in doPendingTest.
+// forever. This is expected and already tested in doPendingTest().
 //tasks.push(doSimpleTest.bind(null, "a", "success", [PDU_ST_1_SC_SPECIFIC_BEGIN]));
 
 // Any status does belong to PDU_ST_0 and PDU_ST_1 is considered failed.
