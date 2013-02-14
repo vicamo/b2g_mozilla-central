@@ -157,6 +157,10 @@ class Emulator(object):
         qemuArgs.extend(['-memory', '512',
                          '-partition-size', '512',
                          '-verbose',
+                         '-debug-modem',
+                         '-debug-radio',
+                         '-debug-console',
+                         '-debug-socket',
                          '-skin', self.res,
                          '-gpu', 'on',
                          '-qemu'] + self.tail_args)
@@ -228,6 +232,11 @@ class Emulator(object):
     def close(self):
         if self.is_running and self._emulator_launched:
             self.proc.kill()
+            o, e = self.proc.communicate();
+            print 'Emaultor STDOUT:'
+            print o
+            print 'Emaultor STDERR:'
+            print e
         if self._adb_started:
             self._run_adb(['kill-server'])
             self._adb_started = False
