@@ -1,0 +1,2 @@
+component {819124d5-80c3-42f2-8a62-d61165aba936} SmsService.js
+contract @mozilla.org/mobilemessage/gonksmsservice;1 {819124d5-80c3-42f2-8a62-d61165aba936}

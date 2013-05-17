@@ -38,7 +38,7 @@ XPCOMUtils.defineLazyServiceGetter(this, "gMobileMessageService",
                                    "nsIMobileMessageService");
 
 XPCOMUtils.defineLazyServiceGetter(this, "gMobileMessageDatabaseService",
-                                   "@mozilla.org/mobilemessage/rilmobilemessagedatabaseservice;1",
+                                   "@mozilla.org/mobilemessage/mobilemessagedatabaseservice;1",
                                    "nsIRilMobileMessageDatabaseService");
 
 XPCOMUtils.defineLazyServiceGetter(this, "gSystemMessenger",
@@ -47,7 +47,16 @@ XPCOMUtils.defineLazyServiceGetter(this, "gSystemMessenger",
 
 XPCOMUtils.defineLazyServiceGetter(this, "gMobileConnectionService",
                                    "@mozilla.org/mobileconnection/mobileconnectionservice;1",
-                                   "nsIGonkMobileConnectionService");
+                                   "nsIMobileConnectionService");
+
+XPCOMUtils.defineLazyServiceGetter(this, "gIccProvider",
+                                   "@mozilla.org/ril/content-helper;1",
+                                   "nsIIccProvider");
+
+const GONK_SMSSERVICE_CONTRACTID =
+  "@mozilla.org/mobilemessage/gonksmsservice;1";
+const GONK_SMSSERVICE_CID =
+  Components.ID("{819124d5-80c3-42f2-8a62-d61165aba936}");
 
 const kSmsReceivedObserverTopic          = "sms-received";
 const kSilentSmsReceivedObserverTopic    = "silent-sms-received";
@@ -71,10 +80,37 @@ function debug(s) {
   dump("SmsService: " + s + "\n");
 }
 
-  this.portAddressedSmsApps = {};
-  this.portAddressedSmsApps[WAP.WDP_PORT_PUSH] = this.handleSmsWdpPortPush.bind(this);
+function SmsService() {
+  this._receivedSmsSegmentsMap = new Map();
 
-  this._receivedSmsSegmentsMap = {};
+  Services.prefs.addObserver(kPrefRilDebuggingEnabled, this, false);
+  this._updateDebugFlag();
+}
+
+SmsService.prototype = {
+  classID: GONK_SMSSERVICE_CID,
+  classInfo: XPCOMUtils.generateCI({
+    classID: GONK_SMSSERVICE_CID,
+    contractID: GONK_SMSSERVICE_CONTRACTID,
+    classDescription: "SmsService",
+    interfaces: [
+      Ci.nsIGonkSmsService,
+      Ci.nsISmsService
+    ],
+    flags: Ci.nsIClassInfo.SINGLETON
+  }),
+  QueryInterface: XPCOMUtils.generateQI([
+    Ci.nsIGonkSmsService,
+    Ci.nsISmsService,
+    Ci.nsIObserver
+  ]),
+
+  _updateDebugFlag: function() {
+    try {
+      DEBUG = RIL.DEBUG_RIL ||
+              Services.prefs.getBoolPref(kPrefRilDebuggingEnabled);
+    } catch (e) {}
+  },
 
   /**
    * Get phone number from iccInfo.
@@ -85,9 +121,8 @@ function debug(s) {
    * Otherwise, the phone number is in mdn.
    * @see nsIDOMMozCdmaIccInfo
    */
-  getPhoneNumber: function() {
-    let iccInfo = this.rilContext.iccInfo;
-
+  getPhoneNumber: function(aServiceId) {
+    let iccInfo = gIccProvider.getIccInfo(aServiceId);
     if (!iccInfo) {
       return null;
     }
@@ -110,9 +145,8 @@ function debug(s) {
   /**
    * A utility function to get the ICC ID of the SIM card (if installed).
    */
-  getIccId: function() {
-    let iccInfo = this.rilContext.iccInfo;
-
+  getIccId: function(aServiceId) {
+    let iccInfo = gIccProvider.getIccInfo(aServiceId);
     if (!iccInfo) {
       return null;
     }
@@ -126,6 +160,20 @@ function debug(s) {
     }
 
     return iccId;
+  },
+
+  handleSmsWdpPortPush: function(message) {
+    switch (message.destinationPort) {
+      case WAP.WDP_PORT_PUSH:
+        this.handleSmsWdpPortPush(message);
+        break;
+
+      default:
+        if (DEBUG) {
+          debug("Unhandled port addressed message for " + message.destinationPort);
+        }
+        break;
+    }
   },
 
   /**
@@ -148,9 +196,9 @@ function debug(s) {
       bearer: WAP.WDP_BEARER_GSM_SMS_GSM_MSISDN,
       sourceAddress: message.sender,
       sourcePort: message.originatorPort,
-      destinationAddress: this.rilContext.iccInfo.msisdn,
+      destinationAddress: this.getPhoneNumber(message.serviceId),
       destinationPort: message.destinationPort,
-      serviceId: this.clientId
+      serviceId: message.serviceId
     };
     WAP.WapPushManager.receiveWdpPDU(message.fullData, message.fullData.length,
                                      0, options);
@@ -254,10 +302,10 @@ function debug(s) {
                aSegment.segmentMaxSeq;
     let seq = aSegment.segmentSeq;
 
-    let options = this._receivedSmsSegmentsMap[hash];
+    let options = this._receivedSmsSegmentsMap.get(hash);
     if (!options) {
       options = aSegment;
-      this._receivedSmsSegmentsMap[hash] = options;
+      this._receivedSmsSegmentsMap.set(hash, options);
 
       options.receivedSegments = 0;
       options.segments = [];
@@ -307,7 +355,7 @@ function debug(s) {
     }
 
     // Remove from map
-    delete this._receivedSmsSegmentsMap[hash];
+    this._receivedSmsSegmentsMap.delete(hash);
 
     // Rebuild full body
     if (options.encoding == RIL.PDU_DCS_MSG_CODING_8BITS_ALPHABET) {
@@ -341,7 +389,7 @@ function debug(s) {
   },
 
   /**
-   * Helper to create Savable SmsSegment.
+   * Helper to create savable SMS segment.
    */
   _createSavableSmsSegment: function(aMessage) {
     // We precisely define what data fields to be stored into
@@ -356,7 +404,7 @@ function debug(s) {
     segment.pid = aMessage.pid;
     segment.encoding = aMessage.encoding;
     segment.messageClass = aMessage.messageClass;
-    segment.iccId = this.getIccId();
+    segment.iccId = this.getIccId(aMessage.serviceId);
     if (aMessage.header) {
       segment.segmentRef = aMessage.header.segmentRef;
       segment.segmentSeq = aMessage.header.segmentSeq;
@@ -440,7 +488,6 @@ function debug(s) {
     }
   },
 
-  portAddressedSmsApps: null,
   handleSmsReceived: function(message) {
     if (DEBUG) this.debug("handleSmsReceived: " + JSON.stringify(message));
 
@@ -454,10 +501,7 @@ function debug(s) {
     // available. Note that the destination port can possibly be zero when
     // representing a UDP/TCP port.
     if (message.destinationPort != null) {
-      let handler = this.portAddressedSmsApps[message.destinationPort];
-      if (handler) {
-        handler(message);
-      }
+      this.handleSmsWdpPortPush(message);
       return true;
     }
 
@@ -468,7 +512,7 @@ function debug(s) {
 
     message.type = "sms";
     message.sender = message.sender || null;
-    message.receiver = this.getPhoneNumber();
+    message.receiver = this.getPhoneNumber(message.serviceId);
     message.body = message.fullBody = message.fullBody || null;
 
     if (gSmsService.isSilentNumber(message.sender)) {
@@ -1249,12 +1293,12 @@ function debug(s) {
 
     let sendingMessage = {
       type: "sms",
-      sender: this.getPhoneNumber(),
+      sender: this.getPhoneNumber(serviceId),
       receiver: number,
       body: message,
       deliveryStatusRequested: options.requestStatusReport,
       timestamp: Date.now(),
-      iccId: this.getIccId()
+      iccId: this.getIccId(serviceId)
     };
 
     if (silent) {
