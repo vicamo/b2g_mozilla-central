@@ -81,7 +81,7 @@ function debug(s) {
 }
 
 function SmsService() {
-  this._receivedSmsSegmentsMap = new Map();
+  this._receivedSegmentsMap = new Map();
 
   Services.prefs.addObserver(kPrefRilDebuggingEnabled, this, false);
   this._updateDebugFlag();
@@ -121,7 +121,7 @@ SmsService.prototype = {
    * Otherwise, the phone number is in mdn.
    * @see nsIDOMMozCdmaIccInfo
    */
-  getPhoneNumber: function(aServiceId) {
+  _getPhoneNumber: function(aServiceId) {
     let iccInfo = gIccProvider.getIccInfo(aServiceId);
     if (!iccInfo) {
       return null;
@@ -145,7 +145,7 @@ SmsService.prototype = {
   /**
    * A utility function to get the ICC ID of the SIM card (if installed).
    */
-  getIccId: function(aServiceId) {
+  _getIccId: function(aServiceId) {
     let iccInfo = gIccProvider.getIccInfo(aServiceId);
     if (!iccInfo) {
       return null;
@@ -162,10 +162,10 @@ SmsService.prototype = {
     return iccId;
   },
 
-  handleSmsWdpPortPush: function(message) {
+  _handlePortAddressedMessage: function(message) {
     switch (message.destinationPort) {
       case WAP.WDP_PORT_PUSH:
-        this.handleSmsWdpPortPush(message);
+        this._handleWdpPortPush(message);
         break;
 
       default:
@@ -183,7 +183,7 @@ SmsService.prototype = {
    * @param message
    *        A SMS message.
    */
-  handleSmsWdpPortPush: function(message) {
+  _handleWdpPortPush: function(message) {
     if (message.encoding != RIL.PDU_DCS_MSG_CODING_8BITS_ALPHABET) {
       if (DEBUG) {
         this.debug("Got port addressed SMS but not encoded in 8-bit alphabet." +
@@ -196,7 +196,7 @@ SmsService.prototype = {
       bearer: WAP.WDP_BEARER_GSM_SMS_GSM_MSISDN,
       sourceAddress: message.sender,
       sourcePort: message.originatorPort,
-      destinationAddress: this.getPhoneNumber(message.serviceId),
+      destinationAddress: this._getPhoneNumber(message.serviceId),
       destinationPort: message.destinationPort,
       serviceId: message.serviceId
     };
@@ -213,7 +213,7 @@ SmsService.prototype = {
    * @param aDomMessage
    *        The nsIDOMMozSmsMessage object.
    */
-  broadcastSmsSystemMessage: function(aName, aDomMessage) {
+  _broadcastSystemMessage: function(aName, aDomMessage) {
     if (DEBUG) this.debug("Broadcasting the SMS system message: " + aName);
 
     // Sadly we cannot directly broadcast the aDomMessage object
@@ -240,34 +240,34 @@ SmsService.prototype = {
   // The following attributes/functions are used for acquiring/releasing the
   // CPU wake lock when the RIL handles the received SMS. Note that we need
   // a timer to bound the lock's life cycle to avoid exhausting the battery.
-  _smsHandledWakeLock: null,
-  _smsHandledWakeLockTimer: null,
+  _handledWakeLock: null,
+  _handledWakeLockTimer: null,
 
-  _acquireSmsHandledWakeLock: function() {
-    if (!this._smsHandledWakeLock) {
+  _acquireHandledWakeLock: function() {
+    if (!this._handledWakeLock) {
       if (DEBUG) this.debug("Acquiring a CPU wake lock for handling SMS.");
-      this._smsHandledWakeLock = gPowerManagerService.newWakeLock("cpu");
+      this._handledWakeLock = gPowerManagerService.newWakeLock("cpu");
     }
-    if (!this._smsHandledWakeLockTimer) {
+    if (!this._handledWakeLockTimer) {
       if (DEBUG) this.debug("Creating a timer for releasing the CPU wake lock.");
-      this._smsHandledWakeLockTimer =
+      this._handledWakeLockTimer =
         Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
     }
     if (DEBUG) this.debug("Setting the timer for releasing the CPU wake lock.");
-    this._smsHandledWakeLockTimer
-        .initWithCallback(this._releaseSmsHandledWakeLock.bind(this),
+    this._handledWakeLockTimer
+        .initWithCallback(this._releaseHandledWakeLock.bind(this),
                           SMS_HANDLED_WAKELOCK_TIMEOUT,
                           Ci.nsITimer.TYPE_ONE_SHOT);
   },
 
-  _releaseSmsHandledWakeLock: function() {
+  _releaseHandledWakeLock: function() {
     if (DEBUG) this.debug("Releasing the CPU wake lock for handling SMS.");
-    if (this._smsHandledWakeLockTimer) {
-      this._smsHandledWakeLockTimer.cancel();
+    if (this._handledWakeLockTimer) {
+      this._handledWakeLockTimer.cancel();
     }
-    if (this._smsHandledWakeLock) {
-      this._smsHandledWakeLock.unlock();
-      this._smsHandledWakeLock = null;
+    if (this._handledWakeLock) {
+      this._handledWakeLock.unlock();
+      this._handledWakeLock = null;
     }
   },
 
@@ -276,7 +276,7 @@ SmsService.prototype = {
    * its sender address and concatenation reference number. Three additional
    * attributes `segmentMaxSeq`, `receivedSegments`, `segments` are inserted.
    */
-  _receivedSmsSegmentsMap: null,
+  _receivedSegmentsMap: null,
 
   /**
    * Helper for processing received multipart SMS.
@@ -284,7 +284,7 @@ SmsService.prototype = {
    * @return null for handled segments, and an object containing full message
    *         body/data once all segments are received.
    */
-  _processReceivedSmsSegment: function(aSegment) {
+  _processReceivedSegment: function(aSegment) {
 
     // Directly replace full message body for single SMS.
     if (!(aSegment.segmentMaxSeq && (aSegment.segmentMaxSeq > 1))) {
@@ -302,10 +302,10 @@ SmsService.prototype = {
                aSegment.segmentMaxSeq;
     let seq = aSegment.segmentSeq;
 
-    let options = this._receivedSmsSegmentsMap.get(hash);
+    let options = this._receivedSegmentsMap.get(hash);
     if (!options) {
       options = aSegment;
-      this._receivedSmsSegmentsMap.set(hash, options);
+      this._receivedSegmentsMap.set(hash, options);
 
       options.receivedSegments = 0;
       options.segments = [];
@@ -355,7 +355,7 @@ SmsService.prototype = {
     }
 
     // Remove from map
-    this._receivedSmsSegmentsMap.delete(hash);
+    this._receivedSegmentsMap.delete(hash);
 
     // Rebuild full body
     if (options.encoding == RIL.PDU_DCS_MSG_CODING_8BITS_ALPHABET) {
@@ -391,7 +391,7 @@ SmsService.prototype = {
   /**
    * Helper to create savable SMS segment.
    */
-  _createSavableSmsSegment: function(aMessage) {
+  _createSavableSegment: function(aMessage) {
     // We precisely define what data fields to be stored into
     // DB here for better data migration.
     let segment = {};
@@ -404,7 +404,7 @@ SmsService.prototype = {
     segment.pid = aMessage.pid;
     segment.encoding = aMessage.encoding;
     segment.messageClass = aMessage.messageClass;
-    segment.iccId = this.getIccId(aMessage.serviceId);
+    segment.iccId = this._getIccId(aMessage.serviceId);
     if (aMessage.header) {
       segment.segmentRef = aMessage.header.segmentRef;
       segment.segmentSeq = aMessage.header.segmentSeq;
@@ -427,10 +427,10 @@ SmsService.prototype = {
   /**
    * Helper to purge complete message.
    *
-   * We remove unnessary fields defined in _createSavableSmsSegment() after
+   * We remove unnessary fields defined in _createSavableSegment() after
    * completing the concatenation.
    */
-  _purgeCompleteSmsMessage: function(aMessage) {
+  _purgeCompleteMessage: function(aMessage) {
     // Purge concatenation info
     delete aMessage.segmentRef;
     delete aMessage.segmentSeq;
@@ -444,23 +444,23 @@ SmsService.prototype = {
   /**
    * handle concatenation of received SMS.
    */
-  handleSmsMultipart: function(aMessage) {
-    if (DEBUG) this.debug("handleSmsMultipart: " + JSON.stringify(aMessage));
+  handleMultipart: function(aMessage) {
+    if (DEBUG) this.debug("handleMultipart: " + JSON.stringify(aMessage));
 
-    this._acquireSmsHandledWakeLock();
+    this._acquireHandledWakeLock();
 
-    let segment = this._createSavableSmsSegment(aMessage);
+    let segment = this._createSavableSegment(aMessage);
 
     let isMultipart = (segment.segmentMaxSeq && (segment.segmentMaxSeq > 1));
     let messageClass = segment.messageClass;
 
     let handleReceivedAndAck = function(aRvOfIncompleteMsg, aCompleteMessage) {
       if (aCompleteMessage) {
-        this._purgeCompleteSmsMessage(aCompleteMessage);
-        if (this.handleSmsReceived(aCompleteMessage)) {
+        this._purgeCompleteMessage(aCompleteMessage);
+        if (this.handleReceived(aCompleteMessage)) {
           this.sendAckSms(Cr.NS_OK, aCompleteMessage);
         }
-        // else Ack will be sent after further process in handleSmsReceived.
+        // else Ack will be sent after further process in handleReceived.
       } else {
         this.sendAckSms(aRvOfIncompleteMsg, segment);
       }
@@ -478,7 +478,7 @@ SmsService.prototype = {
       // ~ 3GPP 23.038 clause 4
 
       handleReceivedAndAck(Cr.NS_OK,  // ACK OK For Incomplete Class 0
-                           this._processReceivedSmsSegment(segment));
+                           this._processReceivedSegment(segment));
     } else {
       gMobileMessageDatabaseService
         .saveSmsSegment(segment, function notifyResult(aRv, aCompleteMessage) {
@@ -488,8 +488,8 @@ SmsService.prototype = {
     }
   },
 
-  handleSmsReceived: function(message) {
-    if (DEBUG) this.debug("handleSmsReceived: " + JSON.stringify(message));
+  handleReceived: function(message) {
+    if (DEBUG) this.debug("handleReceived: " + JSON.stringify(message));
 
     if (message.messageType == RIL.PDU_CDMA_MSG_TYPE_BROADCAST) {
       gMessageManager.sendCellBroadcastMessage("RIL:CellBroadcastReceived",
@@ -501,7 +501,7 @@ SmsService.prototype = {
     // available. Note that the destination port can possibly be zero when
     // representing a UDP/TCP port.
     if (message.destinationPort != null) {
-      this.handleSmsWdpPortPush(message);
+      this._handlePortAddressedMessage(message);
       return true;
     }
 
@@ -512,7 +512,7 @@ SmsService.prototype = {
 
     message.type = "sms";
     message.sender = message.sender || null;
-    message.receiver = this.getPhoneNumber(message.serviceId);
+    message.receiver = this._getPhoneNumber(message.serviceId);
     message.body = message.fullBody = message.fullBody || null;
 
     if (gSmsService.isSilentNumber(message.sender)) {
@@ -576,7 +576,7 @@ SmsService.prototype = {
         return;
       }
 
-      this.broadcastSmsSystemMessage(kSmsReceivedObserverTopic, domMessage);
+      this._broadcastSystemMessage(kSmsReceivedObserverTopic, domMessage);
       Services.obs.notifyObservers(domMessage, kSmsReceivedObserverTopic, null);
     }.bind(this);
 
@@ -1233,7 +1233,7 @@ SmsService.prototype = {
 
             // Broadcasting a "sms-delivery-success" system message to open apps.
             if (topic == kSmsDeliverySuccessObserverTopic) {
-              this.broadcastSmsSystemMessage(topic, domMessage);
+              this._broadcastSystemMessage(topic, domMessage);
             }
 
             // Notifying observers the delivery status is updated.
@@ -1281,7 +1281,7 @@ SmsService.prototype = {
             context.sms = domMessage;
           }
 
-          this.broadcastSmsSystemMessage(kSmsSentObserverTopic, domMessage);
+          this._broadcastSystemMessage(kSmsSentObserverTopic, domMessage);
           context.request.notifyMessageSent(domMessage);
           Services.obs.notifyObservers(domMessage, kSmsSentObserverTopic, null);
         }).bind(this));
@@ -1293,12 +1293,12 @@ SmsService.prototype = {
 
     let sendingMessage = {
       type: "sms",
-      sender: this.getPhoneNumber(serviceId),
+      sender: this._getPhoneNumber(serviceId),
       receiver: number,
       body: message,
       deliveryStatusRequested: options.requestStatusReport,
       timestamp: Date.now(),
-      iccId: this.getIccId(serviceId)
+      iccId: this._getIccId(serviceId)
     };
 
     if (silent) {
