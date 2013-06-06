@@ -1904,17 +1904,10 @@ let RIL = {
     Buf.sendParcel();
   },
 
-  setCellBroadcastDisabled: function setCellBroadcastDisabled(options) {
+  setCellBroadcastOptions: function setCellBroadcastOptions(options) {
     this.cellBroadcastDisabled = options.disabled;
-
-    // If |this.mergedCellBroadcastConfig| is null, either we haven't finished
-    // reading required SIM files, or no any channel is ever configured.  In
-    // the former case, we'll call |this.updateCellBroadcastConfig()| later
-    // with correct configs; in the latter case, we don't bother resetting CB
-    // to disabled again.
-    if (this.mergedCellBroadcastConfig) {
-      this.updateCellBroadcastConfig();
-    }
+    this.cellBroadcastOmitSimSettings = options.omitsimsettings;
+    this._mergeAllCellBroadcastConfigs();
   },
 
   setCellBroadcastSearchList: function setCellBroadcastSearchList(options) {
@@ -4183,13 +4176,17 @@ let RIL = {
     }
 
     let list = null;
-    for each (let ll in this.cellBroadcastConfigs) {
-      if (ll == null) {
-        continue;
-      }
+    if (this.cellBroadcastOmitSimSettings) {
+      list = this.cellBroadcastConfigs.MMI;
+    } else {
+      for each (let ll in this.cellBroadcastConfigs) {
+        if (ll == null) {
+          continue;
+        }
 
-      for (let i = 0; i < ll.length; i += 2) {
-        list = this._mergeCellBroadcastConfigs(list, ll[i], ll[i + 1]);
+        for (let i = 0; i < ll.length; i += 2) {
+          list = this._mergeCellBroadcastConfigs(list, ll[i], ll[i + 1]);
+        }
       }
     }
 

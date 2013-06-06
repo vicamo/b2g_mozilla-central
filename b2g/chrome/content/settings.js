@@ -174,6 +174,11 @@ SettingsListener.observe('language.current', 'en-US', function(value) {
     function(value) {
       Services.prefs.setBoolPref('ril.cellbroadcast.disabled', value);
   });
+
+  SettingsListener.observe('ril.cellbroadcast.omitsimsettings', false,
+    function(value) {
+      Services.prefs.setBoolPref('ril.cellbroadcast.omitsimsettings', value);
+  });
 })();
 
 //=================== DeviceInfo ====================

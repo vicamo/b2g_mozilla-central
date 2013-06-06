@@ -58,6 +58,7 @@ const kTimeNitzAutomaticUpdateEnabled    = "time.nitz.automatic-update.enabled";
 const kTimeNitzAvailable                 = "time.nitz.available";
 const kCellBroadcastSearchList           = "ril.cellbroadcast.searchlist";
 const kCellBroadcastDisabled             = "ril.cellbroadcast.disabled";
+const kCellBroadcastOmitSimSettings      = "ril.cellbroadcast.omitsimsettings";
 const kPrefenceChangedObserverTopic      = "nsPref:changed";
 
 const DOM_MOBILE_MESSAGE_DELIVERY_RECEIVED = "received";
@@ -236,17 +237,21 @@ function RadioInterfaceLayer() {
   this.worker.onerror = this.onerror.bind(this);
   this.worker.onmessage = this.onmessage.bind(this);
 
-  let cellBroadcastDisabledPref = false;
+  let cellBroadcastDisabledPref = false,
+      cellBroadcastOmitSimSettingsPref = false;
   try {
     cellBroadcastDisabledPref =
       Services.prefs.getBoolPref(kCellBroadcastDisabled);
+    cellBroadcastOmitSimSettingsPref =
+      Services.prefs.getBoolPref(kCellBroadcastOmitSimSettings);
   } catch(e) {}
   // Pass initial options to ril_worker.
   this.worker.postMessage({
     rilMessageType: "setInitialOptions",
     debug: debugPref,
     clientId: this.clientId,
-    cellBroadcastDisabled: cellBroadcastDisabledPref
+    cellBroadcastDisabled: cellBroadcastDisabledPref,
+    cellBroadcastOmitSimSettings: cellBroadcastOmitSimSettingsPref
   });
 
   this.rilContext = {
@@ -371,6 +376,7 @@ function RadioInterfaceLayer() {
   Services.obs.addObserver(this, kScreenStateChangedTopic, false);
 
   Services.prefs.addObserver(kCellBroadcastDisabled, this, false);
+  Services.prefs.addObserver(kCellBroadcastOmitSimSettings, this, false);
 
   this._sentSmsEnvelopes = {};
 
@@ -1954,14 +1960,17 @@ RadioInterfaceLayer.prototype = {
         this.handleSettingsChange(setting.key, setting.value, setting.message);
         break;
       case kPrefenceChangedObserverTopic:
-        if (data === kCellBroadcastDisabled) {
-          let value = false;
+        if ((data === kCellBroadcastDisabled) ||
+            (data === kCellBroadcastOmitSimSettings)) {
+          let disabled = false, omit = false;
           try {
-            value = Services.prefs.getBoolPref(kCellBroadcastDisabled);
+            disabled = Services.prefs.getBoolPref(kCellBroadcastDisabled);
+            omit = Services.prefs.getBoolPref(kCellBroadcastOmitSimSettings);
           } catch(e) {}
           this.worker.postMessage({
-            rilMessageType: "setCellBroadcastDisabled",
-            disabled: value
+            rilMessageType: "setCellBroadcastOptions",
+            disabled: disabled
+            omitsimsettings: omit
           });
         }
         break;
@@ -1994,6 +2003,7 @@ RadioInterfaceLayer.prototype = {
         Services.obs.removeObserver(this, kSysClockChangeObserverTopic);
         Services.obs.removeObserver(this, kScreenStateChangedTopic);
         Services.prefs.removeObserver(kCellBroadcastDisabled, this);
+        Services.prefs.removeObserver(kCellBroadcastOmitSimSettings, this);
         break;
       case kSysClockChangeObserverTopic:
         if (this._lastNitzMessage) {

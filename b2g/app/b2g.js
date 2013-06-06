@@ -414,6 +414,7 @@ pref("services.push.udp.port", 2442);
 pref("dom.mozNetworkStats.enabled", true);
 pref("ril.lastKnownMcc", "724");
 pref("ril.cellbroadcast.disabled", false);
+pref("ril.cellbroadcast.omitsimsettings", false);
 #endif
 
 // WebSettings
