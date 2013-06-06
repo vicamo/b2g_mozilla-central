@@ -2803,6 +2803,7 @@ RadioInterfaceLayer.prototype = {
     try {
       requestStatusReport =
         Services.prefs.getBoolPref("dom.sms.requestStatusReport");
+      Services.prefs.setBoolPref(kCellBroadcastDisabled, message === "true");
     } catch (e) {
       requestStatusReport = true;
     }
