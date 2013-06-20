@@ -163,11 +163,16 @@ SmsIPCService::MarkMessageRead(int32_t aMessageId,
 }
 
 NS_IMETHODIMP
-SmsIPCService::CreateThreadCursor(nsIMobileMessageCursorCallback* aCursorCallback,
+SmsIPCService::CreateThreadCursor(nsIDOMMozSmsFilter* aFilter,
+                                  bool aReverse,
+                                  nsIMobileMessageCursorCallback* aCursorCallback,
                                   nsICursorContinueCallback** aResult)
 {
-  return SendCursorRequest(CreateThreadCursorRequest(), aCursorCallback,
-                           aResult);
+  const SmsFilterData& data =
+    SmsFilterData(static_cast<SmsFilter*>(aFilter)->GetData());
+
+  return SendCursorRequest(CreateThreadCursorRequest(data, aReverse),
+                           aCursorCallback, aResult);
 }
 
 bool

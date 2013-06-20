@@ -680,7 +680,10 @@ MobileMessageCursorParent::DoRequest(const CreateThreadCursorRequest& aRequest)
   nsCOMPtr<nsIMobileMessageDatabaseService> dbService =
     do_GetService(MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID);
   if (dbService) {
-    rv = dbService->CreateThreadCursor(this,
+    nsCOMPtr<nsIDOMMozSmsFilter> filter = new SmsFilter(aRequest.filter());
+    bool reverse = aRequest.reverse();
+
+    rv = dbService->CreateThreadCursor(filter, reverse, this,
                                        getter_AddRefs(mContinueCallback));
   }
 

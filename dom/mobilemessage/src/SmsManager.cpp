@@ -382,17 +382,24 @@ SmsManager::MarkMessageRead(int32_t aId, bool aValue,
 }
 
 NS_IMETHODIMP
-SmsManager::GetThreads(nsIDOMDOMCursor** aCursor)
+SmsManager::GetThreads(nsIDOMMozSmsFilter* aFilter,
+                       bool aReverse,
+                       nsIDOMDOMCursor** aCursor)
 {
   nsCOMPtr<nsIMobileMessageDatabaseService> dbService =
     do_GetService(MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID);
   NS_ENSURE_TRUE(dbService, NS_ERROR_FAILURE);
 
+  nsCOMPtr<nsIDOMMozSmsFilter> filter = aFilter;
+  if (!filter) {
+    filter = new SmsFilter();
+  }
+
   nsRefPtr<MobileMessageCursorCallback> cursorCallback =
     new MobileMessageCursorCallback();
 
   nsCOMPtr<nsICursorContinueCallback> continueCallback;
-  nsresult rv = dbService->CreateThreadCursor(cursorCallback,
+  nsresult rv = dbService->CreateThreadCursor(filter, aReverse, cursorCallback,
                                               getter_AddRefs(continueCallback));
   NS_ENSURE_SUCCESS(rv, rv);
 
