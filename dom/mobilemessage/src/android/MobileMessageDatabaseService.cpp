@@ -65,7 +65,9 @@ MobileMessageDatabaseService::MarkMessageRead(int32_t aMessageId,
 }
 
 NS_IMETHODIMP
-MobileMessageDatabaseService::CreateThreadCursor(nsIMobileMessageCursorCallback* aCallback,
+MobileMessageDatabaseService::CreateThreadCursor(nsIDOMMozSmsFilter* aFilter,
+                                                 bool aReverse,
+                                                 nsIMobileMessageCursorCallback* aCallback,
                                                  nsICursorContinueCallback** aResult)
 {
   NS_NOTYETIMPLEMENTED("Implement me!");

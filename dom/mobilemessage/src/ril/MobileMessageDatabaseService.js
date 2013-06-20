@@ -1569,7 +1569,7 @@ MobileMessageDatabaseService.prototype = {
     self.newTxn(READ_ONLY, function (error, txn, stores) {
       let collector = cursor.collector;
       let collect = collector.collect.bind(collector);
-      FilterSearcherHelper.transact(self, txn, error, filter, reverse, collect);
+      FilterSearcherHelper.filterMessages(self, txn, error, filter, reverse, collect);
     }, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME]);
 
     return cursor;
@@ -1642,33 +1642,24 @@ MobileMessageDatabaseService.prototype = {
     }, [MESSAGE_STORE_NAME, THREAD_STORE_NAME]);
   },
 
-  createThreadCursor: function createThreadCursor(callback) {
-    if (DEBUG) debug("Getting thread list");
+  createThreadCursor: function createThreadCursor(filter, reverse, callback) {
+    if (DEBUG) {
+      debug("Creating a thread cursor. Filters:" +
+            " startDate: " + filter.startDate +
+            " endDate: " + filter.endDate +
+            " numbers: " + filter.numbers +
+            " threadId: " + filter.threadId +
+            " reverse: " + reverse);
+    }
 
     let cursor = new GetThreadsCursor(this, callback);
-    this.newTxn(READ_ONLY, function (error, txn, threadStore) {
+
+    let self = this;
+    self.newTxn(READ_ONLY, function (error, txn, threadStore) {
       let collector = cursor.collector;
-      if (error) {
-        if (DEBUG) debug(error);
-        collector.collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
-        return;
-      }
-      txn.onerror = function onerror(event) {
-        if (DEBUG) debug("Caught error on transaction ", event.target.errorCode);
-        collector.collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
-      };
-      let request = threadStore.index("lastTimestamp").openKeyCursor();
-      request.onsuccess = function(event) {
-        let cursor = event.target.result;
-        if (cursor) {
-          if (collector.collect(txn, cursor.primaryKey, cursor.key)) {
-            cursor.continue();
-          }
-        } else {
-          collector.collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
-        }
-      };
-    }, [THREAD_STORE_NAME]);
+      let collect = collector.collect.bind(collector);
+      FilterSearcherHelper.filterThreads(txn, error, filter, reverse, collect);
+    }, [THREAD_STORE_NAME, PARTICIPANT_STORE_NAME]);
 
     return cursor;
   }
@@ -1677,6 +1668,31 @@ MobileMessageDatabaseService.prototype = {
 let FilterSearcherHelper = {
 
   /**
+   * @param objectStore
+   *        The objectStore to filter with.
+   */
+  filterKey: function filterKey(objectStore, key, startDate, endDate, txn, collect) {
+    let request = objectStore.get(key);
+    request.onsuccess = function onsuccess(event) {
+      let record = event.target.result;
+      // Right now we only use filterKey for filtering thread records,
+      // so we use |record.lastTimestamp| here.
+      let timestamp = record.lastTimestamp;
+      if ((!startDate || (timestamp >= startDate)) &&
+          (!endDate || (timestamp < endDate))) {
+        collect(txn, record.id, timestamp);
+      }
+      collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
+    };
+    request.onerror = function onerror(event) {
+      if (DEBUG && event) debug("IDBRequest error " + event.target.errorCode);
+      collect(txn, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
+    };
+  },
+
+  /**
+   * @param objectStore
+   *        The objectStore to filter with.
    * @param index
    *        The name of a message store index to filter on.
    * @param range
@@ -1689,9 +1705,8 @@ let FilterSearcherHelper = {
    *        Result colletor function. It takes three parameters -- txn, message
    *        id, and message timestamp.
    */
-  filterIndex: function filterIndex(index, range, direction, txn, collect) {
-    let messageStore = txn.objectStore(MESSAGE_STORE_NAME);
-    let request = messageStore.index(index).openKeyCursor(range, direction);
+  filterIndex: function filterIndex(objectStore, index, range, direction, txn, collect) {
+    let request = objectStore.index(index).openKeyCursor(range, direction);
     request.onsuccess = function onsuccess(event) {
       let cursor = event.target.result;
       // Once the cursor has retrieved all keys that matches its key range,
@@ -1712,8 +1727,10 @@ let FilterSearcherHelper = {
   },
 
   /**
-   * Explicitly fiter message on the timestamp index.
+   * Explicitly fiter objects on the timestamp index.
    *
+   * @param objectStore
+   *        The objectStore to filter with.
    * @param startDate
    *        Timestamp of the starting date.
    * @param endDate
@@ -1723,11 +1740,13 @@ let FilterSearcherHelper = {
    * @param txn
    *        Ongoing IDBTransaction context object.
    * @param collect
-   *        Result colletor function. It takes three parameters -- txn, message
-   *        id, and message timestamp.
+   *        Result colletor function. It takes three parameters -- txn, id,
+   *        and timestamp.
+   * @param index
+   *        [optional] Index name. Default "timestamp".
    */
-  filterTimestamp: function filterTimestamp(startDate, endDate, direction, txn,
-                                            collect) {
+  filterTimestamp: function filterTimestamp(objectStore, startDate, endDate,
+                                            direction, txn, collect, index) {
     let range = null;
     if (startDate != null && endDate != null) {
       range = IDBKeyRange.bound(startDate.getTime(), endDate.getTime());
@@ -1736,14 +1755,15 @@ let FilterSearcherHelper = {
     } else if (endDate != null) {
       range = IDBKeyRange.upperBound(endDate.getTime());
     }
-    this.filterIndex("timestamp", range, direction, txn, collect);
+    this.filterIndex(objectStore, index ? index : "timestamp",
+                     range, direction, txn, collect);
   },
 
   /**
-   * Instanciate a filtering transaction.
+   * Instanciate a message filtering transaction.
    *
    * @param service
-   *        A MobileMessageDatabaseService. Used to create
+   *        A MobileMessageDatabaseService.
    * @param txn
    *        Ongoing IDBTransaction context object.
    * @param error
@@ -1757,7 +1777,7 @@ let FilterSearcherHelper = {
    *        Result colletor function. It takes three parameters -- txn, message
    *        id, and message timestamp.
    */
-  transact: function transact(service, txn, error, filter, reverse, collect) {
+  filterMessages: function filterMessages(service, txn, error, filter, reverse, collect) {
     if (error) {
       //TODO look at event.target.errorCode, pick appropriate error constant.
       if (DEBUG) debug("IDBRequest error " + error.target.errorCode);
@@ -1765,6 +1785,7 @@ let FilterSearcherHelper = {
       return;
     }
 
+    let messageStore = txn.objectStore(MESSAGE_STORE_NAME);
     let direction = reverse ? PREV : NEXT;
 
     // We support filtering by date range only (see `else` block below) or by
@@ -1778,8 +1799,8 @@ let FilterSearcherHelper = {
         debug("filter.timestamp " + filter.startDate + ", " + filter.endDate);
       }
 
-      this.filterTimestamp(filter.startDate, filter.endDate, direction, txn,
-                           collect);
+      this.filterTimestamp(messageStore, filter.startDate, filter.endDate,
+                           direction, txn, collect);
       return;
     }
 
@@ -1813,7 +1834,7 @@ let FilterSearcherHelper = {
       if (DEBUG) debug("filter.delivery " + filter.delivery);
       let delivery = filter.delivery;
       let range = IDBKeyRange.bound([delivery, startDate], [delivery, endDate]);
-      this.filterIndex("delivery", range, direction, txn,
+      this.filterIndex(messageStore, "delivery", range, direction, txn,
                        single ? collect : intersectionCollector.newContext());
     }
 
@@ -1823,7 +1844,7 @@ let FilterSearcherHelper = {
       if (DEBUG) debug("filter.read " + filter.read);
       let read = filter.read ? FILTER_READ_READ : FILTER_READ_UNREAD;
       let range = IDBKeyRange.bound([read, startDate], [read, endDate]);
-      this.filterIndex("read", range, direction, txn,
+      this.filterIndex(messageStore, "read", range, direction, txn,
                        single ? collect : intersectionCollector.newContext());
     }
 
@@ -1833,7 +1854,7 @@ let FilterSearcherHelper = {
       if (DEBUG) debug("filter.threadId " + filter.threadId);
       let threadId = filter.threadId;
       let range = IDBKeyRange.bound([threadId, startDate], [threadId, endDate]);
-      this.filterIndex("threadId", range, direction, txn,
+      this.filterIndex(messageStore, "threadId", range, direction, txn,
                        single ? collect : intersectionCollector.newContext());
     }
 
@@ -1860,23 +1881,79 @@ let FilterSearcherHelper = {
         if (participantIds.length == 1) {
           let id = participantIds[0];
           let range = IDBKeyRange.bound([id, startDate], [id, endDate]);
-          this.filterIndex("participantIds", range, direction, txn, collect);
+          this.filterIndex(messageStore, "participantIds", range, direction, txn, collect);
           return;
         }
 
         let unionCollector = new UnionResultsCollector(collect);
 
-        this.filterTimestamp(filter.startDate, filter.endDate, direction, txn,
-                             unionCollector.newTimestampContext());
+        this.filterTimestamp(messageStore, filter.startDate, filter.endDate,
+                             direction, txn, unionCollector.newTimestampContext());
 
         for (let i = 0; i < participantIds.length; i++) {
           let id = participantIds[i];
           let range = IDBKeyRange.bound([id, startDate], [id, endDate]);
-          this.filterIndex("participantIds", range, direction, txn,
+          this.filterIndex(messageStore, "participantIds", range, direction, txn,
                            unionCollector.newContext());
         }
       }).bind(this));
     }
+  },
+
+  /**
+   * Instanciate a thread filtering transaction.
+   *
+   * @param txn
+   *        Ongoing IDBTransaction context object.
+   * @param error
+   *        Previous error while creating the transaction.
+   * @param filter
+   *        A SmsFilter object.
+   * @param reverse
+   *        A boolean value indicating whether we should filter message in
+   *        reversed order.
+   * @param collect
+   *        Result colletor function. It takes three parameters -- txn, thread
+   *        id, and thread timestamp.
+   */
+  filterThreads: function filterThreads(txn, error, filter, reverse, collect) {
+    if (error) {
+      //TODO look at event.target.errorCode, pick appropriate error constant.
+      if (DEBUG) debug("IDBRequest error " + error.target.errorCode);
+      collect(txn, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
+      return;
+    }
+
+    let threadStore = txn.objectStore(THREAD_STORE_NAME);
+    let direction = reverse ? PREV : NEXT;
+
+    // We support filtering by date range only (see `else` block below) or by
+    // threadId with an optional date range.
+    if (filter.threadId == null) {
+      // Filtering by date range only.
+      if (DEBUG) {
+        debug("filter.timestamp " + filter.startDate + ", " + filter.endDate);
+      }
+
+      this.filterTimestamp(threadStore, filter.startDate, filter.endDate,
+                           direction, txn, collect, "lastTimestamp");
+      return;
+    }
+
+    // Numeric 0 is smaller than any time stamp, and empty string is larger
+    // than all numeric values.
+    let startDate, endDate;
+    if (filter.startDate != null) {
+      startDate = filter.startDate.getTime();
+    }
+    if (filter.endDate != null) {
+      endDate = filter.endDate.getTime();
+    }
+
+    // Retrieve the keys from the 'threadId' index that matches the value of
+    // filter.threadId.
+    if (DEBUG) debug("filter.threadId " + filter.threadId);
+    this.filterKey(threadStore, filter.threadId, startDate, endDate, txn, collect);
   }
 };
 
