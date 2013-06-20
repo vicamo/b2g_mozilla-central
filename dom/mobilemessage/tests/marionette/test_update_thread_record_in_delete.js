@@ -77,7 +77,7 @@ function getAllMessages(callback, filter, reverse) {
 
 function getAllThreads(callback) {
   let threads = [];
-  let cursor = mozSms.getThreads();
+  let cursor = mozSms.getThreads(null, false);
   cursor.onsuccess = function(event) {
     if (!this.done) {
       threads.push(this.result);
