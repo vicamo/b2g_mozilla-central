@@ -63,6 +63,8 @@ struct MarkMessageReadRequest
 
 struct CreateThreadCursorRequest
 {
+  SmsFilterData filter;
+  bool reverse;
 };
 
 union IPCSmsRequest

@@ -10,7 +10,7 @@ interface nsIDOMEventListener;
 interface nsIDOMMozSmsFilter;
 interface nsIDOMMozSmsSegmentInfo;
 
-[scriptable, builtinclass, uuid(8ce00d77-71b4-43f6-92a1-2eae7c9581b9)]
+[scriptable, builtinclass, uuid(5e4a149c-93d2-4d9d-b5c9-313e6ed24aed)]
 interface nsIDOMMozSmsManager : nsIDOMEventTarget
 {
   nsIDOMMozSmsSegmentInfo getSegmentInfoForText(in DOMString text);
@@ -33,7 +33,7 @@ interface nsIDOMMozSmsManager : nsIDOMEventTarget
   nsIDOMDOMRequest markMessageRead(in long id, in boolean aValue);
 
   // Iterates through nsIDOMMozMobileMessageThread.
-  nsIDOMDOMCursor getThreads();
+  nsIDOMDOMCursor getThreads(in nsIDOMMozSmsFilter filter, in boolean reverse);
 
   [implicit_jscontext] attribute jsval onreceived;
   [implicit_jscontext] attribute jsval onsending;

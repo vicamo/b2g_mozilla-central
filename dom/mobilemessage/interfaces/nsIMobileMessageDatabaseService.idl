@@ -16,7 +16,7 @@ interface nsIDOMMozSmsFilter;
 interface nsIMobileMessageCallback;
 interface nsIMobileMessageCursorCallback;
 
-[scriptable, uuid(ea6f49ae-3a4c-47eb-a489-15578e634100)]
+[scriptable, uuid(bde83f5e-3852-4d6b-8496-b2dd1a7d46a0)]
 interface nsIMobileMessageDatabaseService : nsISupports
 {
   [binaryname(GetMessageMoz)]
@@ -35,5 +35,7 @@ interface nsIMobileMessageDatabaseService : nsISupports
                        in boolean value,
                        in nsIMobileMessageCallback request);
 
-  nsICursorContinueCallback createThreadCursor(in nsIMobileMessageCursorCallback callback);
+  nsICursorContinueCallback createThreadCursor(in nsIDOMMozSmsFilter filter,
+                                               in boolean reverse,
+                                               in nsIMobileMessageCursorCallback callback);
 };
