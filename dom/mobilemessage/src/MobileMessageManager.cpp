@@ -355,6 +355,23 @@ MobileMessageManager::MarkMessageRead(int32_t aId, bool aValue,
 }
 
 NS_IMETHODIMP
+MobileMessageManager::GetThread(int32_t aId, nsIDOMDOMRequest** aRequest)
+{
+  nsCOMPtr<nsIMobileMessageDatabaseService> mobileMessageDBService =
+    do_GetService(MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID);
+  NS_ENSURE_TRUE(mobileMessageDBService, NS_ERROR_FAILURE);
+
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIMobileMessageCallback> msgCallback =
+    new MobileMessageCallback(request);
+  nsresult rv = mobileMessageDBService->GetThread(aId, msgCallback);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  request.forget(aRequest);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 MobileMessageManager::GetThreads(nsIDOMDOMCursor** aCursor)
 {
   nsCOMPtr<nsIMobileMessageDatabaseService> dbService =

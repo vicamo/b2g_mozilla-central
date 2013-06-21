@@ -163,6 +163,13 @@ SmsIPCService::MarkMessageRead(int32_t aMessageId,
 }
 
 NS_IMETHODIMP
+SmsIPCService::GetThread(int32_t aThreadId,
+                         nsIMobileMessageCallback* aRequest)
+{
+  return SendRequest(GetThreadRequest(aThreadId), aRequest);
+}
+
+NS_IMETHODIMP
 SmsIPCService::CreateThreadCursor(nsIMobileMessageCursorCallback* aCursorCallback,
                                   nsICursorContinueCallback** aResult)
 {

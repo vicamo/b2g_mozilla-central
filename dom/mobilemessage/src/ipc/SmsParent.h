@@ -111,6 +111,9 @@ protected:
   bool
   DoRequest(const MarkMessageReadRequest& aRequest);
 
+  bool
+  DoRequest(const GetThreadRequest& aRequest);
+
   nsresult
   SendReply(const MessageReply& aReply);
 };

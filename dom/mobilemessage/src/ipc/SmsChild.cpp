@@ -199,6 +199,16 @@ SmsRequestChild::Recv__delete__(const MessageReply& aReply)
     case MessageReply::TReplyMarkeMessageReadFail:
       mReplyRequest->NotifyMarkMessageReadFailed(aReply.get_ReplyMarkeMessageReadFail().error());
       break;
+    case MessageReply::TReplyGetThread: {
+        const ThreadData& data =
+          aReply.get_ReplyGetThread().threadData();
+        nsCOMPtr<nsISupports> thread = new MobileMessageThread(data);
+        mReplyRequest->NotifyThreadGot(thread);
+      }
+      break;
+    case MessageReply::TReplyGetThreadFail:
+      mReplyRequest->NotifyGetThreadFailed(aReply.get_ReplyGetThreadFail().error());
+      break;
     default:
       MOZ_NOT_REACHED("Received invalid response parameters!");
       return false;

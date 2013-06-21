@@ -172,6 +172,18 @@ MobileMessageCallback::NotifyMarkMessageReadFailed(int32_t aError)
   return NotifyError(aError);
 }
 
+NS_IMETHODIMP
+MobileMessageCallback::NotifyThreadGot(nsISupports *aThread)
+{
+  return NotifySuccess(aThread);
+}
+
+NS_IMETHODIMP
+MobileMessageCallback::NotifyGetThreadFailed(int32_t aError)
+{
+  return NotifyError(aError);
+}
+
 } // namesapce mobilemessage
 } // namespace dom
 } // namespace mozilla

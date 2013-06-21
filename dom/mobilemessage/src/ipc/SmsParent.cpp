@@ -337,6 +337,8 @@ SmsParent::RecvPSmsRequestConstructor(PSmsRequestParent* aActor,
       return actor->DoRequest(aRequest.get_DeleteMessageRequest());
     case IPCSmsRequest::TMarkMessageReadRequest:
       return actor->DoRequest(aRequest.get_MarkMessageReadRequest());
+    case IPCSmsRequest::TGetThreadRequest:
+      return actor->DoRequest(aRequest.get_GetThreadRequest());
     default:
       MOZ_NOT_REACHED("Unknown type!");
       break;
@@ -524,6 +526,24 @@ SmsRequestParent::DoRequest(const MarkMessageReadRequest& aRequest)
   return true;
 }
 
+bool
+SmsRequestParent::DoRequest(const GetThreadRequest& aRequest)
+{
+  nsresult rv = NS_ERROR_FAILURE;
+
+  nsCOMPtr<nsIMobileMessageDatabaseService> dbService =
+    do_GetService(MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID);
+  if (dbService) {
+    rv = dbService->GetThread(aRequest.threadId(), this);
+  }
+
+  if (NS_FAILED(rv)) {
+    return NS_SUCCEEDED(NotifyGetThreadFailed(nsIMobileMessageCallback::INTERNAL_ERROR));
+  }
+
+  return true;
+}
+
 nsresult
 SmsRequestParent::SendReply(const MessageReply& aReply)
 {
@@ -619,6 +639,24 @@ NS_IMETHODIMP
 SmsRequestParent::NotifyMarkMessageReadFailed(int32_t aError)
 {
   return SendReply(ReplyMarkeMessageReadFail(aError));
+}
+
+NS_IMETHODIMP
+SmsRequestParent::NotifyThreadGot(nsISupports *aThread)
+{
+  nsCOMPtr<nsIDOMMozMobileMessageThread> iThread = do_QueryInterface(aThread);
+  if (iThread) {
+    MobileMessageThread* thread = static_cast<MobileMessageThread*>(aThread);
+    return SendReply(ReplyGetThread(ThreadData(thread->GetData())));
+  }
+
+  return NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP
+SmsRequestParent::NotifyGetThreadFailed(int32_t aError)
+{
+  return SendReply(ReplyGetThreadFail(aError));
 }
 
 /*******************************************************************************
