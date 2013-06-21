@@ -11,7 +11,7 @@ interface nsIDOMDOMCursor;
 interface nsIDOMDOMRequest;
 interface nsIDOMBlob;
 
-[scriptable, builtinclass, uuid(efff5276-0f3f-4137-9b16-66e894400e01)]
+[scriptable, builtinclass, uuid(a29418e7-2b5c-455f-aefe-25ca12c44218)]
 interface nsIDOMMozMobileMessageManager : nsIDOMEventTarget
 {
   nsIDOMMozSmsSegmentInfo getSegmentInfoForText(in DOMString text);
@@ -37,6 +37,8 @@ interface nsIDOMMozMobileMessageManager : nsIDOMEventTarget
 
   // Iterates through nsIDOMMozMobileMessageThread.
   nsIDOMDOMCursor getThreads();
+
+  nsIDOMDOMRequest getThread(in long id);
 
   nsIDOMDOMRequest retrieveMMS(in long id);
 

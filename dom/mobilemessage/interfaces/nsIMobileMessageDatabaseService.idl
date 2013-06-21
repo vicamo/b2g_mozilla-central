@@ -36,4 +36,7 @@ interface nsIMobileMessageDatabaseService : nsISupports
                        in nsIMobileMessageCallback request);
 
   nsICursorContinueCallback createThreadCursor(in nsIMobileMessageCursorCallback callback);
+
+  void getThread(in long threadId,
+                 in nsIMobileMessageCallback request);
 };

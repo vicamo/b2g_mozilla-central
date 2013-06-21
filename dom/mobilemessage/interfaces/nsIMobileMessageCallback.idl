@@ -47,4 +47,7 @@ interface nsIMobileMessageCallback : nsISupports
 
   void notifyMessageMarkedRead(in boolean read);
   void notifyMarkMessageReadFailed(in long error);
+
+  void notifyThreadGot(in nsISupports thread);
+  void notifyGetThreadFailed(in long error);
 };

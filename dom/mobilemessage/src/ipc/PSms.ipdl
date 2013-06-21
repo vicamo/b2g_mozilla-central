@@ -61,6 +61,11 @@ struct MarkMessageReadRequest
   bool value;
 };
 
+struct GetThreadRequest
+{
+  int32_t threadId;
+};
+
 struct CreateThreadCursorRequest
 {
 };
@@ -70,6 +75,7 @@ union IPCSmsRequest
   SendMessageRequest;
   RetrieveMessageRequest;
   GetMessageRequest;
+  GetThreadRequest;
   DeleteMessageRequest;
   MarkMessageReadRequest;
 };
