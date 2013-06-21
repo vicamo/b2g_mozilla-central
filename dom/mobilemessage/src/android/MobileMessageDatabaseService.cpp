@@ -65,6 +65,13 @@ MobileMessageDatabaseService::MarkMessageRead(int32_t aMessageId,
 }
 
 NS_IMETHODIMP
+MobileMessageDatabaseService::GetThread(int32_t aThreadId,
+                                        nsIMobileMessageCallback* aRequest)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
 MobileMessageDatabaseService::CreateThreadCursor(nsIMobileMessageCursorCallback* aCallback,
                                                  nsICursorContinueCallback** aResult)
 {

@@ -811,6 +811,15 @@ MobileMessageDatabaseService.prototype = {
     }
   },
 
+  createDomThreadFromRecord: function createDomThreadFromRecord(aThreadRecord) {
+    return gMobileMessageService.createThread(aThreadRecord.id,
+                                              aThreadRecord.participantAddresses,
+                                              aThreadRecord.lastTimestamp,
+                                              aThreadRecord.subject,
+                                              aThreadRecord.unreadCount,
+                                              aThreadRecord.lastMessageType);
+  },
+
   findParticipantRecordByAddress: function findParticipantRecordByAddress(
       aParticipantStore, aAddress, aCreate, aCallback) {
     if (DEBUG) {
@@ -1394,7 +1403,7 @@ MobileMessageDatabaseService.prototype = {
       txn.oncomplete = function oncomplete() {
         if (DEBUG) debug("Transaction " + txn + " completed.");
         if (request.result.length > 1) {
-          if (DEBUG) debug("Got too many results for id " + aMessageId);
+          if (DEBUG) debug("Got too many results for message id " + aMessageId);
           aCallback.notify(Ci.nsIMobileMessageCallback.UNKNOWN_ERROR, null, null);
           return;
         }
@@ -1640,6 +1649,55 @@ MobileMessageDatabaseService.prototype = {
         };
       };
     }, [MESSAGE_STORE_NAME, THREAD_STORE_NAME]);
+  },
+
+  getThread: function getThread(aThreadId, aRequest) {
+    if (DEBUG) debug("Retrieving thread with ID " + aThreadId);
+    let self = this;
+    this.newTxn(READ_ONLY, function (error, txn, threadStore) {
+      if (error) {
+        if (DEBUG) debug(error);
+        aRequest.notifyGetThreadFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+        return;
+      }
+
+      let request = threadStore.mozGetAll(aThreadId);
+
+      txn.oncomplete = function oncomplete() {
+        if (DEBUG) debug("Transaction " + txn + " completed.");
+        if (request.result.length > 1) {
+          if (DEBUG) debug("Got too many results for thread id " + aThreadId);
+          aRequest.notifyGetThreadFailed(Ci.nsIMobileMessageCallback.UNKNOWN_ERROR);
+          return;
+        }
+
+        let threadRecord = request.result[0];
+        if (!threadRecord) {
+          if (DEBUG) debug("Thread ID " + aThreadId + " not found");
+          aRequest.notifyGetThreadFailed(Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR);
+          return;
+        }
+
+        if (threadRecord.id != aThreadId) {
+          if (DEBUG) {
+            debug("Requested thread ID (" + aThreadId + ") is " +
+                  "different from the one we got");
+          }
+          aRequest.notifyGetThreadFailed(Ci.nsIMobileMessageCallback.UNKNOWN_ERROR);
+          return;
+        }
+        let domThread = self.createDomThreadFromRecord(threadRecord);
+        aRequest.notifyThreadGot(domThread);
+      };
+      txn.onerror = function onerror(event) {
+        if (DEBUG) {
+          if (event.target) {
+            debug("Caught error on transaction", event.target.errorCode);
+          }
+        }
+        aRequest.notifyGetThreadFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+      };
+    }, [THREAD_STORE_NAME]);
   },
 
   createThreadCursor: function createThreadCursor(callback) {
@@ -2271,13 +2329,7 @@ GetThreadsCursor.prototype = {
       if (DEBUG) {
         debug("notifyCursorResult: " + JSON.stringify(threadRecord));
       }
-      let thread =
-        gMobileMessageService.createThread(threadRecord.id,
-                                           threadRecord.participantAddresses,
-                                           threadRecord.lastTimestamp,
-                                           threadRecord.subject,
-                                           threadRecord.unreadCount,
-                                           threadRecord.lastMessageType);
+      let thread = self.service.createDomThreadFromRecord(threadRecord);
       self.callback.notifyCursorResult(thread);
     };
     getRequest.onerror = function onerror(event) {
