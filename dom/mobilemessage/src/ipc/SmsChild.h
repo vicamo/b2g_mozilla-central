@@ -25,6 +25,8 @@ public:
     MOZ_COUNT_CTOR(SmsChild);
   }
 
+  NS_INLINE_DECL_REFCOUNTING(SmsChild)
+
 protected:
   virtual ~SmsChild()
   {

@@ -817,13 +817,16 @@ ContentChild::DeallocPExternalHelperApp(PExternalHelperAppChild* aService)
 PSmsChild*
 ContentChild::AllocPSms()
 {
-    return new SmsChild();
+    SmsChild *child = new SmsChild();
+    child->AddRef();
+    return child;
 }
 
 bool
 ContentChild::DeallocPSms(PSmsChild* aSms)
 {
-    delete aSms;
+    SmsChild *child = static_cast<SmsChild*>(aSms);
+    child->Release();
     return true;
 }
 

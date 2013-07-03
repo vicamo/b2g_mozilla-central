@@ -10,12 +10,11 @@
 #include "nsIMmsService.h"
 #include "nsIMobileMessageDatabaseService.h"
 #include "mozilla/Attributes.h"
+#include "SmsChild.h"
 
 namespace mozilla {
 namespace dom {
 namespace mobilemessage {
-
-class PSmsChild;
 
 class SmsIPCService MOZ_FINAL : public nsISmsService
                               , public nsIMmsService
@@ -26,6 +25,11 @@ public:
   NS_DECL_NSISMSSERVICE
   NS_DECL_NSIMMSSERVICE
   NS_DECL_NSIMOBILEMESSAGEDATABASESERVICE
+
+private:
+  nsRefPtr<SmsChild> mSmsChild;
+
+  PSmsChild* GetSmsChild();
 };
 
 } // namespace mobilemessage
