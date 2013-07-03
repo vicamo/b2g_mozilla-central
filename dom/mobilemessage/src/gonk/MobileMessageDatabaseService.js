@@ -24,10 +24,13 @@ const DISABLE_MMS_GROUPING_FOR_RECEIVING = true;
 
 
 const DB_NAME = "sms";
-const DB_VERSION = 12;
-const MESSAGE_STORE_NAME = "sms";
+const DB_VERSION = 13;
+const MESSAGE_STORE_NAME = "message";
+// Removed since DB_VERSION = 13. Use "message" for new message store.
+const SMS_STORE_NAME = "sms";
 const THREAD_STORE_NAME = "thread";
 const PARTICIPANT_STORE_NAME = "participant";
+// Removed since DB_VERSION = 8.
 const MOST_RECENT_STORE_NAME = "most-recent";
 
 const DELIVERY_SENDING = "sending";
@@ -82,33 +85,6 @@ function MobileMessageDatabaseService() {
 
   gIDBManager.initWindowless(GLOBAL_SCOPE);
 
-  let that = this;
-  this.newTxn(READ_ONLY, function(error, txn, messageStore){
-    if (error) {
-      return;
-    }
-    // In order to get the highest key value, we open a key cursor in reverse
-    // order and get only the first pointed value.
-    let request = messageStore.openCursor(null, PREV);
-    request.onsuccess = function onsuccess(event) {
-      let cursor = event.target.result;
-      if (!cursor) {
-        if (DEBUG) {
-          debug("Could not get the last key from mobile message database. " +
-                "Probably empty database");
-        }
-        return;
-      }
-      that.lastMessageId = cursor.key || 0;
-      if (DEBUG) debug("Last assigned message ID was " + that.lastMessageId);
-    };
-    request.onerror = function onerror(event) {
-      if (DEBUG) {
-        debug("Could not get the last key from mobile message database " +
-              event.target.errorCode);
-      }
-    };
-  });
   this.updatePendingTransactionToError();
 }
 MobileMessageDatabaseService.prototype = {
@@ -122,11 +98,6 @@ MobileMessageDatabaseService.prototype = {
    * Cache the DB here.
    */
   db: null,
-
-  /**
-   * Last sms/mms object store key value in the database.
-   */
-  lastMessageId: 0,
 
   /**
    * nsIObserver
@@ -226,6 +197,10 @@ MobileMessageDatabaseService.prototype = {
             self.upgradeSchema11(event.target.transaction, next);
             break;
           case 12:
+            if (DEBUG) debug("Upgrade to version 13. Use autoIncrement key in message store.");
+            self.upgradeSchema12(db, event.target.transaction, next);
+            break;
+          case 13:
             // This will need to be moved for each new version
             if (DEBUG) debug("Upgrade finished.");
             break;
@@ -376,9 +351,9 @@ MobileMessageDatabaseService.prototype = {
    * TODO full text search on body???
    */
   createSchema: function createSchema(db, next) {
-    // This messageStore holds the main mobile message data.
-    let messageStore = db.createObjectStore(MESSAGE_STORE_NAME, { keyPath: "id" });
-    messageStore.createIndex("timestamp", "timestamp", { unique: false });
+    // This smsStore holds the main mobile message data.
+    let smsStore = db.createObjectStore(SMS_STORE_NAME, { keyPath: "id" });
+    smsStore.createIndex("timestamp", "timestamp", { unique: false });
     if (DEBUG) debug("Created object stores and indexes");
     next();
   },
@@ -387,14 +362,14 @@ MobileMessageDatabaseService.prototype = {
    * Upgrade to the corresponding database schema version.
    */
   upgradeSchema: function upgradeSchema(transaction, next) {
-    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
-    messageStore.createIndex("read", "read", { unique: false });
+    let smsStore = transaction.objectStore(MESSAGE_STORE_NAME);
+    smsStore.createIndex("read", "read", { unique: false });
     next();
   },
 
   upgradeSchema2: function upgradeSchema2(transaction, next) {
-    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
-    messageStore.openCursor().onsuccess = function(event) {
+    let smsStore = transaction.objectStore(MESSAGE_STORE_NAME);
+    smsStore.openCursor().onsuccess = function(event) {
       let cursor = event.target.result;
       if (!cursor) {
         next();
@@ -411,9 +386,9 @@ MobileMessageDatabaseService.prototype = {
 
   upgradeSchema3: function upgradeSchema3(db, transaction, next) {
     // Delete redundant "id" index.
-    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
-    if (messageStore.indexNames.contains("id")) {
-      messageStore.deleteIndex("id");
+    let smsStore = transaction.objectStore(SMS_STORE_NAME);
+    if (smsStore.indexNames.contains("id")) {
+      smsStore.deleteIndex("id");
     }
 
     /**
@@ -435,10 +410,10 @@ MobileMessageDatabaseService.prototype = {
 
   upgradeSchema4: function upgradeSchema4(transaction, next) {
     let threads = {};
-    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
+    let smsStore = transaction.objectStore(SMS_STORE_NAME);
     let mostRecentStore = transaction.objectStore(MOST_RECENT_STORE_NAME);
 
-    messageStore.openCursor().onsuccess = function(event) {
+    smsStore.openCursor().onsuccess = function(event) {
       let cursor = event.target.result;
       if (!cursor) {
         for (let thread in threads) {
@@ -480,32 +455,32 @@ MobileMessageDatabaseService.prototype = {
   },
 
   upgradeSchema6: function upgradeSchema6(transaction, next) {
-    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
+    let smsStore = transaction.objectStore(SMS_STORE_NAME);
 
     // Delete "delivery" index.
-    if (messageStore.indexNames.contains("delivery")) {
-      messageStore.deleteIndex("delivery");
+    if (smsStore.indexNames.contains("delivery")) {
+      smsStore.deleteIndex("delivery");
     }
     // Delete "sender" index.
-    if (messageStore.indexNames.contains("sender")) {
-      messageStore.deleteIndex("sender");
+    if (smsStore.indexNames.contains("sender")) {
+      smsStore.deleteIndex("sender");
     }
     // Delete "receiver" index.
-    if (messageStore.indexNames.contains("receiver")) {
-      messageStore.deleteIndex("receiver");
+    if (smsStore.indexNames.contains("receiver")) {
+      smsStore.deleteIndex("receiver");
     }
     // Delete "read" index.
-    if (messageStore.indexNames.contains("read")) {
-      messageStore.deleteIndex("read");
+    if (smsStore.indexNames.contains("read")) {
+      smsStore.deleteIndex("read");
     }
 
     // Create new "delivery", "number" and "read" indexes.
-    messageStore.createIndex("delivery", "deliveryIndex");
-    messageStore.createIndex("number", "numberIndex", { multiEntry: true });
-    messageStore.createIndex("read", "readIndex");
+    smsStore.createIndex("delivery", "deliveryIndex");
+    smsStore.createIndex("number", "numberIndex", { multiEntry: true });
+    smsStore.createIndex("read", "readIndex");
 
     // Populate new "deliverIndex", "numberIndex" and "readIndex" attributes.
-    messageStore.openCursor().onsuccess = function(event) {
+    smsStore.openCursor().onsuccess = function(event) {
       let cursor = event.target.result;
       if (!cursor) {
         next();
@@ -578,10 +553,10 @@ MobileMessageDatabaseService.prototype = {
      * Replace "numberIndex" with "participantIdsIndex" and create an additional
      * "threadId". "numberIndex" will be removed later.
      */
-    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
-    messageStore.createIndex("threadId", "threadIdIndex");
-    messageStore.createIndex("participantIds", "participantIdsIndex",
-                             { multiEntry: true });
+    let smsStore = transaction.objectStore(SMS_STORE_NAME);
+    smsStore.createIndex("threadId", "threadIdIndex");
+    smsStore.createIndex("participantIds", "participantIdsIndex",
+                         { multiEntry: true });
 
     // Now populate participantStore & threadStore.
     let mostRecentStore = transaction.objectStore(MOST_RECENT_STORE_NAME);
@@ -592,9 +567,9 @@ MobileMessageDatabaseService.prototype = {
       if (!mostRecentCursor) {
         db.deleteObjectStore(MOST_RECENT_STORE_NAME);
 
-        // No longer need the "number" index in messageStore, use
+        // No longer need the "number" index in smsStore, use
         // "participantIds" index instead.
-        messageStore.deleteIndex("number");
+        smsStore.deleteIndex("number");
         next();
         return;
       }
@@ -621,8 +596,8 @@ MobileMessageDatabaseService.prototype = {
           threadRecord.id = event.target.result;
 
           let numberRange = IDBKeyRange.bound([number, 0], [number, ""]);
-          let messageRequest = messageStore.index("number")
-                                           .openCursor(numberRange, NEXT);
+          let messageRequest = smsStore.index("number")
+                                       .openCursor(numberRange, NEXT);
           messageRequest.onsuccess = function (event) {
             let messageCursor = event.target.result;
             if (!messageCursor) {
@@ -674,18 +649,19 @@ MobileMessageDatabaseService.prototype = {
    * Add transactionId index for MMS.
    */
   upgradeSchema8: function upgradeSchema8(transaction, next) {
-    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
+    let smsStore = transaction.objectStore(SMS_STORE_NAME);
 
     // Delete "transactionId" index.
-    if (messageStore.indexNames.contains("transactionId")) {
-      messageStore.deleteIndex("transactionId");
+    if (smsStore.indexNames.contains("transactionId")) {
+      smsStore.deleteIndex("transactionId");
     }
 
     // Create new "transactionId" indexes.
-    messageStore.createIndex("transactionId", "transactionIdIndex", { unique: true });
+    smsStore.createIndex("transactionId", "transactionIdIndex",
+                         { unique: true });
 
     // Populate new "transactionIdIndex" attributes.
-    messageStore.openCursor().onsuccess = function(event) {
+    smsStore.openCursor().onsuccess = function(event) {
       let cursor = event.target.result;
       if (!cursor) {
         next();
@@ -705,10 +681,10 @@ MobileMessageDatabaseService.prototype = {
   },
 
   upgradeSchema9: function upgradeSchema9(transaction, next) {
-    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
+    let smsStore = transaction.objectStore(SMS_STORE_NAME);
 
     // Update type attributes.
-    messageStore.openCursor().onsuccess = function(event) {
+    smsStore.openCursor().onsuccess = function(event) {
       let cursor = event.target.result;
       if (!cursor) {
         next();
@@ -737,8 +713,8 @@ MobileMessageDatabaseService.prototype = {
 
       let threadRecord = cursor.value;
       let lastMessageId = threadRecord.lastMessageId;
-      let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
-      let request = messageStore.mozGetAll(lastMessageId);
+      let smsStore = transaction.objectStore(SMS_STORE_NAME);
+      let request = smsStore.mozGetAll(lastMessageId);
 
       request.onsuccess = function onsuccess() {
         let messageRecord = request.result[0];
@@ -773,18 +749,18 @@ MobileMessageDatabaseService.prototype = {
    * Add envelopeId index for MMS.
    */
   upgradeSchema11: function upgradeSchema11(transaction, next) {
-    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
+    let smsStore = transaction.objectStore(SMS_STORE_NAME);
 
     // Delete "envelopeId" index.
-    if (messageStore.indexNames.contains("envelopeId")) {
-      messageStore.deleteIndex("envelopeId");
+    if (smsStore.indexNames.contains("envelopeId")) {
+      smsStore.deleteIndex("envelopeId");
     }
 
     // Create new "envelopeId" indexes.
-    messageStore.createIndex("envelopeId", "envelopeIdIndex", { unique: true });
+    smsStore.createIndex("envelopeId", "envelopeIdIndex", { unique: true });
 
     // Populate new "envelopeIdIndex" attributes.
-    messageStore.openCursor().onsuccess = function(event) {
+    smsStore.openCursor().onsuccess = function(event) {
       let cursor = event.target.result;
       if (!cursor) {
         next();
@@ -797,6 +773,51 @@ MobileMessageDatabaseService.prototype = {
         messageRecord.envelopeIdIndex = messageRecord.headers["message-id"];
         cursor.update(messageRecord);
       }
+      cursor.continue();
+    };
+  },
+
+  upgradeSchema12: function upgradeSchema12(db, transaction, next) {
+    if (db.objectStoreNames.contains(MESSAGE_STORE_NAME)) {
+      db.deleteObjectStore(MESSAGE_STORE_NAME);
+    }
+    let messageStore = db.createObjectStore(MESSAGE_STORE_NAME,
+                                            { keyPath: "id",
+                                              autoIncrement: true });
+
+    // Originally created in createSchema().
+    messageStore.createIndex("timestamp", "timestamp", { unique: false });
+
+    // Originally created in upgradeSchema6().
+    messageStore.createIndex("delivery", "deliveryIndex");
+    messageStore.createIndex("number", "numberIndex", { multiEntry: true });
+    messageStore.createIndex("read", "readIndex");
+
+    // Originally created in upgradeSchema7().
+    messageStore.createIndex("threadId", "threadIdIndex");
+    messageStore.createIndex("participantIds", "participantIdsIndex",
+                             { multiEntry: true });
+
+    // Originally created in upgradeSchema8().
+    messageStore.createIndex("transactionId", "transactionIdIndex",
+                             { unique: true });
+
+    // Originally created in upgradeSchema11().
+    messageStore.createIndex("envelopeId", "envelopeIdIndex", { unique: true });
+
+    // Copy all the records from the old store to the new one and delete the
+    // old one.
+    let smsStore = transaction.objectStore(SMS_STORE_NAME);
+    smsStore.openCursor().onsuccess = function(event) {
+      let cursor = event.target.result;
+      if (!cursor) {
+        db.deleteObjectStore(SMS_STORE_NAME);
+        next();
+        return;
+      }
+
+      let messageRecord = cursor.value;
+      messageStore.put(messageRecord);
       cursor.continue();
     };
   },
@@ -1070,11 +1091,6 @@ MobileMessageDatabaseService.prototype = {
 
   saveRecord: function saveRecord(aMessageRecord, aAddresses, aCallback) {
     let isOverriding = (aMessageRecord.id !== undefined);
-    if (!isOverriding) {
-      // Assign a new id.
-      this.lastMessageId += 1;
-      aMessageRecord.id = this.lastMessageId;
-    }
     if (DEBUG) debug("Going to store " + JSON.stringify(aMessageRecord));
 
     let self = this;
@@ -1109,14 +1125,27 @@ MobileMessageDatabaseService.prototype = {
                                           function (threadRecord,
                                                     participantIds) {
         if (!participantIds) {
-          notifyResult(Cr.NS_ERROR_FAILURE);
+          txn.abort();
           return;
         }
 
-        let insertMessageRecord = function (threadId) {
+        // Both threadRecord and messageRecord have auto incremented keys now
+        // and we can only know their key after that record is stored into
+        // database.  So somehow we must update one of them twice:
+        //
+        //   1) save threadRecord into DB
+        //   2) got threadRecord.id, and assign to messageRecord.threadId
+        //   3) save messageRecord into DB
+        //   4) got messageRecord.id, and assign to threadRecord.lastMessageId
+        //   5) update threadRecord with correct lastMessageId
+        //
+        // We choose updating threadRecord twice because it's a much more tiny
+        // object in comparison to messageRecord.
+
+        let insertMessageRecord = function (threadRecord) {
           // Setup threadId & threadIdIndex.
-          aMessageRecord.threadId = threadId;
-          aMessageRecord.threadIdIndex = [threadId, timestamp];
+          aMessageRecord.threadId = threadRecord.id;
+          aMessageRecord.threadIdIndex = [threadRecord.id, timestamp];
           // Setup participantIdsIndex.
           aMessageRecord.participantIdsIndex = [];
           for each (let id in participantIds) {
@@ -1125,7 +1154,16 @@ MobileMessageDatabaseService.prototype = {
 
           if (!isOverriding) {
             // Really add to message store.
-            messageStore.put(aMessageRecord);
+            messageStore.add(aMessageRecord).onsuccess = function (event) {
+              let messageId = event.target.result;
+              // Assign message id to aMessageRecord now because
+              // ObjectStore::Add won't touch it.
+              aMessageRecord.id = messageId;
+              if (threadRecord.lastMessageId == null) {
+                threadRecord.lastMessageId = messageId;
+                threadStore.put(threadRecord);
+              }
+            };
             return;
           }
 
@@ -1153,7 +1191,13 @@ MobileMessageDatabaseService.prototype = {
           if (threadRecord.lastTimestamp <= timestamp) {
             threadRecord.lastTimestamp = timestamp;
             threadRecord.subject = aMessageRecord.body;
-            threadRecord.lastMessageId = aMessageRecord.id;
+            if (isOverriding) {
+              threadRecord.lastMessageId = aMessageRecord.id;
+            } else {
+              // Clear lastMessageId explicitly and re-assign later in
+              // insertMessageRecord().
+              delete threadRecord.lastMessageId;
+            }
             threadRecord.lastMessageType = aMessageRecord.type;
             needsUpdate = true;
           }
@@ -1167,25 +1211,40 @@ MobileMessageDatabaseService.prototype = {
             threadStore.put(threadRecord);
           }
 
-          insertMessageRecord(threadRecord.id);
+          insertMessageRecord(threadRecord);
           return;
         }
 
-        threadStore.add({participantIds: participantIds,
-                         participantAddresses: aAddresses,
-                         lastMessageId: aMessageRecord.id,
-                         lastTimestamp: timestamp,
-                         subject: aMessageRecord.body,
-                         unreadCount: aMessageRecord.read ? 0 : 1,
-                         lastMessageType: aMessageRecord.type})
-                   .onsuccess = function (event) {
+        // No threadRecord for these participants is ever created. Create one!
+        threadRecord = {
+          participantIds: participantIds,
+          participantAddresses: aAddresses,
+          lastTimestamp: timestamp,
+          subject: aMessageRecord.body,
+          unreadCount: aMessageRecord.read ? 0 : 1,
+          lastMessageType: aMessageRecord.type
+        };
+
+        // We may have two different cases here:
+        //
+        // 1) when we've received/sent a new message to a new contact, so
+        //    isOverriding === false,
+        // 2) got a just retrieved MMS message, which have different
+        //    participants in M-Notification.ind and M-Retrieve.conf PDUs, so
+        //    isOverriding === true.
+        if (isOverriding) {
+          threadRecord.lastMessageId = aMessageRecord.id;
+        }
+
+        threadStore.add(threadRecord).onsuccess = function (event) {
           let threadId = event.target.result;
-          insertMessageRecord(threadId);
+          // Assign thread id to threadRecord now because ObjectStore::Add
+          // won't touch it.
+          threadRecord.id = threadId;
+          insertMessageRecord(threadRecord);
         };
       });
     }, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME]);
-    // We return the key that we expect to store in the db
-    return aMessageRecord.id;
   },
 
   updateMessageDeliveryById: function updateMessageDeliveryById(
@@ -1417,7 +1476,7 @@ MobileMessageDatabaseService.prototype = {
     }
     aMessage.deliveryIndex = [aMessage.delivery, timestamp];
 
-    return this.saveRecord(aMessage, threadParticipants, aCallback);
+    this.saveRecord(aMessage, threadParticipants, aCallback);
   },
 
   saveSendingMessage: function saveSendingMessage(aMessage, aCallback) {
@@ -1472,7 +1531,7 @@ MobileMessageDatabaseService.prototype = {
     } else if (aMessage.type == "mms") {
       addresses = aMessage.receivers;
     }
-    return this.saveRecord(aMessage, addresses, aCallback);
+    this.saveRecord(aMessage, addresses, aCallback);
   },
 
   setMessageDeliveryByMessageId: function setMessageDeliveryByMessageId(

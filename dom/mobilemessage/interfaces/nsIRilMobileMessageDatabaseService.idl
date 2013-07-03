@@ -25,7 +25,7 @@ interface nsIRilMobileMessageDatabaseRecordCallback : nsISupports
   void notify(in nsresult aRv, in jsval aMessageRecord, in nsISupports aDomMessage);
 };
 
-[scriptable, uuid(f6cd671e-f9af-11e2-b64b-1fb87e9c217c)]
+[scriptable, uuid(1efd67a5-300a-4fdf-aab9-3a898ea9b1ee)]
 interface nsIRilMobileMessageDatabaseService : nsIMobileMessageDatabaseService
 {
   /**
@@ -48,7 +48,7 @@ interface nsIRilMobileMessageDatabaseService : nsIMobileMessageDatabaseService
    * Note: |deliveryStatus| should only contain single string to specify
    *       the delivery status of MMS message for the phone owner self.
    */
-  long saveReceivedMessage(in jsval aMessage,
+  void saveReceivedMessage(in jsval aMessage,
                 [optional] in nsIRilMobileMessageDatabaseCallback aCallback);
 
   /**
@@ -64,7 +64,7 @@ interface nsIRilMobileMessageDatabaseService : nsIMobileMessageDatabaseService
    *   - If |type| == "mms", we also need:
    *     - |receivers| DOMString Array: the phone numbers of receivers
    */
-  long saveSendingMessage(in jsval aMessage,
+  void saveSendingMessage(in jsval aMessage,
                [optional] in nsIRilMobileMessageDatabaseCallback aCallback);
 
   /**

@@ -1961,8 +1961,7 @@ RadioInterface.prototype = {
     }.bind(this);
 
     if (message.messageClass != RIL.GECKO_SMS_MESSAGE_CLASSES[RIL.PDU_DCS_MSG_CLASS_0]) {
-      message.id = gMobileMessageDatabaseService.saveReceivedMessage(message,
-                                                                     notifyReceived);
+      gMobileMessageDatabaseService.saveReceivedMessage(message, notifyReceived);
     } else {
       message.id = -1;
       message.threadId = 0;
@@ -3073,8 +3072,8 @@ RadioInterface.prototype = {
       return;
     }
 
-    let id = gMobileMessageDatabaseService.saveSendingMessage(
-      sendingMessage, notifyResult);
+    gMobileMessageDatabaseService.saveSendingMessage(sendingMessage,
+                                                     notifyResult);
   },
 
   registerDataCallCallback: function registerDataCallCallback(callback) {
