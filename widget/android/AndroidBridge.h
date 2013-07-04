@@ -360,10 +360,10 @@ public:
     void GetMessage(int32_t aMessageId, nsIMobileMessageCallback* aRequest);
     void DeleteMessage(int32_t aMessageId, nsIMobileMessageCallback* aRequest);
     void CreateMessageList(const dom::mobilemessage::SmsFilterData& aFilter,
-                           bool aReverse, nsIMobileMessageCallback* aRequest);
-    void GetNextMessageInList(int32_t aListId, nsIMobileMessageCallback* aRequest);
+                           bool aReverse, nsIMobileMessageCursorCallback* aRequest);
+    void GetNextMessageInList(int32_t aListId, nsIMobileMessageCursorCallback* aRequest);
     void ClearMessageList(int32_t aListId);
-    already_AddRefed<nsIMobileMessageCallback> DequeueSmsRequest(uint32_t aRequestId);
+    already_AddRefed<nsISupports> DequeueSmsRequest(uint32_t aRequestId);
 
     bool IsTablet();
 
@@ -421,7 +421,7 @@ public:
                             nsACString & aResult);
 protected:
     static nsRefPtr<AndroidBridge> sBridge;
-    nsTArray<nsCOMPtr<nsIMobileMessageCallback> > mSmsRequests;
+    nsTArray<nsCOMPtr<nsISupports> > mSmsRequests;
 
     // the global JavaVM
     JavaVM *mJavaVM;
@@ -452,7 +452,7 @@ protected:
 
     int mAPIVersion;
 
-    bool QueueSmsRequest(nsIMobileMessageCallback* aRequest, uint32_t* aRequestIdOut);
+    bool QueueSmsRequest(nsISupports* aRequest, uint32_t* aRequestIdOut);
 
     // other things
     jmethodID jNotifyIME;

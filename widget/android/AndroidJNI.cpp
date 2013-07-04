@@ -511,11 +511,11 @@ Java_org_mozilla_gecko_GeckoSmsManager_notifyNoMessageInList(JNIEnv* jenv, jclas
       {}
 
       NS_IMETHODIMP Run() {
-        nsCOMPtr<nsIMobileMessageCallback> request =
+        nsCOMPtr<nsIMobileMessageCursorCallback> request =
           AndroidBridge::Bridge()->DequeueSmsRequest(mRequestId);
         NS_ENSURE_TRUE(request, NS_ERROR_FAILURE);
 
-        request->NotifyNoMessageInList();
+        request->NotifyCursorDone();
         return NS_OK;
       }
 
@@ -604,12 +604,12 @@ Java_org_mozilla_gecko_GeckoSmsManager_notifyGotNextMessage(JNIEnv* jenv, jclass
       {}
 
       NS_IMETHODIMP Run() {
-        nsCOMPtr<nsIMobileMessageCallback> request =
+        nsCOMPtr<nsIMobileMessageCursorCallback> request =
           AndroidBridge::Bridge()->DequeueSmsRequest(mRequestId);
         NS_ENSURE_TRUE(request, NS_ERROR_FAILURE);
 
         nsCOMPtr<nsIDOMMozSmsMessage> message = new SmsMessage(mMessageData);
-        request->NotifyNextMessageInListGot(message);
+        request->NotifyCursorResult(message);
         return NS_OK;
       }
 
@@ -651,11 +651,11 @@ Java_org_mozilla_gecko_GeckoSmsManager_notifyReadingMessageListFailed(JNIEnv* je
       {}
 
       NS_IMETHODIMP Run() {
-        nsCOMPtr<nsIMobileMessageCallback> request =
+        nsCOMPtr<nsIMobileMessageCursorCallback> request =
           AndroidBridge::Bridge()->DequeueSmsRequest(mRequestId);
         NS_ENSURE_TRUE(request, NS_ERROR_FAILURE);
 
-        request->NotifyReadMessageListFailed(mError);
+        request->NotifyCursorError(mError);
         return NS_OK;
       }
 

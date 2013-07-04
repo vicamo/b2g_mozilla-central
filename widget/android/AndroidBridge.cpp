@@ -1726,7 +1726,7 @@ AndroidBridge::DeleteMessage(int32_t aMessageId, nsIMobileMessageCallback* aRequ
 
 void
 AndroidBridge::CreateMessageList(const dom::mobilemessage::SmsFilterData& aFilter, bool aReverse,
-                                 nsIMobileMessageCallback* aRequest)
+                                 nsIMobileMessageCursorCallback* aRequest)
 {
     ALOG_BRIDGE("AndroidBridge::CreateMessageList");
 
@@ -1757,7 +1757,8 @@ AndroidBridge::CreateMessageList(const dom::mobilemessage::SmsFilterData& aFilte
 }
 
 void
-AndroidBridge::GetNextMessageInList(int32_t aListId, nsIMobileMessageCallback* aRequest)
+AndroidBridge::GetNextMessageInList(int32_t aListId,
+                                    nsIMobileMessageCursorCallback* aRequest)
 {
     ALOG_BRIDGE("AndroidBridge::GetNextMessageInList");
 
@@ -1787,7 +1788,7 @@ AndroidBridge::ClearMessageList(int32_t aListId)
 }
 
 bool
-AndroidBridge::QueueSmsRequest(nsIMobileMessageCallback* aRequest, uint32_t* aRequestIdOut)
+AndroidBridge::QueueSmsRequest(nsISupports* aRequest, uint32_t* aRequestIdOut)
 {
     MOZ_ASSERT(NS_IsMainThread(), "Wrong thread!");
     MOZ_ASSERT(aRequest && aRequestIdOut);
@@ -1808,7 +1809,7 @@ AndroidBridge::QueueSmsRequest(nsIMobileMessageCallback* aRequest, uint32_t* aRe
     return true;
 }
 
-already_AddRefed<nsIMobileMessageCallback>
+already_AddRefed<nsISupports>
 AndroidBridge::DequeueSmsRequest(uint32_t aRequestId)
 {
     MOZ_ASSERT(NS_IsMainThread(), "Wrong thread!");

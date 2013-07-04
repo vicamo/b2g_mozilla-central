@@ -52,6 +52,10 @@ MobileMessageDatabaseService::CreateMessageCursor(nsIDOMMozSmsFilter* aFilter,
                                                   nsIMobileMessageCursorCallback* aCallback,
                                                   nsICursorContinueCallback** aResult)
 {
+  if (!AndroidBridge::Bridge()) {
+    return NS_OK;
+  }
+
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
