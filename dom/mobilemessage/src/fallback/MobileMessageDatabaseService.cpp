@@ -55,6 +55,15 @@ MobileMessageDatabaseService::CreateThreadCursor(nsIMobileMessageCursorCallback*
   return NS_OK;
 }
 
+NS_IMETHODIMP
+MobileMessageDatabaseService::DeleteThread(uint64_t *aThreadIds,
+                                           uint32_t aLength,
+                                           nsIMobileMessageCallback* aRequest)
+{
+  NS_ERROR("We should not be here!");
+  return NS_OK;
+}
+
 } // namespace mobilemessage
 } // namespace dom
 } // namespace mozilla

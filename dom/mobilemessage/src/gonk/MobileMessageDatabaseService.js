@@ -1828,6 +1828,69 @@ MobileMessageDatabaseService.prototype = {
     }, [THREAD_STORE_NAME]);
 
     return cursor;
+  },
+
+  deleteThread: function deleteThread(aThreadIds, aLength, aRequest) {
+    if (DEBUG) debug("deleteThread: thread IDs " + JSON.stringify(aThreadIds));
+
+    let self = this;
+    self.newTxn(READ_WRITE, function (error, txn, stores) {
+      if (error) {
+        if (DEBUG) debug(error);
+        aRequest.notifyDeleteThreadFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+        return;
+      }
+
+      txn.onerror = function onerror(event) {
+        if (DEBUG) debug("Caught error on transaction", event.target.errorCode);
+        // TODO bug 832140 check event.target.errorCode
+        aRequest.notifyDeleteThreadFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+      };
+
+      txn.oncomplete = function oncomplete(event) {
+        if (DEBUG) debug("Transaction " + txn + " completed.");
+        aRequest.notifyThreadDeleted(aThreadIds, length);
+      };
+
+      // Sort |aThreadIds| and remove duplicated entries.
+      let threadIds = aThreadIds.slice(0).sort().reduce(function (prev, cur) {
+        if (!prev.length) {
+          return [cur];
+        }
+
+        if (prev[prev.length - 1] != cur) {
+          prev.push(cur);
+        }
+        return prev;
+      }, []);
+
+      let messageIds = [];
+      (function process() {
+        if (!threadIds.length) {
+          // Delete all found messages but ignore actual deletion results.
+          self.deleteMultipleMessages(txn, messageIds, null);
+          return;
+        }
+
+        let threadId = threadIds.pop();
+        let range = IDBKeyRange.bound([threadId, 0], [threadId, ""]);
+        FilterSearcherHelper.filterIndex("threadId", range, NEXT, txn,
+                                         function (aUnused1, aMessageId,
+                                                   aUnused2) {
+          switch (aMessageId) {
+            case COLLECT_ID_END:
+              process(aThreadIdsIndex + 1);
+              break;
+            case COLLECT_ID_ERROR:
+              // Handled in |txn.onerror|.
+              break;
+            default:
+              messageIds.push(aMessageId);
+              break;
+          }
+        });
+      })();
+    }, [MESSAGE_STORE_NAME, THREAD_STORE_NAME, PARTICIPANT_STORE_NAME]);
   }
 };
 

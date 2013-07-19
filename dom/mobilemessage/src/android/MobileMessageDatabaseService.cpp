@@ -72,6 +72,15 @@ MobileMessageDatabaseService::CreateThreadCursor(nsIMobileMessageCursorCallback*
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP
+MobileMessageDatabaseService::DeleteThread(uint64_t *aThreadIds,
+                                           uint32_t aLength,
+                                           nsIMobileMessageCallback* aRequest)
+{
+  NS_NOTYETIMPLEMENTED("Implement me!");
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
 } // namespace mobilemessage
 } // namespace dom
 } // namespace mozilla
