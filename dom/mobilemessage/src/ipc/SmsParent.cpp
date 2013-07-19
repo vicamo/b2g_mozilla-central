@@ -337,6 +337,8 @@ SmsParent::RecvPSmsRequestConstructor(PSmsRequestParent* aActor,
       return actor->DoRequest(aRequest.get_DeleteMessageRequest());
     case IPCSmsRequest::TMarkMessageReadRequest:
       return actor->DoRequest(aRequest.get_MarkMessageReadRequest());
+    case IPCSmsRequest::TDeleteThreadRequest:
+      return actor->DoRequest(aRequest.get_DeleteThreadRequest());
     default:
       MOZ_CRASH("Unknown type!");
   }
@@ -618,6 +620,20 @@ SmsRequestParent::NotifyMarkMessageReadFailed(int32_t aError)
   return SendReply(ReplyMarkeMessageReadFail(aError));
 }
 
+NS_IMETHODIMP
+SmsRequestParent::NotifyThreadDeleted(uint64_t *aThreadIds, uint32_t aSize)
+{
+  ReplyThreadDelete data;
+  data.threadIds().AppendElements(aThreadIds, aSize);
+  return SendReply(data);
+}
+
+NS_IMETHODIMP
+SmsRequestParent::NotifyDeleteThreadFailed(int32_t aError)
+{
+  return SendReply(ReplyThreadDeleteFail(aError));
+}
+
 /*******************************************************************************
  * MobileMessageCursorParent
  ******************************************************************************/
@@ -683,6 +699,26 @@ MobileMessageCursorParent::DoRequest(const CreateThreadCursorRequest& aRequest)
 
   if (NS_FAILED(rv)) {
     return NS_SUCCEEDED(NotifyCursorError(nsIMobileMessageCallback::INTERNAL_ERROR));
+  }
+
+  return true;
+}
+
+bool
+SmsRequestParent::DoRequest(const DeleteThreadRequest& aRequest)
+{
+  nsresult rv = NS_ERROR_FAILURE;
+
+  nsCOMPtr<nsIMobileMessageDatabaseService> dbService =
+    do_GetService(MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID);
+  if (dbService) {
+    const InfallibleTArray<uint64_t>& threadIds = aRequest.threadIds();
+    rv = dbService->DeleteThread(const_cast<uint64_t *>(threadIds.Elements()),
+                                 threadIds.Length(), this);
+  }
+
+  if (NS_FAILED(rv)) {
+    return NS_SUCCEEDED(NotifyDeleteThreadFailed(nsIMobileMessageCallback::INTERNAL_ERROR));
   }
 
   return true;

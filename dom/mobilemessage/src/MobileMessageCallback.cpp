@@ -174,6 +174,45 @@ MobileMessageCallback::NotifyMarkMessageReadFailed(int32_t aError)
   return NotifyError(aError);
 }
 
+NS_IMETHODIMP
+MobileMessageCallback::NotifyThreadDeleted(uint64_t *aThreadIds, uint32_t aSize)
+{
+  if (aSize == 1) {
+    double id = static_cast<double>(aThreadIds[0]);
+    NS_ENSURE_TRUE(static_cast<uint64_t>(id) == aThreadIds[0], NS_ERROR_FAILURE);
+
+    AutoJSContext cx;
+    JS::Rooted<JS::Value> val(cx, JS::NumberValue(id));
+    return NotifySuccess(val);
+  }
+
+  nsresult rv;
+  nsIScriptContext* sc = mDOMRequest->GetContextForEventHandlers(&rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(sc, NS_ERROR_FAILURE);
+
+  AutoPushJSContext cx(sc->GetNativeContext());
+  NS_ENSURE_TRUE(cx, NS_ERROR_FAILURE);
+
+  JS::Rooted<JSObject*> arrayObj(cx, JS_NewArrayObject(cx, aSize, NULL));
+  for (uint32_t i = 0; i < aSize; i++) {
+    double id = static_cast<double>(aThreadIds[i]);
+    NS_ENSURE_TRUE(static_cast<uint64_t>(id) == aThreadIds[i], NS_ERROR_FAILURE);
+
+    JS::Rooted<JS::Value> element(cx, JS::NumberValue(id));
+    JS_SetElement(cx, arrayObj, i, element.address());
+  }
+
+  JS::Rooted<JS::Value> arrayVal(cx, JS::ObjectValue(*arrayObj));
+  return NotifySuccess(arrayVal);
+}
+
+NS_IMETHODIMP
+MobileMessageCallback::NotifyDeleteThreadFailed(int32_t aError)
+{
+  return NotifyError(aError);
+}
+
 } // namesapce mobilemessage
 } // namespace dom
 } // namespace mozilla

@@ -196,6 +196,16 @@ SmsRequestChild::Recv__delete__(const MessageReply& aReply)
     case MessageReply::TReplyMarkeMessageReadFail:
       mReplyRequest->NotifyMarkMessageReadFailed(aReply.get_ReplyMarkeMessageReadFail().error());
       break;
+    case MessageReply::TReplyThreadDelete: {
+        const InfallibleTArray<uint64_t>& result =
+          aReply.get_ReplyThreadDelete().threadIds();
+        mReplyRequest->NotifyThreadDeleted(const_cast<uint64_t *>(result.Elements()),
+                                           result.Length());
+      }
+      break;
+    case MessageReply::TReplyThreadDeleteFail:
+      mReplyRequest->NotifyDeleteThreadFailed(aReply.get_ReplyThreadDeleteFail().error());
+      break;
     default:
       MOZ_CRASH("Received invalid response parameters!");
   }

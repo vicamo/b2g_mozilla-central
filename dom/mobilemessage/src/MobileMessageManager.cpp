@@ -376,6 +376,66 @@ MobileMessageManager::GetThreads(nsIDOMDOMCursor** aCursor)
 }
 
 NS_IMETHODIMP
+MobileMessageManager::DeleteThread(const JS::Value& aParam,
+                                   nsIDOMDOMRequest** aRequest)
+{
+  // We expect UInt64, UInt64[].
+  if (!aParam.isObject() && !aParam.isNumber()) {
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  nsresult rv;
+  nsIScriptContext* sc = GetContextForEventHandlers(&rv);
+  AutoPushJSContext cx(sc->GetNativeContext());
+  NS_ENSURE_STATE(sc);
+
+  nsTArray<uint64_t> idArray;
+  if (aParam.isNumber()) {
+    // Single Integer Message ID
+    uint64_t id = static_cast<uint64_t>(aParam.toNumber());
+    NS_ENSURE_TRUE(id == aParam.toNumber(), NS_ERROR_INVALID_ARG);
+
+    idArray.AppendElement(id);
+  } else if (JS_IsArrayObject(cx, &aParam.toObject())) {
+    // UInt64[]
+    JS::Rooted<JSObject*> obj(cx, &aParam.toObject());
+
+    uint32_t size;
+    JS_ALWAYS_TRUE(JS_GetArrayLength(cx, obj, &size));
+
+    JS::Rooted<JS::Value> element(cx);
+    for (uint32_t i = 0; i < size; i++) {
+      if (!JS_GetElement(cx, obj, i, element.address()) ||
+          !element.isNumber()) {
+        return NS_ERROR_INVALID_ARG;
+      }
+
+      uint64_t id = static_cast<uint64_t>(element.toNumber());
+      NS_ENSURE_TRUE(id == element.toNumber(), NS_ERROR_INVALID_ARG);
+
+      idArray.AppendElement(id);
+    }
+  } else {
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  nsCOMPtr<nsIMobileMessageDatabaseService> dbService =
+    do_GetService(MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID);
+  NS_ENSURE_TRUE(dbService, NS_ERROR_FAILURE);
+
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIMobileMessageCallback> msgCallback =
+    new MobileMessageCallback(request);
+
+  rv = dbService->DeleteThread(idArray.Elements(), idArray.Length(),
+                               msgCallback);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  request.forget(aRequest);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 MobileMessageManager::RetrieveMMS(int32_t id,
                                   nsIDOMDOMRequest** aRequest)
 {

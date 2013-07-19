@@ -75,6 +75,52 @@ SendCursorRequest(const IPCMobileMessageCursor& aRequest,
   actor.forget(aResult);
   return NS_OK;
 }
+
+bool
+GetSendMmsMessageRequestFromParams(const JS::Value& aParam,
+                                   SendMmsMessageRequest& request) {
+  if (aParam.isUndefined() || aParam.isNull() || !aParam.isObject()) {
+    return false;
+  }
+
+  mozilla::AutoJSContext cx;
+  JS::Rooted<JS::Value> param(cx, aParam);
+  RootedDictionary<MmsParameters> params(cx);
+  if (!params.Init(cx, param)) {
+    return false;
+  }
+
+  // SendMobileMessageRequest.receivers
+  if (!params.mReceivers.WasPassed()) {
+    return false;
+  }
+  request.receivers().AppendElements(params.mReceivers.Value());
+
+  // SendMobileMessageRequest.attachments
+  mozilla::dom::ContentChild* cc = mozilla::dom::ContentChild::GetSingleton();
+
+  if (!params.mAttachments.WasPassed()) {
+    return false;
+  }
+
+  for (uint32_t i = 0; i < params.mAttachments.Value().Length(); i++) {
+    MmsAttachment& attachment = params.mAttachments.Value()[i];
+    MmsAttachmentData mmsAttachment;
+    mmsAttachment.id().Assign(attachment.mId);
+    mmsAttachment.location().Assign(attachment.mLocation);
+    mmsAttachment.contentChild() = cc->GetOrCreateActorForBlob(attachment.mContent);
+    if (!mmsAttachment.contentChild()) {
+      return false;
+    }
+    request.attachments().AppendElement(mmsAttachment);
+  }
+
+  request.smil() = params.mSmil;
+  request.subject() = params.mSubject;
+
+  return true;
+}
+
 } // anonymous namespace
 
 NS_IMPL_ISUPPORTS3(SmsIPCService,
@@ -170,49 +216,14 @@ SmsIPCService::CreateThreadCursor(nsIMobileMessageCursorCallback* aCursorCallbac
                            aResult);
 }
 
-bool
-GetSendMmsMessageRequestFromParams(const JS::Value& aParam,
-                                   SendMmsMessageRequest& request) {
-  if (aParam.isUndefined() || aParam.isNull() || !aParam.isObject()) {
-    return false;
-  }
-
-  mozilla::AutoJSContext cx;
-  JS::Rooted<JS::Value> param(cx, aParam);
-  RootedDictionary<MmsParameters> params(cx);
-  if (!params.Init(cx, param)) {
-    return false;
-  }
-
-  // SendMobileMessageRequest.receivers
-  if (!params.mReceivers.WasPassed()) {
-    return false;
-  }
-  request.receivers().AppendElements(params.mReceivers.Value());
-
-  // SendMobileMessageRequest.attachments
-  mozilla::dom::ContentChild* cc = mozilla::dom::ContentChild::GetSingleton();
-
-  if (!params.mAttachments.WasPassed()) {
-    return false;
-  }
-
-  for (uint32_t i = 0; i < params.mAttachments.Value().Length(); i++) {
-    MmsAttachment& attachment = params.mAttachments.Value()[i];
-    MmsAttachmentData mmsAttachment;
-    mmsAttachment.id().Assign(attachment.mId);
-    mmsAttachment.location().Assign(attachment.mLocation);
-    mmsAttachment.contentChild() = cc->GetOrCreateActorForBlob(attachment.mContent);
-    if (!mmsAttachment.contentChild()) {
-      return false;
-    }
-    request.attachments().AppendElement(mmsAttachment);
-  }
-
-  request.smil() = params.mSmil;
-  request.subject() = params.mSubject;
-
-  return true;
+NS_IMETHODIMP
+SmsIPCService::DeleteThread(uint64_t *aThreadIds,
+                            uint32_t aSize,
+                            nsIMobileMessageCallback* aRequest)
+{
+  DeleteThreadRequest data;
+  data.threadIds().AppendElements(aThreadIds, aSize);
+  return SendRequest(data, aRequest);
 }
 
 NS_IMETHODIMP
