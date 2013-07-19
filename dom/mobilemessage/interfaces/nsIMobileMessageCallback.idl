@@ -48,4 +48,8 @@ interface nsIMobileMessageCallback : nsISupports
 
   void notifyMessageMarkedRead(in boolean read);
   void notifyMarkMessageReadFailed(in long error);
+
+  void notifyThreadDeleted([array, size_is(count)] in uint64_t threadIds,
+                           in uint32_t count);
+  void notifyDeleteThreadFailed(in long error);
 };

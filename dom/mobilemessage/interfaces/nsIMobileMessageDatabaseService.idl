@@ -36,4 +36,8 @@ interface nsIMobileMessageDatabaseService : nsISupports
                        in nsIMobileMessageCallback request);
 
   nsICursorContinueCallback createThreadCursor(in nsIMobileMessageCursorCallback callback);
+
+  void deleteThread([array, size_is(count)] in uint64_t threadIds,
+                    in uint32_t count,
+                    in nsIMobileMessageCallback request);
 };

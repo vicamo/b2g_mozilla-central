@@ -65,6 +65,11 @@ struct CreateThreadCursorRequest
 {
 };
 
+struct DeleteThreadRequest
+{
+  uint64_t[] threadIds;
+};
+
 union IPCSmsRequest
 {
   SendMessageRequest;
@@ -72,6 +77,7 @@ union IPCSmsRequest
   GetMessageRequest;
   DeleteMessageRequest;
   MarkMessageReadRequest;
+  DeleteThreadRequest;
 };
 
 union IPCMobileMessageCursor
