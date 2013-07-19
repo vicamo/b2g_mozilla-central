@@ -16,10 +16,20 @@ interface nsIDOMMozMobileMessageManager : nsIDOMEventTarget
 {
   nsIDOMMozSmsSegmentInfo getSegmentInfoForText(in DOMString text);
 
-  // The first parameter can be either a DOMString (only one number) or an array
-  // of DOMStrings.
-  // The method returns a DOMRequest object if one number has been passed.
-  // An array of DOMRequest objects otherwise.
+  /**
+   * Send a text message to recipient(s) specified by |numbers| via SMS.
+   *
+   * @param number   A string phone number or an array of strings.
+   * @param message  A test message to send.
+   *
+   * @return A nsIDOMDOMRequest object when sending to only one recipient; an
+   *         array of nsIDOMDOMRequest objects when sending to multiple
+   *         recipients.  A SmsEvent is passed to request callbacks.  On
+   *         success, the |event.target.result| is an nsIDOMMozSmsMessage
+   *         representing the sent message; otherwise, it's a numeric code for
+   *         the error occurred.  See nsIMobileMessageCallback::*_ERROR for
+   *         possible values and meanings.
+   */
   jsval send(in jsval number, in DOMString message);
 
   nsIDOMDOMRequest sendMMS(in jsval parameters /* MmsParameters */);
