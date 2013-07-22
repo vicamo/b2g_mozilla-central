@@ -774,8 +774,7 @@ CancellableTransaction.prototype = {
         break;
       }
       case kMobileMessageDeletedObserverTopic: {
-        data = JSON.parse(data);
-        if (data.id != this.cancellableId) {
+        if (data != this.cancellableId) {
           return;
         }
 

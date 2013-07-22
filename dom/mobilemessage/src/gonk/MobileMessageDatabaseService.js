@@ -235,7 +235,7 @@ MobileMessageDatabaseService.prototype = {
       update(currentVersion);
     };
     request.onerror = function (event) {
-      //TODO look at event.target.Code and change error constant accordingly
+      // TODO bug 832140 check event.target.errorCode
       callback("Error opening database!", null);
     };
     request.onblocked = function (event) {
@@ -272,8 +272,7 @@ MobileMessageDatabaseService.prototype = {
           debug("Transaction " + txn + " completed.");
         };
         txn.onerror = function onerror(event) {
-          //TODO check event.target.errorCode and show an appropiate error
-          //     message according to it.
+          // TODO bug 832140 check event.target.errorCode
           debug("Error occurred during transaction: " + event.target.errorCode);
         };
       }
@@ -368,7 +367,6 @@ MobileMessageDatabaseService.prototype = {
   /**
    * Create the initial database schema.
    *
-   * TODO need to worry about number normalization somewhere...
    * TODO full text search on body???
    */
   createSchema: function createSchema(db, next) {
@@ -1100,13 +1098,11 @@ MobileMessageDatabaseService.prototype = {
           messageStore.get(aMessageRecord.id).onsuccess = function(event) {
             let oldMessageRecord = event.target.result;
             messageStore.put(aMessageRecord);
-            if (oldMessageRecord) {
-              self.updateThreadByMessageChange(messageStore,
-                                               threadStore,
-                                               oldMessageRecord.threadId,
-                                               aMessageRecord.id,
-                                               oldMessageRecord.read);
-            }
+            self.updateThreadByMessageChange(messageStore, threadStore, {
+              threadId: oldMessageRecord.threadId,
+              messageIds: [aMessageRecord.id],
+              unreadCountDiff: (oldMessageRecord.read ? -1 : 0)
+            });
           };
         };
 
@@ -1150,6 +1146,205 @@ MobileMessageDatabaseService.prototype = {
     }, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME]);
     // We return the key that we expect to store in the db
     return aMessageRecord.id;
+  },
+
+  /**
+   * Update multiple thread record due to message record changes.
+   *
+   * @param aMessageStore
+   *        An object store containing all messages.
+   * @param aThreadStore
+   *        An object store containing all threads.
+   * @param aChanges
+   *        An array of objects carrying information about the changes to a
+   *        thread record.  Each element object has:
+   *
+   *          {
+   *            // Numeric value for the ID of target thread.
+   *            threadId: <number>,
+   *            // Numeric values for IDs of changed messages of target thread.
+   *            messageIds: <array of numbers>,
+   *            // Accumulative changes to target thread unreadCount.
+   *            unreadCountDiff: <number>
+   *          }
+   */
+  updateThreadByMessageChange: function updateThreadByMessageChange(aMessageStore,
+                                                                    aThreadStore,
+                                                                    aChanges) {
+    // Commit as much tasks to IDB as possible.
+    for (let change of aChanges) {
+      if (DEBUG) {
+        debug("updateThreadByMessageChange: " + JSON.stringify(change));
+      }
+
+      aThreadStore.get(change.threadId).onsuccess = (function(change, event) {
+        // This must exist.
+        let threadRecord = event.target.result;
+        if (DEBUG) {
+          debug("Updating thread record " + JSON.stringify(threadRecord));
+        }
+
+        let threadId = threadRecord.id;
+        if (change.messageIds.indexOf(threadRecord.lastMessageId) < 0) {
+          // 1) Last message was not touched.
+          if (change.unreadCountDiff) {
+            // 1-1) Only update thread record if unreadCount is changed.
+            if (DEBUG) {
+              debug("Updating unread count for thread id " + threadId + ": " +
+                    threadRecord.unreadCount + " -> " +
+                    (threadRecord.unreadCount + change.unreadCountDiff));
+            }
+            threadRecord.unreadCount += change.unreadCountDiff;
+            aThreadStore.put(threadRecord);
+          }
+          return;
+        }
+
+        // 2) Update/remove thread record if the last message was deleted.
+
+        // Check most recent sender/receiver.
+        let range = IDBKeyRange.bound([threadId, 0], [threadId, ""]);
+        let request = aMessageStore.index("threadId")
+                                   .openCursor(range, PREV);
+        request.onsuccess = function(event) {
+          let cursor = event.target.result;
+          if (!cursor) {
+            // 2-1) No more messages in this thread.  Delete thread record.
+            if (DEBUG) {
+              debug("Deleting mru entry for thread id " + threadId);
+            }
+            aThreadStore.delete(threadId);
+            return;
+          }
+
+          // 2-2) Update information for last message change.  Also apply
+          //      change.unreadCountDiff.
+          let nextMsg = cursor.value;
+          threadRecord.lastMessageId = nextMsg.id;
+          threadRecord.lastTimestamp = nextMsg.timestamp;
+          threadRecord.subject = nextMsg.body;
+          threadRecord.lastMessageType = nextMsg.type;
+          threadRecord.unreadCount += change.unreadCountDiff;
+          if (DEBUG) {
+            debug("Updating mru entry: " + JSON.stringify(threadRecord));
+          }
+          aThreadStore.put(threadRecord);
+        };
+      }).bind(this, change); // End of aThreadStore.get().onsuccess().
+    } // End of for-loop.
+  },
+
+  /**
+   * Remove multiple messages specified by |aMessageIds| and update actual
+   * deletion results in |aResults|.  Broadcast "mobile-message-deleted"
+   * observer events with data set to |JSON.stringify({ id: <message ID> })|
+   * on transaction completes.
+   *
+   * @param aTxn
+   *        A IDBTransation object to operate with.
+   * @param aMessageIds
+   *        An array of message IDs of messages to be deleted.  Could have
+   *        duplicated entries in it.
+   *
+   * @return An array for actual deletion results.  Each of the elements is set
+   *         is set to true if the corresponding message record specified in
+   *         |aMessageIds| existed and has been deleted; false otherwise.  This
+   *         array is only ready in IDBTransaction oncomplete event.
+   */
+  deleteMultipleMessages: function deleteMultipleMessages(aTxn, aMessageIds) {
+    let deletedMessageIds = [];
+    aTxn.addEventListener("complete", function oncomplete(event) {
+      if (DEBUG) {
+        debug("deleteMultipleMessages: " +
+              "broadcast \"mobile-message-deleted\" events");
+      }
+      for (let id of deletedMessageIds) {
+        Services.obs.notifyObservers(null, "mobile-message-deleted", id);
+      }
+    });
+
+    // In order not to do duplicated IDB get/delete operation, uniquize
+    // message IDs first.
+    let uniqueMessageIds =
+      aMessageIds.slice(0).sort().reduce(function (array, cur) {
+        if (!array.length || cur != array[array.length - 1]) {
+          array.push(cur);
+        }
+        return array;
+      }, []);
+
+    let results = new Array(aMessageIds.length);
+    for (let index = 0; index < results.length; index++) {
+      results[index] = false;
+    }
+
+    let processed = 0;
+    let self = this;
+    let increaseProcessed = function () {
+      ++processed;
+      if (processed >= uniqueMessageIds.length) {
+        self.updateThreadByMessageChange(messageStore, threadStore, changes);
+      }
+    };
+
+    let messageStore = aTxn.objectStore(MESSAGE_STORE_NAME);
+    let threadStore = aTxn.objectStore(THREAD_STORE_NAME);
+    let changes = [];
+    // Commit as much tasks to IDB as possible.
+    for (let id of uniqueMessageIds) {
+      messageStore.get(id).onsuccess = (function(id, event) {
+        let messageRecord = event.target.result;
+        if (!messageRecord) {
+          if (DEBUG) debug("Message id " + id + " does not exist");
+          increaseProcessed();
+          return;
+        }
+
+        if (DEBUG) debug("Deleting message id " + id);
+        // First actually delete the message.
+        messageStore.delete(id).onsuccess = function() {
+          if (DEBUG) debug("Message id " + id + " deleted");
+
+          // Set corresponding |results| array element;
+          let index = aMessageIds.indexOf(id);
+          results[index] = true;
+          if (uniqueMessageIds.length != aMessageIds.length) {
+            // Have duplicated entries.  Find it out.
+            while ((index = aMessageIds.indexOf(id, index + 1)) >= 0) {
+              results[index] = true;
+            }
+          }
+
+          // Append to actual deletedMessageIds array.
+          deletedMessageIds.push(id);
+
+          // Update |changes| array.
+          let found = false;
+          changes.forEach(function (element) {
+            if (found || (element.threadId != messageRecord.threadId)) {
+              return;
+            }
+
+            found = true;
+            element.messageIds.push(id);
+            if (!messageRecord.read) {
+              element.unreadCountDiff -= 1;
+            }
+          });
+          if (!found) {
+            changes.push({
+              threadId: messageRecord.threadId,
+              messageIds: [id],
+              unreadCountDiff: (messageRecord.read ? 0 : -1)
+            });
+          }
+
+          increaseProcessed();
+        }; // End of messageStore.delete().onsuccess().
+      }).bind(null, id); // End of messageStore.get().onsuccess().
+    } // End of for-loop.
+
+    return results;
   },
 
   /**
@@ -1487,61 +1682,8 @@ MobileMessageDatabaseService.prototype = {
     this.getMessageRecordById(aMessageId, notifyCallback);
   },
 
-  updateThreadByMessageChange: function updateThreadByMessageChange(messageStore,
-                                                                    threadStore,
-                                                                    threadId,
-                                                                    messageId,
-                                                                    messageRead) {
-    threadStore.get(threadId).onsuccess = function(event) {
-      // This must exist.
-      let threadRecord = event.target.result;
-      if (DEBUG) debug("Updating thread record " + JSON.stringify(threadRecord));
-
-      if (!messageRead) {
-        threadRecord.unreadCount--;
-      }
-
-      if (threadRecord.lastMessageId == messageId) {
-        // Check most recent sender/receiver.
-        let range = IDBKeyRange.bound([threadId, 0], [threadId, ""]);
-        let request = messageStore.index("threadId")
-                                  .openCursor(range, PREV);
-        request.onsuccess = function(event) {
-          let cursor = event.target.result;
-          if (!cursor) {
-            if (DEBUG) {
-              debug("Deleting mru entry for thread id " + threadId);
-            }
-            threadStore.delete(threadId);
-            return;
-          }
-
-          let nextMsg = cursor.value;
-          threadRecord.lastMessageId = nextMsg.id;
-          threadRecord.lastTimestamp = nextMsg.timestamp;
-          threadRecord.subject = nextMsg.body;
-          threadRecord.lastMessageType = nextMsg.type;
-          if (DEBUG) {
-            debug("Updating mru entry: " +
-                  JSON.stringify(threadRecord));
-          }
-          threadStore.put(threadRecord);
-        };
-      } else if (!messageRead) {
-        // Shortcut, just update the unread count.
-        if (DEBUG) {
-          debug("Updating unread count for thread id " + threadId + ": " +
-                (threadRecord.unreadCount + 1) + " -> " +
-                threadRecord.unreadCount);
-        }
-        threadStore.put(threadRecord);
-      }
-    };
-  },
-
   deleteMessage: function deleteMessage(messageIds, length, aRequest) {
     if (DEBUG) debug("deleteMessage: message ids " + JSON.stringify(messageIds));
-    let deleted = [];
     let self = this;
     this.newTxn(READ_WRITE, function (error, txn, stores) {
       if (error) {
@@ -1549,50 +1691,20 @@ MobileMessageDatabaseService.prototype = {
         aRequest.notifyDeleteMessageFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
         return;
       }
+
       txn.onerror = function onerror(event) {
         if (DEBUG) debug("Caught error on transaction", event.target.errorCode);
-        //TODO look at event.target.errorCode, pick appropriate error constant
+        // TODO bug 832140 check event.target.errorCode
         aRequest.notifyDeleteMessageFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
       };
 
-      const messageStore = stores[0];
-      const threadStore = stores[1];
-
+      let results;
       txn.oncomplete = function oncomplete(event) {
         if (DEBUG) debug("Transaction " + txn + " completed.");
-        aRequest.notifyMessageDeleted(deleted, length);
+        aRequest.notifyMessageDeleted(results, length);
       };
 
-      for (let i = 0; i < length; i++) {
-        let messageId = messageIds[i];
-        deleted[i] = false;
-        messageStore.get(messageId).onsuccess = function(messageIndex, event) {
-          let messageRecord = event.target.result;
-          let messageId = messageIds[messageIndex];
-          if (messageRecord) {
-            if (DEBUG) debug("Deleting message id " + messageId);
-
-            // First actually delete the message.
-            messageStore.delete(messageId).onsuccess = function(event) {
-              if (DEBUG) debug("Message id " + messageId + " deleted");
-              deleted[messageIndex] = true;
-
-              // Then update unread count and most recent message.
-              self.updateThreadByMessageChange(messageStore,
-                                               threadStore,
-                                               messageRecord.threadId,
-                                               messageId,
-                                               messageRecord.read);
-
-              Services.obs.notifyObservers(null,
-                                           "mobile-message-deleted",
-                                           JSON.stringify({ id: messageId }));
-            };
-          } else if (DEBUG) {
-            debug("Message id " + messageId + " does not exist");
-          }
-        }.bind(null, i);
-      }
+      results = self.deleteMultipleMessages(txn, messageIds);
     }, [MESSAGE_STORE_NAME, THREAD_STORE_NAME]);
   },
 
@@ -1804,7 +1916,7 @@ let FilterSearcherHelper = {
    */
   transact: function transact(service, txn, error, filter, reverse, collect) {
     if (error) {
-      //TODO look at event.target.errorCode, pick appropriate error constant.
+      // TODO bug 832140 check event.target.errorCode
       if (DEBUG) debug("IDBRequest error " + error.target.errorCode);
       collect(txn, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
       return;
