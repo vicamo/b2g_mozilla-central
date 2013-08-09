@@ -4640,11 +4640,11 @@ let RIL = {
    * _is_ the method name, so that's easy.
    */
 
-  handleParcel: function handleParcel(request_type, length, options) {
+  handleParcel: function handleParcel(request_type, length, error, callback) {
     let method = this[request_type];
     if (typeof method == "function") {
       if (DEBUG) debug("Handling parcel as " + method.name);
-      method.call(this, length, options);
+      method.call(this, length, error, callback);
     }
   },
 

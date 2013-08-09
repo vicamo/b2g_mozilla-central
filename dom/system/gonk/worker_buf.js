@@ -552,12 +552,12 @@ function processIncoming(incoming) {
 function processParcel() {
   let response_type = readUint32();
 
-  let request_type, options;
+  let request_type, error, callback;
   if (response_type == RESPONSE_TYPE_SOLICITED) {
     let token = readUint32();
-    let error = readUint32();
+    error = readUint32();
 
-    options = mTokenRequestMap[token];
+    let options = mTokenRequestMap[token];
     if (!options) {
       if (DEBUG) {
         debug("Suspicious uninvited request found: " + token + ". Ignored!");
@@ -566,9 +566,9 @@ function processParcel() {
     }
 
     delete mTokenRequestMap[token];
-    request_type = options.rilRequestType;
+    request_type = options.type;
+    callback = options.callback;
 
-    options.rilRequestError = error;
     if (DEBUG) {
       debug("Solicited response for request type " + request_type +
             ", token " + token + ", error " + error);
@@ -581,7 +581,7 @@ function processParcel() {
     return;
   }
 
-  RIL.handleParcel(request_type, mReadAvailable, options);
+  RIL.handleParcel(request_type, mReadAvailable, error, callback);
 }
 
 /**
@@ -589,11 +589,11 @@ function processParcel() {
  *
  * @param type
  *        Integer specifying the request type.
- * @param options [optional]
- *        Object containing information about the request, e.g. the
- *        original main thread message object that led to the RIL request.
+ * @param callback [optional]
+ *        A callback function to be called when rild replies.  The parsed
+ *        response and a ril request error code are passed as arguments.
  */
-function newParcel(type, options) {
+function newParcel(type, callback) {
   if (DEBUG) debug("New outgoing parcel of type " + type);
 
   // We're going to leave room for the parcel size at the beginning.
@@ -601,12 +601,13 @@ function newParcel(type, options) {
   writeUint32(type);
   writeUint32(mToken);
 
-  if (!options) {
-    options = {};
+  if (callback) {
+    this.tokenRequestMap[token] = {
+      type: type,
+      callback: callback
+    };
   }
-  options.rilRequestType = type;
-  options.rilRequestError = null;
-  mTokenRequestMap[mToken] = options;
+
   mToken++;
   return mToken;
 }
@@ -633,8 +634,8 @@ function setOutputStream(func) {
   mOutputStream = func;
 }
 
-function simpleRequest(type, options) {
-  newParcel(type, options);
+function simpleRequest(type, callback) {
+  newParcel(type, callback);
   sendParcel();
 }
 
