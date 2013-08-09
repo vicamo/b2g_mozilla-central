@@ -348,7 +348,98 @@ let RIL = {
    * Retrieve the ICC's status.
    */
   getICCStatus: function getICCStatus() {
-    Buf.simpleRequest(REQUEST_GET_SIM_STATUS);
+    Buf.simpleRequest(REQUEST_GET_SIM_STATUS, (function (error, iccStatus) {
+      this.iccStatus = iccStatus;
+      let newCardState;
+
+      if ((!iccStatus) || (iccStatus.cardState == CARD_STATE_ABSENT)) {
+        switch (this.radioState) {
+          case GECKO_RADIOSTATE_UNAVAILABLE:
+            newCardState = GECKO_CARDSTATE_UNKNOWN;
+            break;
+          case GECKO_RADIOSTATE_OFF:
+            newCardState = GECKO_CARDSTATE_NOT_READY;
+            break;
+          case GECKO_RADIOSTATE_READY:
+            if (DEBUG) {
+              debug("ICC absent");
+            }
+            newCardState = GECKO_CARDSTATE_ABSENT;
+            break;
+        }
+        if (newCardState == this.cardState) {
+          return;
+        }
+        this.cardState = newCardState;
+        this.sendChromeMessage({rilMessageType: "cardstatechange",
+                                cardState: this.cardState});
+        return;
+      }
+
+      let index = this._isCdma ? iccStatus.cdmaSubscriptionAppIndex :
+                                 iccStatus.gsmUmtsSubscriptionAppIndex;
+      let app = iccStatus.apps[index];
+      if (iccStatus.cardState == CARD_STATE_ERROR || !app) {
+        if (this.cardState == GECKO_CARDSTATE_UNKNOWN) {
+          this.operator = null;
+          return;
+        }
+        this.operator = null;
+        this.cardState = GECKO_CARDSTATE_UNKNOWN;
+        this.sendChromeMessage({rilMessageType: "cardstatechange",
+                                cardState: this.cardState});
+        return;
+      }
+      // fetchICCRecords will need to read aid, so read aid here.
+      this.aid = app.aid;
+      this.appType = app.app_type;
+
+      switch (app.app_state) {
+        case CARD_APPSTATE_PIN:
+          newCardState = GECKO_CARDSTATE_PIN_REQUIRED;
+          break;
+        case CARD_APPSTATE_PUK:
+          newCardState = GECKO_CARDSTATE_PUK_REQUIRED;
+          break;
+        case CARD_APPSTATE_SUBSCRIPTION_PERSO:
+          newCardState = PERSONSUBSTATE[app.perso_substate];
+          break;
+        case CARD_APPSTATE_READY:
+          newCardState = GECKO_CARDSTATE_READY;
+          break;
+        case CARD_APPSTATE_UNKNOWN:
+        case CARD_APPSTATE_DETECTED:
+          // Fall through.
+        default:
+          newCardState = GECKO_CARDSTATE_UNKNOWN;
+      }
+
+      if (this.cardState == newCardState) {
+        return;
+      }
+
+      // This was moved down from CARD_APPSTATE_READY
+      this.requestNetworkInfo();
+      if (newCardState == GECKO_CARDSTATE_READY) {
+        // For type SIM, we need to check EF_phase first.
+        // Other types of ICC we can send Terminal_Profile immediately.
+        if (this.appType == CARD_APPTYPE_SIM) {
+          ICCRecordHelper.readICCPhase();
+          ICCRecordHelper.fetchICCRecords();
+        } else if (this.appType == CARD_APPTYPE_USIM) {
+          this.sendStkTerminalProfile(STK_SUPPORTED_TERMINAL_PROFILE);
+          ICCRecordHelper.fetchICCRecords();
+        } else if (this.appType == CARD_APPTYPE_RUIM) {
+          this.sendStkTerminalProfile(STK_SUPPORTED_TERMINAL_PROFILE);
+          RuimRecordHelper.fetchRuimRecords();
+        }
+        this.reportStkServiceIsRunning();
+      }
+
+      this.cardState = newCardState;
+      this.sendChromeMessage({rilMessageType: "cardstatechange",
+                              cardState: this.cardState});
+    }).bind(this));
   },
 
   /**
@@ -752,13 +843,33 @@ let RIL = {
    *        AID value.
    */
   getIMSI: function getIMSI(aid) {
+    Buf.newParcel(REQUEST_GET_IMSI, (function (error, imsi) {
+      this.iccInfoPrivate.imsi = imsi;
+
+      this.sendChromeMessage({
+        rilMessageType: "iccimsi",
+        imsi: imsi
+      });
+
+      if (!this._isCdma) {
+        return;
+      }
+
+      let mccMnc = ICCUtilsHelper.parseMccMncFromImsi(imsi);
+      if (!mccMnc) {
+        return;
+      }
+
+      this.iccInfo.mcc = mccMnc.mcc;
+      this.iccInfo.mnc = mccMnc.mnc;
+      ICCUtilsHelper.handleICCInfoChange();
+    }).bind(this));
+
     if (RILQUIRKS_V5_LEGACY) {
-      Buf.simpleRequest(REQUEST_GET_IMSI);
-      return;
+      Buf.writeUint32(1);
+      Buf.writeString(aid || this.aid);
     }
-    Buf.newParcel(REQUEST_GET_IMSI);
-    Buf.writeUint32(1);
-    Buf.writeString(aid || this.aid);
+
     Buf.sendParcel();
   },
 
@@ -2812,102 +2923,6 @@ let RIL = {
     Buf.simpleRequest(REQUEST_REPORT_STK_SERVICE_IS_RUNNING);
   },
 
-  /**
-   * Process ICC status.
-   */
-  _processICCStatus: function _processICCStatus(iccStatus) {
-    this.iccStatus = iccStatus;
-    let newCardState;
-
-    if ((!iccStatus) || (iccStatus.cardState == CARD_STATE_ABSENT)) {
-      switch (this.radioState) {
-        case GECKO_RADIOSTATE_UNAVAILABLE:
-          newCardState = GECKO_CARDSTATE_UNKNOWN;
-          break;
-        case GECKO_RADIOSTATE_OFF:
-          newCardState = GECKO_CARDSTATE_NOT_READY;
-          break;
-        case GECKO_RADIOSTATE_READY:
-          if (DEBUG) {
-            debug("ICC absent");
-          }
-          newCardState = GECKO_CARDSTATE_ABSENT;
-          break;
-      }
-      if (newCardState == this.cardState) {
-        return;
-      }
-      this.cardState = newCardState;
-      this.sendChromeMessage({rilMessageType: "cardstatechange",
-                              cardState: this.cardState});
-      return;
-    }
-
-    let index = this._isCdma ? iccStatus.cdmaSubscriptionAppIndex :
-                               iccStatus.gsmUmtsSubscriptionAppIndex;
-    let app = iccStatus.apps[index];
-    if (iccStatus.cardState == CARD_STATE_ERROR || !app) {
-      if (this.cardState == GECKO_CARDSTATE_UNKNOWN) {
-        this.operator = null;
-        return;
-      }
-      this.operator = null;
-      this.cardState = GECKO_CARDSTATE_UNKNOWN;
-      this.sendChromeMessage({rilMessageType: "cardstatechange",
-                              cardState: this.cardState});
-      return;
-    }
-    // fetchICCRecords will need to read aid, so read aid here.
-    this.aid = app.aid;
-    this.appType = app.app_type;
-
-    switch (app.app_state) {
-      case CARD_APPSTATE_PIN:
-        newCardState = GECKO_CARDSTATE_PIN_REQUIRED;
-        break;
-      case CARD_APPSTATE_PUK:
-        newCardState = GECKO_CARDSTATE_PUK_REQUIRED;
-        break;
-      case CARD_APPSTATE_SUBSCRIPTION_PERSO:
-        newCardState = PERSONSUBSTATE[app.perso_substate];
-        break;
-      case CARD_APPSTATE_READY:
-        newCardState = GECKO_CARDSTATE_READY;
-        break;
-      case CARD_APPSTATE_UNKNOWN:
-      case CARD_APPSTATE_DETECTED:
-        // Fall through.
-      default:
-        newCardState = GECKO_CARDSTATE_UNKNOWN;
-    }
-
-    if (this.cardState == newCardState) {
-      return;
-    }
-
-    // This was moved down from CARD_APPSTATE_READY
-    this.requestNetworkInfo();
-    if (newCardState == GECKO_CARDSTATE_READY) {
-      // For type SIM, we need to check EF_phase first.
-      // Other types of ICC we can send Terminal_Profile immediately.
-      if (this.appType == CARD_APPTYPE_SIM) {
-        ICCRecordHelper.readICCPhase();
-        ICCRecordHelper.fetchICCRecords();
-      } else if (this.appType == CARD_APPTYPE_USIM) {
-        this.sendStkTerminalProfile(STK_SUPPORTED_TERMINAL_PROFILE);
-        ICCRecordHelper.fetchICCRecords();
-      } else if (this.appType == CARD_APPTYPE_RUIM) {
-        this.sendStkTerminalProfile(STK_SUPPORTED_TERMINAL_PROFILE);
-        RuimRecordHelper.fetchRuimRecords();
-      }
-      this.reportStkServiceIsRunning();
-    }
-
-    this.cardState = newCardState;
-    this.sendChromeMessage({rilMessageType: "cardstatechange",
-                            cardState: this.cardState});
-  },
-
    /**
    * Helper for processing responses of functions such as enterICC* and changeICC*.
    */
@@ -4658,8 +4673,10 @@ let RIL = {
 
 RIL.initRILState();
 
-RIL[REQUEST_GET_SIM_STATUS] = function REQUEST_GET_SIM_STATUS(length, options) {
-  if (options.rilRequestError) {
+RIL[REQUEST_GET_SIM_STATUS] = function REQUEST_GET_SIM_STATUS(length, error,
+                                                              callback) {
+  if (error) {
+    callback(error, null);
     return;
   }
 
@@ -4698,7 +4715,7 @@ RIL[REQUEST_GET_SIM_STATUS] = function REQUEST_GET_SIM_STATUS(length, options) {
   }
 
   if (DEBUG) debug("iccStatus: " + JSON.stringify(iccStatus));
-  this._processICCStatus(iccStatus);
+  callback(error, iccStatus)
 };
 RIL[REQUEST_ENTER_SIM_PIN] = function REQUEST_ENTER_SIM_PIN(length, options) {
   this._processEnterAndChangeICCResponses(length, options);
@@ -4786,28 +4803,13 @@ RIL[REQUEST_DIAL] = function REQUEST_DIAL(length, options) {
     return;
   }
 };
-RIL[REQUEST_GET_IMSI] = function REQUEST_GET_IMSI(length, options) {
-  if (options.rilRequestError) {
-    return;
-  }
-
-  this.iccInfoPrivate.imsi = Buf.readString();
+RIL[REQUEST_GET_IMSI] = function REQUEST_GET_IMSI(length, error, callback) {
+  let imsi = error ? null : Buf.readString();
   if (DEBUG) {
-    debug("IMSI: " + this.iccInfoPrivate.imsi);
+    debug("IMSI: " + imsi);
   }
 
-  options.rilMessageType = "iccimsi";
-  options.imsi = this.iccInfoPrivate.imsi;
-  this.sendChromeMessage(options);
-
-  if (this._isCdma) {
-    let mccMnc = ICCUtilsHelper.parseMccMncFromImsi(this.iccInfoPrivate.imsi);
-    if (mccMnc) {
-      this.iccInfo.mcc = mccMnc.mcc;
-      this.iccInfo.mnc = mccMnc.mnc;
-      ICCUtilsHelper.handleICCInfoChange();
-    }
-  }
+  callback(error, imsi);
 };
 RIL[REQUEST_HANGUP] = function REQUEST_HANGUP(length, options) {
   if (options.rilRequestError) {
