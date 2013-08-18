@@ -493,6 +493,7 @@ webidl_files += \
   IccCardLockErrorEvent.webidl \
   MozCellBroadcast.webidl \
   MozCellBroadcastEvent.webidl \
+  MozCellBroadcastMessage.webidl \
   MozEmergencyCbModeEvent.webidl \
   MozVoicemailEvent.webidl \
   MozWifiConnectionInfoEvent.webidl \

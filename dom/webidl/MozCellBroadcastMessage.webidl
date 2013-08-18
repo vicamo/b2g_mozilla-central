@@ -2,16 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nsISupports.idl"
-
-interface nsIDOMMozCellBroadcastEtwsInfo;
+interface MozCellBroadcastEtwsInfo;
 
 /**
  * MozCellBroadcastMessage encapsulates Cell Broadcast short message service
  * (CBS) messages.
  */
-[scriptable, uuid(cb210e8b-ad9c-4052-b70c-02ec0c25d669)]
-interface nsIDOMMozCellBroadcastMessage : nsISupports
+interface MozCellBroadcastMessage : nsISupports
 {
   /**
    * Indication of the geographical area over which the Message Code is unique,
