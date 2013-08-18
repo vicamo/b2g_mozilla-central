@@ -1,13 +1,9 @@
-/* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
-/* vim: set ts=2 et sw=2 tw=40: */
+/* -*- Mode: IDL; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nsISupports.idl"
-
-[scriptable, uuid(8c58859a-e006-466a-ad76-b188ba0918ab)]
-interface nsIDOMMozVoicemailStatus : nsISupports
+interface MozVoicemailStatus
 {
   /**
    * There are voicemail messages waiting, but the count is unknown.
@@ -40,11 +36,11 @@ interface nsIDOMMozVoicemailStatus : nsISupports
    * Return call number received for this voicemail status, or null if one
    * wasn't provided.
    */
-  readonly attribute DOMString returnNumber;
+  readonly attribute DOMString? returnNumber;
 
   /**
    * Displayable return call message received for this voicemail status, or null
    * if one wasn't provided.
    */
-  readonly attribute DOMString returnMessage;
+  readonly attribute DOMString? returnMessage;
 };

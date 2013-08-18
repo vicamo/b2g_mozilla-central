@@ -22,6 +22,8 @@ class nsIDOMMozVoicemailStatus;
 namespace mozilla {
 namespace dom {
 
+class VoicemailStatus;
+
 class Voicemail MOZ_FINAL : public nsDOMEventTargetHelper
 {
   /**
@@ -39,6 +41,9 @@ public:
 
   NS_REALLY_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper)
 
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(Voicemail,
+                                           nsDOMEventTargetHelper)
+
   Voicemail(nsPIDOMWindow* aWindow, nsIVoicemailProvider* aProvider);
 
   virtual ~Voicemail();
@@ -52,7 +57,7 @@ public:
   virtual JSObject*
   WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope) MOZ_OVERRIDE;
 
-  already_AddRefed<nsIDOMMozVoicemailStatus>
+  already_AddRefed<VoicemailStatus>
   GetStatus(ErrorResult& aRv) const;
 
   void
@@ -66,6 +71,8 @@ public:
 private:
   nsCOMPtr<nsIVoicemailProvider> mProvider;
   nsRefPtr<Listener> mListener;
+
+  nsRefPtr<VoicemailStatus> mStatus;
 };
 
 } // namespace dom

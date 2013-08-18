@@ -241,25 +241,6 @@ MobileCellInfo.prototype = {
   cdmaNetworkId: -1
 };
 
-function VoicemailStatus() {}
-VoicemailStatus.prototype = {
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsIDOMMozVoicemailStatus]),
-  classID:        VOICEMAILSTATUS_CID,
-  classInfo:      XPCOMUtils.generateCI({
-    classID:          VOICEMAILSTATUS_CID,
-    classDescription: "VoicemailStatus",
-    flags:            Ci.nsIClassInfo.DOM_OBJECT,
-    interfaces:       [Ci.nsIDOMMozVoicemailStatus]
-  }),
-
-  // nsIDOMMozVoicemailStatus
-
-  hasMessages: false,
-  messageCount: Ci.nsIDOMMozVoicemailStatus.MESSAGE_COUNT_UNKNOWN,
-  returnNumber: null,
-  returnMessage: null
-};
-
 function MobileCFInfo() {}
 MobileCFInfo.prototype = {
   __exposedProps__ : {active: 'r',
@@ -1794,28 +1775,29 @@ RILContentHelper.prototype = {
   handleVoicemailNotification: function handleVoicemailNotification(message) {
     let changed = false;
     if (!this.voicemailStatus) {
-      this.voicemailStatus = new VoicemailStatus();
+      this.voicemailStatus = {};
     }
 
-    if (this.voicemailStatus.hasMessages != message.active) {
+    if (this.voicemailStatus.hasMessages !== message.active) {
       changed = true;
       this.voicemailStatus.hasMessages = message.active;
     }
 
-    if (this.voicemailStatus.messageCount != message.msgCount) {
+    if (this.voicemailStatus.messageCount !== message.msgCount) {
       changed = true;
       this.voicemailStatus.messageCount = message.msgCount;
     } else if (message.msgCount == -1) {
       // For MWI using DCS the message count is not available
       changed = true;
+      this.voicemailStatus.messageCount = -1;
     }
 
-    if (this.voicemailStatus.returnNumber != message.returnNumber) {
+    if (this.voicemailStatus.returnNumber !== message.returnNumber) {
       changed = true;
       this.voicemailStatus.returnNumber = message.returnNumber;
     }
 
-    if (this.voicemailStatus.returnMessage != message.returnMessage) {
+    if (this.voicemailStatus.returnMessage !== message.returnMessage) {
       changed = true;
       this.voicemailStatus.returnMessage = message.returnMessage;
     }
@@ -1823,7 +1805,10 @@ RILContentHelper.prototype = {
     if (changed) {
       this._deliverEvent("_voicemailListeners",
                          "notifyStatusChanged",
-                         [this.voicemailStatus]);
+                         [this.voicemailStatus.hasMessages,
+                          this.voicemailStatus.messageCount,
+                          this.voicemailStatus.returnNumber,
+                          this.voicemailStatus.returnMessage]);
     }
   },
 

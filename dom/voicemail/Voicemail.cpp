@@ -5,8 +5,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "Voicemail.h"
+#include "VoicemailStatus.h"
 #include "mozilla/dom/MozVoicemailBinding.h"
-#include "nsIDOMMozVoicemailStatus.h"
 #include "nsIDOMMozVoicemailEvent.h"
 
 #include "mozilla/Services.h"
@@ -41,6 +41,9 @@ public:
 
 NS_IMPL_ISUPPORTS1(Voicemail::Listener, nsIVoicemailListener)
 
+NS_IMPL_CYCLE_COLLECTION_INHERITED_1(Voicemail, nsDOMEventTargetHelper,
+                                     mStatus)
+
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(Voicemail)
 NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetHelper)
 
@@ -56,6 +59,12 @@ Voicemail::Voicemail(nsPIDOMWindow* aWindow,
   DebugOnly<nsresult> rv = mProvider->RegisterVoicemailMsg(mListener);
   NS_WARN_IF_FALSE(NS_SUCCEEDED(rv),
                    "Failed registering voicemail messages with provider");
+
+  mStatus = new VoicemailStatus(this);
+  mProvider->GetVoicemailHasMessages(&mStatus->mHasMessages);
+  mProvider->GetVoicemailMessageCount(&mStatus->mMessageCount);
+  mProvider->GetVoicemailReturnNumber(&mStatus->mReturnNumber);
+  mProvider->GetVoicemailReturnMessage(&mStatus->mReturnMessage);
 }
 
 Voicemail::~Voicemail()
@@ -74,22 +83,11 @@ Voicemail::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aScope)
 
 // MozVoicemail WebIDL
 
-already_AddRefed<nsIDOMMozVoicemailStatus>
+already_AddRefed<VoicemailStatus>
 Voicemail::GetStatus(ErrorResult& aRv) const
 {
-  nsCOMPtr<nsIDOMMozVoicemailStatus> status;
-
-  if (!mProvider) {
-    aRv.Throw(NS_ERROR_UNEXPECTED);
-    return nullptr;
-  }
-
-  nsresult rv = mProvider->GetVoicemailStatus(getter_AddRefs(status));
-  if (NS_FAILED(rv)) {
-    aRv.Throw(rv);
-    return nullptr;
-  }
-
+  nsRefPtr<VoicemailStatus> status;
+  NS_ADDREF(status = mStatus);
   return status.forget();
 }
 
@@ -122,14 +120,22 @@ Voicemail::GetDisplayName(nsString& aDisplayName, ErrorResult& aRv) const
 // nsIVoicemailListener
 
 NS_IMETHODIMP
-Voicemail::NotifyStatusChanged(nsIDOMMozVoicemailStatus* aStatus)
+Voicemail::NotifyStatusChanged(boolean aHasMessages,
+                               int32_t aMessageCount,
+                               const nsAString& aReturnNumber,
+                               const nsAString& aReturnMessage)
 {
+  mStatus->mHasMessages = aHasMessages;
+  mStatus->mMessageCount = aMessageCount;
+  mStatus->mReturnNumber = aReturnNumber;
+  mStatus->mReturnMessage = aReturnMessage;
+
   nsCOMPtr<nsIDOMEvent> event;
   NS_NewDOMMozVoicemailEvent(getter_AddRefs(event), this, nullptr, nullptr);
 
   nsCOMPtr<nsIDOMMozVoicemailEvent> ce = do_QueryInterface(event);
   nsresult rv = ce->InitMozVoicemailEvent(NS_LITERAL_STRING("statuschanged"),
-                                          false, false, aStatus);
+                                          false, false, mStatus);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return DispatchTrustedEvent(ce);

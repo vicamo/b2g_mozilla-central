@@ -4,25 +4,23 @@
 
 #include "nsISupports.idl"
 
-interface nsIDOMMozVoicemailStatus;
-
-[scriptable, uuid(214b0963-da48-4859-a56c-f065a90e0403)]
+[scriptable, uuid(4225c8c2-3471-407d-8294-ebbfe7267bba)]
 interface nsIVoicemailListener : nsISupports
 {
   /**
    * Called when a voicemail notification has been received by the network.
-   *
-   * @param status
-   *        The new voicemail status
    */
-  void notifyStatusChanged(in nsIDOMMozVoicemailStatus status);
+  void notifyStatusChanged(in boolean hasMessages,
+                           in long messageCount,
+                           in DOMString returnNumber,
+                           in DOMString returnMessage);
 };
 
 /**
  * XPCOM component (in the content process) that provides the voicemail
  * information.
  */
-[scriptable, uuid(37bc0991-21a3-4de9-b888-d667fea6c05d)]
+[scriptable, uuid(93e125b2-68c3-4fa4-8343-25bc130a732c)]
 interface nsIVoicemailProvider : nsISupports
 {
   /**
@@ -33,7 +31,6 @@ interface nsIVoicemailProvider : nsISupports
   void registerVoicemailMsg(in nsIVoicemailListener listener);
   void unregisterVoicemailMsg(in nsIVoicemailListener listener);
 
-  readonly attribute nsIDOMMozVoicemailStatus voicemailStatus;
   readonly attribute DOMString voicemailNumber;
   readonly attribute DOMString voicemailDisplayName;
 };

@@ -442,6 +442,7 @@ webidl_files += \
   CallsList.webidl \
   MozStkCommandEvent.webidl \
   MozVoicemail.webidl \
+  MozVoicemailStatus.webidl \
   Telephony.webidl \
   TelephonyCall.webidl \
   $(NULL)
