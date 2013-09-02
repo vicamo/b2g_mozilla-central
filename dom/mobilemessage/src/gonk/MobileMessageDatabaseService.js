@@ -607,19 +607,13 @@ MobileMessageDatabaseService.prototype = {
     }
 
     let cursor = new GetMessagesCursor(this, callback);
+    let collector = cursor.collector;
+    let collect = collector.collect.bind(collector);
 
     let self = this;
-    self.db.newTxn(READ_ONLY, function (error, txn, stores) {
-      let collector = cursor.collector;
-      let collect = collector.collect.bind(collector);
-
-      if (error) {
-        //TODO look at event.target.errorCode, pick appropriate error constant.
-        if (DEBUG) debug("IDBRequest error " + error.target.errorCode);
-        collect(txn, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
-        return;
-      }
-
+    self.db.newTxn(READ_ONLY, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME],
+                   function ontxncallback(aTransaction, aMessageStore,
+                                          aParticipantStore) {
       let direction = reverse ? PREV : NEXT;
 
       // We support filtering by date range only (see `else` block below) or by
@@ -634,7 +628,7 @@ MobileMessageDatabaseService.prototype = {
         }
 
         FilterSearcherHelper.filterTimestamp(filter.startDate, filter.endDate,
-                                             direction, txn, collect);
+                                             direction, aTransaction, collect);
         return;
       }
 
@@ -659,7 +653,8 @@ MobileMessageDatabaseService.prototype = {
       }
 
       if (!single) {
-        intersectionCollector = new IntersectionResultsCollector(collect, reverse);
+        intersectionCollector =
+          new IntersectionResultsCollector(collect, reverse);
       }
 
       // Retrieve the keys from the 'delivery' index that matches the value of
@@ -670,8 +665,8 @@ MobileMessageDatabaseService.prototype = {
         let range = IDBKeyRange.bound([delivery, startDate], [delivery, endDate]);
         let deliveryCollect =
           single ? collect : intersectionCollector.newContext();
-        FilterSearcherHelper.filterIndex("delivery", range, direction, txn,
-                                         deliveryCollect);
+        FilterSearcherHelper.filterIndex("delivery", range, direction,
+                                         aTransaction, deliveryCollect);
       }
 
       // Retrieve the keys from the 'read' index that matches the value of
@@ -682,7 +677,7 @@ MobileMessageDatabaseService.prototype = {
         let range = IDBKeyRange.bound([read, startDate], [read, endDate]);
         let readCollect =
           single ? collect : intersectionCollector.newContext();
-        FilterSearcherHelper.filterIndex("read", range, direction, txn,
+        FilterSearcherHelper.filterIndex("read", range, direction, aTransaction,
                                          readCollect);
       }
 
@@ -694,8 +689,8 @@ MobileMessageDatabaseService.prototype = {
         let range = IDBKeyRange.bound([threadId, startDate], [threadId, endDate]);
         let threadIdCollect =
           single ? collect : intersectionCollector.newContext();
-        FilterSearcherHelper.filterIndex("threadId", range, direction, txn,
-                                         threadIdCollect);
+        FilterSearcherHelper.filterIndex("threadId", range, direction,
+                                         aTransaction, threadIdCollect);
       }
 
       // Retrieve the keys from the 'sender' and 'receiver' indexes that
@@ -703,18 +698,16 @@ MobileMessageDatabaseService.prototype = {
       if (filter.numbers) {
         if (DEBUG) debug("filter.numbers " + filter.numbers.join(", "));
 
-        if (!single) {
-          collect = intersectionCollector.newContext();
-        }
+        let numbersCollect =
+          single ? collect : intersectionCollector.newContext();
 
-        let participantStore = txn.objectStore(PARTICIPANT_STORE_NAME);
-        self.db.findParticipantIdsByAddresses(participantStore, filter.numbers,
+        self.db.findParticipantIdsByAddresses(aParticipantStore,
+                                              filter.numbers,
                                               false, true,
                                               (function (participantIds) {
           if (!participantIds || !participantIds.length) {
             // Oops! No such participant at all.
-
-            collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
+            numbersCollect(aTransaction, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
             return;
           }
 
@@ -722,25 +715,31 @@ MobileMessageDatabaseService.prototype = {
             let id = participantIds[0];
             let range = IDBKeyRange.bound([id, startDate], [id, endDate]);
             FilterSearcherHelper.filterIndex("participantIds", range, direction,
-                                             txn, collect);
+                                             aTransaction, numbersCollect);
             return;
           }
 
-          let unionCollector = new UnionResultsCollector(collect);
+          let unionCollector = new UnionResultsCollector(numbersCollect);
 
           FilterSearcherHelper.filterTimestamp(filter.startDate, filter.endDate,
-                                               direction, txn,
+                                               direction, aTransaction,
                                                unionCollector.newTimestampContext());
 
           for (let i = 0; i < participantIds.length; i++) {
             let id = participantIds[i];
             let range = IDBKeyRange.bound([id, startDate], [id, endDate]);
             FilterSearcherHelper.filterIndex("participantIds", range, direction,
-                                             txn, unionCollector.newContext());
+                                             aTransaction,
+                                             unionCollector.newContext());
           }
         }).bind(this));
       }
-    }, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME]);
+    }, null, function ontxnabort(aErrorName) {
+      if (DEBUG) {
+        debug("createMessageCursor: transaction aborted - " + aErrorName);
+      }
+      collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
+    });
 
     return cursor;
   },
@@ -861,10 +860,6 @@ let FilterSearcherHelper = {
       } else {
         collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
       }
-    };
-    request.onerror = function onerror(event) {
-      if (DEBUG && event) debug("IDBRequest error " + event.target.errorCode);
-      collect(txn, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
     };
   },
 
@@ -1210,17 +1205,20 @@ GetMessagesCursor.prototype = {
     let getRequest = messageStore.get(messageId);
     let self = this;
     getRequest.onsuccess = function onsuccess(event) {
-      if (DEBUG) {
-        debug("notifyNextMessageInListGot - messageId: " + messageId);
+      let messageRecord = event.target.result;
+      if (!messageRecord) {
+        if (DEBUG) debug("notifyCursorError - messageId: " + messageId);
+        self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR);
+        return;
       }
+
+      if (DEBUG) debug("notifyCursorResult: " + JSON.stringify(messageRecord));
       let domMessage =
-        self.service.db.createDomMessageFromRecord(event.target.result);
+        self.service.db.createDomMessageFromRecord(messageRecord);
       self.callback.notifyCursorResult(domMessage);
     };
     getRequest.onerror = function onerror(event) {
-      if (DEBUG) {
-        debug("notifyCursorError - messageId: " + messageId);
-      }
+      if (DEBUG) debug("notifyCursorError - messageId: " + messageId);
       self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
     };
   },
@@ -1246,13 +1244,15 @@ GetMessagesCursor.prototype = {
 
     // Or, we have to open another transaction ourselves.
     let self = this;
-    this.service.db.newTxn(READ_ONLY, function (error, txn, messageStore) {
-      if (error) {
-        self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-        return;
+    this.service.db.newTxn(READ_ONLY, MESSAGE_STORE_NAME,
+                           function ontxncallback(aTransaction, aMessageStore) {
+      self.getMessageTxn(aMessageStore, messageId);
+    }, null, function ontxnabort(aErrorName) {
+      if (DEBUG) {
+        debug("GetMessagesCursor.notify: transaction aborted - " + aErrorName);
       }
-      self.getMessageTxn(messageStore, messageId);
-    }, [MESSAGE_STORE_NAME]);
+      self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+    });
   },
 
   // nsICursorContinueCallback
