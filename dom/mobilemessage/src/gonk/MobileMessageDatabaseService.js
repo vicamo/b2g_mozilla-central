@@ -20,7 +20,7 @@ const RIL_GETMESSAGESCURSOR_CID =
 const RIL_GETTHREADSCURSOR_CID =
   Components.ID("{95ee7c3e-d6f2-4ec4-ade5-0c453c036d35}");
 
-const DEBUG = false;
+const DEBUG = true;
 const DISABLE_MMS_GROUPING_FOR_RECEIVING = true;
 
 const DB_NAME = "sms";

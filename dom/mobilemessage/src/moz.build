@@ -13,6 +13,10 @@ EXPORTS.mozilla.dom.mobilemessage += [
     'ipc/SmsParent.h',
 ]
 
+EXTRA_JS_MODULES = [
+    'gonk/MobileMessageDB.jsm',
+]
+
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'android':
     CPP_SOURCES += [
         'android/MobileMessageDatabaseService.cpp',
@@ -20,9 +24,8 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'android':
         'android/MmsService.cpp',
     ]
 elif CONFIG['MOZ_B2G_RIL']:
-    EXTRA_JS_MODULES = [
+    EXTRA_JS_MODULES += [
         'gonk/MmsPduHelper.jsm',
-        'gonk/MobileMessageDB.jsm',
         'gonk/WspPduHelper.jsm',
         'gonk/mms_consts.js',
         'gonk/wap_consts.js',

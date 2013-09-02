@@ -41,7 +41,7 @@ this.READ_WRITE = "readwrite";
 this.PREV = "prev";
 this.NEXT = "next";
 
-const DEBUG = false;
+const DEBUG = true;
 function debug() {
   dump("MobileMessageDB: " + Array.slice(arguments).join(" ") + "\n");
 }

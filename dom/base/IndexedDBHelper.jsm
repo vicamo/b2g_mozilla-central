@@ -4,7 +4,7 @@
 
 "use strict";
 
-let DEBUG = 0;
+let DEBUG = 1;
 let debug;
 if (DEBUG) {
   debug = function (s) { dump("-*- IndexedDBHelper: " + s + "\n"); }

@@ -7,7 +7,6 @@ MOCHITEST_FILES = \
   test_smsfilter.html \
   $(NULL)
 
-ifdef MOZ_B2G_RIL
 MOCHITEST_CHROME_FILES = \
   test_mobilemessagedb.js \
   test_mobilemessagedb_upgradeSchema.html \
@@ -24,4 +23,3 @@ MOCHITEST_CHROME_FILES = \
   test_mobilemessagedb_upgradeSchema10.html \
   test_mobilemessagedb_upgradeSchema11.html \
   $(NULL)
-endif
