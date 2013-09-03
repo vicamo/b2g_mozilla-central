@@ -70,13 +70,11 @@ MobileMessageDB.prototype = {
     this.initDBHelper(aDbName, aDbVersion, aGlobal);
 
     let that = this;
-    this.newTxn(READ_ONLY, function(error, txn, messageStore){
-      if (error) {
-        return;
-      }
+    this.newTxn(READ_ONLY, MESSAGE_STORE_NAME,
+                function ontxncallback(aTransaction, aMessageStore) {
       // In order to get the highest key value, we open a key cursor in reverse
       // order and get only the first pointed value.
-      let request = messageStore.openCursor(null, PREV);
+      let request = aMessageStore.openCursor(null, PREV);
       request.onsuccess = function onsuccess(event) {
         let cursor = event.target.result;
         if (!cursor) {
@@ -89,61 +87,11 @@ MobileMessageDB.prototype = {
         that.lastMessageId = cursor.key || 0;
         if (DEBUG) debug("Last assigned message ID was " + that.lastMessageId);
       };
-      request.onerror = function onerror(event) {
-        if (DEBUG) {
-          debug("Could not get the last key from mobile message database " +
-                event.target.errorCode);
-        }
-      };
-    });
-  },
-
-  /**
-   * Start a new transaction.
-   *
-   * @param txn_type
-   *        Type of transaction (e.g. READ_WRITE)
-   * @param callback
-   *        Function to call when the transaction is available. It will
-   *        be invoked with the transaction and opened object stores.
-   * @param storeNames
-   *        Names of the stores to open.
-   */
-  newTxn: function newTxn(txn_type, callback, storeNames) {
-    if (!storeNames) {
-      storeNames = [MESSAGE_STORE_NAME];
-    }
-    if (DEBUG) debug("Opening transaction for object stores: " + storeNames);
-    this.ensureDB(function (error, db) {
-      if (error) {
-        if (DEBUG) debug("Could not open database: " + error);
-        callback(error);
-        return;
-      }
-      let txn = db.transaction(storeNames, txn_type);
-      if (DEBUG) debug("Started transaction " + txn + " of type " + txn_type);
+    }, null, function ontxnabort(aErrorName) {
       if (DEBUG) {
-        txn.oncomplete = function oncomplete(event) {
-          debug("Transaction " + txn + " completed.");
-        };
-        txn.onerror = function onerror(event) {
-          //TODO check event.target.errorCode and show an appropiate error
-          //     message according to it.
-          debug("Error occurred during transaction: " + event.target.errorCode);
-        };
+        debug("Could not get the last key from mobile message database: " +
+              aErrorName);
       }
-      let stores;
-      if (storeNames.length == 1) {
-        if (DEBUG) debug("Retrieving object store " + storeNames[0]);
-        stores = txn.objectStore(storeNames[0]);
-      } else {
-        stores = [];
-        for each (let storeName in storeNames) {
-          if (DEBUG) debug("Retrieving object store " + storeName);
-          stores.push(txn.objectStore(storeName));
-        }
-      }
-      callback(null, txn, stores);
     });
   },
 
