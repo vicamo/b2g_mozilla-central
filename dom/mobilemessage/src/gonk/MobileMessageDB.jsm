@@ -913,30 +913,16 @@ MobileMessageDB.prototype = {
     if (DEBUG) debug("Going to store " + JSON.stringify(aMessageRecord));
 
     let self = this;
-    this.newTxn(READ_WRITE, function(error, txn, stores) {
-      if (error) {
-        // TODO bug 832140 check event.target.errorCode
-        aCallback(Cr.NS_ERROR_FAILURE, null);
-        return;
-      }
-      txn.oncomplete = function oncomplete(event) {
-        aCallback(Cr.NS_OK, aMessageRecord);
-      };
-      txn.onabort = function onabort(event) {
-        // TODO bug 832140 check event.target.errorCode
-        aCallback(Cr.NS_ERROR_FAILURE, null);
-      };
-
-      let messageStore = stores[0];
-      let participantStore = stores[1];
-      let threadStore = stores[2];
-
-      self.findThreadRecordByParticipants(threadStore, participantStore,
+    this.newTxn(READ_WRITE,
+                [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME],
+                function ontxncallback(aTransaction, aMessageStore,
+                                       aParticipantStore, aThreadStore) {
+      self.findThreadRecordByParticipants(aThreadStore, aParticipantStore,
                                           aAddresses, true,
                                           function (threadRecord,
                                                     participantIds) {
         if (!participantIds) {
-          aCallback(Cr.NS_ERROR_FAILURE, null);
+          aTransaction.abort();
           return;
         }
 
@@ -952,7 +938,7 @@ MobileMessageDB.prototype = {
 
           if (!isOverriding) {
             // Really add to message store.
-            messageStore.put(aMessageRecord);
+            aMessageStore.put(aMessageRecord);
             return;
           }
 
@@ -960,12 +946,12 @@ MobileMessageDB.prototype = {
           // info of the original thread containing the overridden message.
           // To get the original thread ID and read status of the overridden
           // message record, we need to retrieve it before overriding it.
-          messageStore.get(aMessageRecord.id).onsuccess = function(event) {
+          aMessageStore.get(aMessageRecord.id).onsuccess = function(event) {
             let oldMessageRecord = event.target.result;
-            messageStore.put(aMessageRecord);
+            aMessageStore.put(aMessageRecord);
             if (oldMessageRecord) {
-              self.updateThreadByMessageChange(messageStore,
-                                               threadStore,
+              self.updateThreadByMessageChange(aMessageStore,
+                                               aThreadStore,
                                                oldMessageRecord.threadId,
                                                aMessageRecord.id,
                                                oldMessageRecord.read);
@@ -991,26 +977,32 @@ MobileMessageDB.prototype = {
           }
 
           if (needsUpdate) {
-            threadStore.put(threadRecord);
+            aThreadStore.put(threadRecord);
           }
 
           insertMessageRecord(threadRecord.id);
           return;
         }
 
-        threadStore.add({participantIds: participantIds,
-                         participantAddresses: aAddresses,
-                         lastMessageId: aMessageRecord.id,
-                         lastTimestamp: timestamp,
-                         subject: aMessageRecord.body,
-                         unreadCount: aMessageRecord.read ? 0 : 1,
-                         lastMessageType: aMessageRecord.type})
-                   .onsuccess = function (event) {
+        aThreadStore.add({participantIds: participantIds,
+                          participantAddresses: aAddresses,
+                          lastMessageId: aMessageRecord.id,
+                          lastTimestamp: timestamp,
+                          subject: aMessageRecord.body,
+                          unreadCount: aMessageRecord.read ? 0 : 1,
+                          lastMessageType: aMessageRecord.type})
+                    .onsuccess = function (event) {
           let threadId = event.target.result;
           insertMessageRecord(threadId);
         };
       });
-    }, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME]);
+    }, function ontxncomplete() {
+      aCallback(Cr.NS_OK, aMessageRecord);
+    }, function ontxnabort(aErrorName) {
+      if (DEBUG) debug("saveMessageRecord: transaction aborted - " + aErrorName);
+      // TODO bug 832140 check event.target.errorCode
+      aCallback(Cr.NS_ERROR_FAILURE, null);
+    });
     // We return the key that we expect to store in the db
     return aMessageRecord.id;
   }
