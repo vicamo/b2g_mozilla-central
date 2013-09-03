@@ -90,14 +90,9 @@ MobileMessageDatabaseService.prototype = {
    * message. This is function set the status of message records to error.
    */
   updatePendingTransactionToError: function updatePendingTransactionToError() {
-    this.db.newTxn(READ_WRITE, function (error, txn, messageStore) {
-      if (DEBUG) {
-        txn.onerror = function onerror(event) {
-          debug("updatePendingTransactionToError fail, event = " + event);
-        };
-      }
-
-      let deliveryIndex = messageStore.index("delivery");
+    this.db.newTxn(READ_WRITE, MESSAGE_STORE_NAME,
+                   function ontxncallback(aTransaction, aMessageStore) {
+      let deliveryIndex = aMessageStore.index("delivery");
 
       // Set all 'delivery: sending' records to 'delivery: error' and 'deliveryStatus:
       // error'.
@@ -155,6 +150,11 @@ MobileMessageDatabaseService.prototype = {
         messageCursor.update(messageRecord);
         messageCursor.continue();
       };
+    }, null, function ontxnabort(aErrorName) {
+      if (DEBUG) {
+        debug("updatePendingTransactionToError: transaction aborted - " +
+              aErrorName);
+      }
     });
   },
 
