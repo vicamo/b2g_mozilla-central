@@ -170,31 +170,20 @@ MobileMessageDatabaseService.prototype = {
 
     let self = this;
     let messageRecord;
-    this.db.newTxn(READ_WRITE, function (error, txn, messageStore) {
-      if (error) {
-        // TODO bug 832140 check event.target.errorCode
-        self.notifyRilCallback(callback, Cr.NS_ERROR_FAILURE, null);
-        return;
-      }
-      txn.oncomplete = function oncomplete(event) {
-        self.notifyRilCallback(callback, Cr.NS_OK, messageRecord);
-      };
-      txn.onabort = function onabort(event) {
-        // TODO bug 832140 check event.target.errorCode
-        self.notifyRilCallback(callback, Cr.NS_ERROR_FAILURE, null);
-      };
-
+    this.db.newTxn(READ_WRITE, MESSAGE_STORE_NAME,
+                   function ontxncallback(aTransaction, aMessageStore) {
       let getRequest;
       if (type === "messageId") {
-        getRequest = messageStore.get(id);
+        getRequest = aMessageStore.get(id);
       } else if (type === "envelopeId") {
-        getRequest = messageStore.index("envelopeId").get(id);
+        getRequest = aMessageStore.index("envelopeId").get(id);
       }
 
       getRequest.onsuccess = function onsuccess(event) {
         messageRecord = event.target.result;
         if (!messageRecord) {
           if (DEBUG) debug("type = " + id + " is not found");
+          aTransaction.abort();
           return;
         }
 
@@ -241,6 +230,7 @@ MobileMessageDatabaseService.prototype = {
             if (DEBUG) {
               debug("Normalized receiver is not valid. Fail to update.");
             }
+            aTransaction.abort();
             return;
           }
 
@@ -288,6 +278,7 @@ MobileMessageDatabaseService.prototype = {
             if (DEBUG) {
               debug("Cannot find the receiver. Fail to set delivery status.");
             }
+            aTransaction.abort();
             return;
           }
         } while(false);
@@ -311,8 +302,15 @@ MobileMessageDatabaseService.prototype = {
         if (DEBUG) {
           debug("The delivery, deliveryStatus or envelopeId are updated.");
         }
-        messageStore.put(messageRecord);
+        aMessageStore.put(messageRecord);
       };
+    }, function ontxncomplete() {
+      self.notifyRilCallback(callback, Cr.NS_OK, messageRecord);
+    }, function ontxnabort(aErrorName) {
+      if (DEBUG) {
+        debug("updateMessageDeliveryById: transaction aborted - " + aErrorName);
+      }
+      self.notifyRilCallback(callback, Cr.NS_ERROR_FAILURE, null);
     });
   },
 
