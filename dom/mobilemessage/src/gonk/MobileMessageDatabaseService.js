@@ -133,6 +133,18 @@ MobileMessageDatabaseService.prototype = {
    */
   observe: function observe() {},
 
+  notifyRilCallback: function notifyRilCallback(aCallback, aRv, aMessageRecord) {
+    if (!aCallback) {
+      return;
+    }
+
+    let domMessage;
+    if (aRv == Cr.NS_OK) {
+      domMessage = this.createDomMessageFromRecord(aMessageRecord);
+    }
+    aCallback.notify(aRv, domMessage);
+  },
+
   /**
    * Prepare the database. This may include opening the database and upgrading
    * it to the latest schema version.
@@ -1078,26 +1090,18 @@ MobileMessageDatabaseService.prototype = {
     if (DEBUG) debug("Going to store " + JSON.stringify(aMessageRecord));
 
     let self = this;
-    function notifyResult(rv) {
-      if (!aCallback) {
-        return;
-      }
-      let domMessage = self.createDomMessageFromRecord(aMessageRecord);
-      aCallback.notify(rv, domMessage);
-    }
-
     this.newTxn(READ_WRITE, function(error, txn, stores) {
       if (error) {
         // TODO bug 832140 check event.target.errorCode
-        notifyResult(Cr.NS_ERROR_FAILURE);
+        aCallback(Cr.NS_ERROR_FAILURE, null);
         return;
       }
       txn.oncomplete = function oncomplete(event) {
-        notifyResult(Cr.NS_OK);
+        aCallback(Cr.NS_OK, aMessageRecord);
       };
       txn.onabort = function onabort(event) {
         // TODO bug 832140 check event.target.errorCode
-        notifyResult(Cr.NS_ERROR_FAILURE);
+        aCallback(Cr.NS_ERROR_FAILURE, null);
       };
 
       let messageStore = stores[0];
@@ -1109,7 +1113,7 @@ MobileMessageDatabaseService.prototype = {
                                           function (threadRecord,
                                                     participantIds) {
         if (!participantIds) {
-          notifyResult(Cr.NS_ERROR_FAILURE);
+          aCallback(Cr.NS_ERROR_FAILURE, null);
           return;
         }
 
@@ -1200,26 +1204,18 @@ MobileMessageDatabaseService.prototype = {
 
     let self = this;
     let messageRecord;
-    function notifyResult(rv) {
-      if (!callback) {
-        return;
-      }
-      let domMessage = self.createDomMessageFromRecord(messageRecord);
-      callback.notify(rv, domMessage);
-    }
-
     this.newTxn(READ_WRITE, function (error, txn, messageStore) {
       if (error) {
         // TODO bug 832140 check event.target.errorCode
-        notifyResult(Cr.NS_ERROR_FAILURE);
+        self.notifyRilCallback(callback, Cr.NS_ERROR_FAILURE, null);
         return;
       }
       txn.oncomplete = function oncomplete(event) {
-        notifyResult(Cr.NS_OK);
+        self.notifyRilCallback(callback, Cr.NS_OK, messageRecord);
       };
       txn.onabort = function onabort(event) {
         // TODO bug 832140 check event.target.errorCode
-        notifyResult(Cr.NS_ERROR_FAILURE);
+        self.notifyRilCallback(callback, Cr.NS_ERROR_FAILURE, null);
       };
 
       let getRequest;
@@ -1417,7 +1413,8 @@ MobileMessageDatabaseService.prototype = {
     }
     aMessage.deliveryIndex = [aMessage.delivery, timestamp];
 
-    return this.saveRecord(aMessage, threadParticipants, aCallback);
+    return this.saveRecord(aMessage, threadParticipants,
+                           this.notifyRilCallback.bind(this, aCallback));
   },
 
   saveSendingMessage: function saveSendingMessage(aMessage, aCallback) {
@@ -1472,7 +1469,9 @@ MobileMessageDatabaseService.prototype = {
     } else if (aMessage.type == "mms") {
       addresses = aMessage.receivers;
     }
-    return this.saveRecord(aMessage, addresses, aCallback);
+
+    return this.saveRecord(aMessage, addresses,
+                           this.notifyRilCallback.bind(this, aCallback));
   },
 
   setMessageDeliveryByMessageId: function setMessageDeliveryByMessageId(

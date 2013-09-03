@@ -10,19 +10,24 @@
 interface nsIRilMobileMessageDatabaseCallback : nsISupports
 {
   /**
+   * |aRv|: component results.
    * |aDomMessage|: the nsIDOMMoz{Mms,Sms}Message
    */
-  void notify(in nsresult aRv, in nsISupports aDomMessage);
+  void notify(in nsresult aRv,
+              in nsISupports aDomMessage);
 };
 
-[scriptable, function, uuid(32b02bbe-60a1-45e0-a748-ad40709b09dd)]
+[scriptable, function, uuid(54553519-0f5a-49f2-b6cf-2b6bc9785e70)]
 interface nsIRilMobileMessageDatabaseRecordCallback : nsISupports
 {
   /**
+   * |aRv|: the error codes defined in nsIMobileMessageCallback.
    * |aMessageRecord| Object: the mobile-message database record
    * |aDomMessage|: the nsIDOMMoz{Mms,Sms}Message. Noted, this value might be null.
    */
-  void notify(in nsresult aRv, in jsval aMessageRecord, in nsISupports aDomMessage);
+  void notify(in unsigned short aRv,
+              in jsval aMessageRecord,
+              in nsISupports aDomMessage);
 };
 
 [scriptable, uuid(f6cd671e-f9af-11e2-b64b-1fb87e9c217c)]
