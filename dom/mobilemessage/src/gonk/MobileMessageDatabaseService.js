@@ -544,43 +544,26 @@ MobileMessageDatabaseService.prototype = {
     if (DEBUG) debug("deleteMessage: message ids " + JSON.stringify(messageIds));
     let deleted = [];
     let self = this;
-    this.db.newTxn(READ_WRITE, function (error, txn, stores) {
-      if (error) {
-        if (DEBUG) debug("deleteMessage: failed to open transaction");
-        aRequest.notifyDeleteMessageFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-        return;
-      }
-      txn.onerror = function onerror(event) {
-        if (DEBUG) debug("Caught error on transaction", event.target.errorCode);
-        //TODO look at event.target.errorCode, pick appropriate error constant
-        aRequest.notifyDeleteMessageFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-      };
-
-      const messageStore = stores[0];
-      const threadStore = stores[1];
-
-      txn.oncomplete = function oncomplete(event) {
-        if (DEBUG) debug("Transaction " + txn + " completed.");
-        aRequest.notifyMessageDeleted(deleted, length);
-      };
-
+    this.db.newTxn(READ_WRITE, [MESSAGE_STORE_NAME, THREAD_STORE_NAME],
+                   function ontxncallback(aTransaction, aMessageStore,
+                                          aThreadStore) {
       for (let i = 0; i < length; i++) {
         let messageId = messageIds[i];
         deleted[i] = false;
-        messageStore.get(messageId).onsuccess = function(messageIndex, event) {
+        aMessageStore.get(messageId).onsuccess = function(messageIndex, event) {
           let messageRecord = event.target.result;
           let messageId = messageIds[messageIndex];
           if (messageRecord) {
             if (DEBUG) debug("Deleting message id " + messageId);
 
             // First actually delete the message.
-            messageStore.delete(messageId).onsuccess = function(event) {
+            aMessageStore.delete(messageId).onsuccess = function(event) {
               if (DEBUG) debug("Message id " + messageId + " deleted");
               deleted[messageIndex] = true;
 
               // Then update unread count and most recent message.
-              self.db.updateThreadByMessageChange(messageStore,
-                                                  threadStore,
+              self.db.updateThreadByMessageChange(aMessageStore,
+                                                  aThreadStore,
                                                   messageRecord.threadId,
                                                   messageId,
                                                   messageRecord.read);
@@ -594,7 +577,13 @@ MobileMessageDatabaseService.prototype = {
           }
         }.bind(null, i);
       }
-    }, [MESSAGE_STORE_NAME, THREAD_STORE_NAME]);
+    }, function ontxncomplete() {
+      if (DEBUG) debug("Transaction completed.");
+      aRequest.notifyMessageDeleted(deleted, length);
+    }, function ontxnabort(aErrorName) {
+      if (DEBUG) debug("deleteMessage: transaction aborted - " + aErrorName);
+      aRequest.notifyDeleteMessageFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+    });
   },
 
   createMessageCursor: function createMessageCursor(filter, reverse, callback) {
