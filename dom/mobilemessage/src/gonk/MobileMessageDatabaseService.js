@@ -461,36 +461,33 @@ MobileMessageDatabaseService.prototype = {
   getMessageRecordByTransactionId: function getMessageRecordByTransactionId(aTransactionId, aCallback) {
     if (DEBUG) debug("Retrieving message with transaction ID " + aTransactionId);
     let self = this;
-    this.db.newTxn(READ_ONLY, function (error, txn, messageStore) {
-      if (error) {
-        if (DEBUG) debug(error);
-        aCallback.notify(Ci.nsIMobileMessageCallback.INTERNAL_ERROR, null, null);
-        return;
-      }
-      let request = messageStore.index("transactionId").get(aTransactionId);
-
-      txn.oncomplete = function oncomplete(event) {
-        if (DEBUG) debug("Transaction " + txn + " completed.");
-        let messageRecord = request.result;
-        if (!messageRecord) {
-          if (DEBUG) debug("Transaction ID " + aTransactionId + " not found");
-          aCallback.notify(Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR, null, null);
+    let errorCode;
+    let messageRecord;
+    this.db.newTxn(READ_ONLY, MESSAGE_STORE_NAME,
+                   function ontxncallback(aTransaction, aMessageStore) {
+      let request = aMessageStore.index("transactionId").get(aTransactionId);
+      request.onsuccess = function onsuccess(event) {
+        messageRecord = event.target.result;
+        if (messageRecord) {
           return;
         }
-        // In this case, we don't need a dom message. Just pass null to the
-        // third argument.
-        aCallback.notify(Ci.nsIMobileMessageCallback.SUCCESS_NO_ERROR,
-                         messageRecord, null);
+        if (DEBUG) debug("Transaction ID " + aTransactionId + " not found");
+        errorCode = Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR;
+        aTransaction.abort();
       };
-
-      txn.onerror = function onerror(event) {
-        if (DEBUG) {
-          if (event.target) {
-            debug("Caught error on transaction", event.target.errorCode);
-          }
-        }
-        aCallback.notify(Ci.nsIMobileMessageCallback.INTERNAL_ERROR, null, null);
-      };
+    }, function ontxncomplete() {
+      if (DEBUG) debug("Transaction completed.");
+      // In this case, we don't need a dom message. Just pass null to the
+      // third argument.
+      aCallback.notify(Ci.nsIMobileMessageCallback.SUCCESS_NO_ERROR,
+                       messageRecord, null);
+    }, function ontxnabort(aErrorName) {
+      if (DEBUG) {
+        debug("getMessageRecordByTransactionId: transaction aborted - " +
+              aErrorName);
+      }
+      aCallback.notify(errorCode || Ci.nsIMobileMessageCallback.INTERNAL_ERROR,
+                       null, null);
     });
   },
 
