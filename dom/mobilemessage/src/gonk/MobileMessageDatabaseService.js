@@ -207,80 +207,90 @@ MobileMessageDatabaseService.prototype = {
           isRecordUpdated = true;
         }
 
-        // Update |messageRecord.deliveryStatus| if needed.
-        if (deliveryStatus) {
+        do {
+          // Update |messageRecord.deliveryStatus| if needed.
+          if (!deliveryStatus) {
+            break;
+          }
+
+          // If |messageRecord| is an SMS message:
           if (messageRecord.type == "sms") {
             if (messageRecord.deliveryStatus != deliveryStatus) {
               messageRecord.deliveryStatus = deliveryStatus;
               isRecordUpdated = true;
             }
-          } else if (messageRecord.type == "mms") {
-            if (!receiver) {
-              for (let i = 0; i < messageRecord.deliveryStatus.length; i++) {
-                if (messageRecord.deliveryStatus[i] != deliveryStatus) {
-                  messageRecord.deliveryStatus[i] = deliveryStatus;
-                  isRecordUpdated = true;
-                }
-              }
-            } else {
-              let normReceiver = PhoneNumberUtils.normalize(receiver, false);
-              if (!normReceiver) {
-                if (DEBUG) {
-                  debug("Normalized receiver is not valid. Fail to update.");
-                }
-                return;
-              }
+            break;
+          }
 
-              let parsedReveiver = PhoneNumberUtils.parseWithMCC(normReceiver, null);
+          // |messageRecord| is an MMS message:
 
-              let found = false;
-              for (let i = 0; i < messageRecord.receivers.length; i++) {
-                let storedReceiver = messageRecord.receivers[i];
-                let normStoreReceiver =
-                  PhoneNumberUtils.normalize(storedReceiver, false);
-                if (!normStoreReceiver) {
-                  if (DEBUG) {
-                    debug("Normalized stored receiver is not valid. Skipping.");
-                  }
-                  continue;
-                }
-
-                let match = (normReceiver === normStoreReceiver);
-                if (!match) {
-                  if (parsedReveiver) {
-                    if (normStoreReceiver.endsWith(parsedReveiver.nationalNumber)) {
-                      match = true;
-                    }
-                  } else {
-                    let parsedStoreReceiver =
-                      PhoneNumberUtils.parseWithMCC(normStoreReceiver, null);
-                    if (parsedStoreReceiver &&
-                        normReceiver.endsWith(parsedStoreReceiver.nationalNumber)) {
-                      match = true;
-                    }
-                  }
-                }
-                if (!match) {
-                  if (DEBUG) debug("Stored receiver is not matched. Skipping.");
-                  continue;
-                }
-
-                found = true;
-                if (messageRecord.deliveryStatus[i] != deliveryStatus) {
-                  messageRecord.deliveryStatus[i] = deliveryStatus;
-                  isRecordUpdated = true;
-                }
-              }
-
-              if (!found) {
-                if (DEBUG) {
-                  debug("Cannot find the receiver. Fail to set delivery status.");
-                }
-                return;
+          // If updating delivery statuses of all receivers:
+          if (!receiver) {
+            for (let i = 0; i < messageRecord.deliveryStatus.length; i++) {
+              if (messageRecord.deliveryStatus[i] != deliveryStatus) {
+                messageRecord.deliveryStatus[i] = deliveryStatus;
+                isRecordUpdated = true;
               }
             }
+            break;
           }
-        }
+
+          // Updating delivery status of a specific receiver:
+          let normReceiver = PhoneNumberUtils.normalize(receiver, false);
+          if (!normReceiver) {
+            if (DEBUG) {
+              debug("Normalized receiver is not valid. Fail to update.");
+            }
+            return;
+          }
+
+          let parsedReveiver = PhoneNumberUtils.parseWithMCC(normReceiver, null);
+          let found = false;
+          for (let i = 0; i < messageRecord.receivers.length; i++) {
+            let storedReceiver = messageRecord.receivers[i];
+            let normStoreReceiver =
+              PhoneNumberUtils.normalize(storedReceiver, false);
+            if (!normStoreReceiver) {
+              if (DEBUG) {
+                debug("Normalized stored receiver is not valid. Skipping.");
+              }
+              continue;
+            }
+
+            let match = (normReceiver === normStoreReceiver);
+            if (!match) {
+              if (parsedReveiver) {
+                if (normStoreReceiver.endsWith(parsedReveiver.nationalNumber)) {
+                  match = true;
+                }
+              } else {
+                let parsedStoreReceiver =
+                  PhoneNumberUtils.parseWithMCC(normStoreReceiver, null);
+                if (parsedStoreReceiver &&
+                    normReceiver.endsWith(parsedStoreReceiver.nationalNumber)) {
+                  match = true;
+                }
+              }
+            }
+            if (!match) {
+              if (DEBUG) debug("Stored receiver is not matched. Skipping.");
+              continue;
+            }
+
+            found = true;
+            if (messageRecord.deliveryStatus[i] != deliveryStatus) {
+              messageRecord.deliveryStatus[i] = deliveryStatus;
+              isRecordUpdated = true;
+            }
+          }
+
+          if (!found) {
+            if (DEBUG) {
+              debug("Cannot find the receiver. Fail to set delivery status.");
+            }
+            return;
+          }
+        } while(false);
 
         // Update |messageRecord.envelopeIdIndex| if needed.
         if (envelopeId) {
