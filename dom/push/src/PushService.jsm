@@ -50,8 +50,7 @@ this.PushDB = function PushDB() {
   debug("PushDB()");
 
   // set the indexeddb database
-  this.initDBHelper(kPUSHDB_DB_NAME, kPUSHDB_DB_VERSION,
-                    [kPUSHDB_STORE_NAME]);
+  this.initDBHelper(kPUSHDB_DB_NAME, kPUSHDB_DB_VERSION);
 };
 
 this.PushDB.prototype = {

@@ -100,10 +100,10 @@ IndexedDBHelper.prototype = {
    * @param txn_type
    *        Type of transaction (e.g. "readwrite")
    * @param store_name
-   *        The object store you want to be passed to the callback
+   *        The object store(s) you want to be passed to the callback.
    * @param callback
    *        Function to call when the transaction is available. It will
-   *        be invoked with the transaction and the `store' object store.
+   *        be invoked with the transaction and the `store(s)' object store(s).
    * @param successCb
    *        Success callback to call on a successful transaction commit.
    *        The result is stored in txn.result.
@@ -113,16 +113,15 @@ IndexedDBHelper.prototype = {
   newTxn: function newTxn(txn_type, store_name, callback, successCb, failureCb) {
     this.ensureDB(function () {
       if (DEBUG) debug("Starting new transaction" + txn_type);
-      let txn = this._db.transaction(Array.isArray(store_name) ? store_name : this.dbStoreNames, txn_type);
+      let txn = this._db.transaction(store_name, txn_type);
       if (DEBUG) debug("Retrieving object store", this.dbName);
-      let stores;
+      let args = [txn];
       if (Array.isArray(store_name)) {
-        stores = [];
-        for (let i = 0; i < store_name.length; ++i) {
-          stores.push(txn.objectStore(store_name[i]));
+        for (let i = 0; i < store_name.length; i++) {
+          args.push(txn.objectStore(store_name[i]));
         }
       } else {
-        stores = txn.objectStore(store_name);
+        args.push(txn.objectStore(store_name));
       }
 
       txn.oncomplete = function (event) {
@@ -146,7 +145,8 @@ IndexedDBHelper.prototype = {
           }
         }
       };
-      callback(txn, stores);
+
+      callback.apply(null, args);
     }.bind(this), failureCb);
   },
 
@@ -157,12 +157,9 @@ IndexedDBHelper.prototype = {
    *        DB name for the open call.
    * @param aDBVersion
    *        Current DB version. User has to implement upgradeSchema.
-   * @param aDBStoreName
-   *        ObjectStore that is used.
    */
-  initDBHelper: function initDBHelper(aDBName, aDBVersion, aDBStoreNames) {
+  initDBHelper: function initDBHelper(aDBName, aDBVersion) {
     this.dbName = aDBName;
     this.dbVersion = aDBVersion;
-    this.dbStoreNames = aDBStoreNames;
   }
 }

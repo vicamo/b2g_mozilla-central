@@ -41,7 +41,7 @@ ActivitiesDb.prototype = {
   __proto__: IndexedDBHelper.prototype,
 
   init: function actdb_init() {
-    this.initDBHelper(DB_NAME, DB_VERSION, [STORE_NAME]);
+    this.initDBHelper(DB_NAME, DB_VERSION);
   },
 
   /**

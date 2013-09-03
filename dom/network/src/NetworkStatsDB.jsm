@@ -32,7 +32,7 @@ this.NetworkStatsDB = function NetworkStatsDB() {
   if (DEBUG) {
     debug("Constructor");
   }
-  this.initDBHelper(DB_NAME, DB_VERSION, [STATS_STORE_NAME, ALARMS_STORE_NAME]);
+  this.initDBHelper(DB_NAME, DB_VERSION);
 }
 
 NetworkStatsDB.prototype = {

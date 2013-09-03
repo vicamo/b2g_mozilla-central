@@ -33,7 +33,7 @@ AlarmDB.prototype = {
   init: function init() {
     debug("init()");
 
-    this.initDBHelper(ALARMDB_NAME, ALARMDB_VERSION, [ALARMSTORE_NAME]);
+    this.initDBHelper(ALARMDB_NAME, ALARMDB_VERSION);
   },
 
   upgradeSchema: function upgradeSchema(aTransaction, aDb, aOldVersion, aNewVersion) {

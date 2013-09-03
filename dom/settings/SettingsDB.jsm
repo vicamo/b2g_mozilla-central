@@ -199,7 +199,6 @@ SettingsDB.prototype = {
   },
 
   init: function init() {
-    this.initDBHelper(SETTINGSDB_NAME, SETTINGSDB_VERSION,
-                      [SETTINGSSTORE_NAME]);
+    this.initDBHelper(SETTINGSDB_NAME, SETTINGSDB_VERSION);
   }
 }
