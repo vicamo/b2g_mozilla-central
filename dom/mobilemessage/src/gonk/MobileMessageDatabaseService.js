@@ -805,29 +805,27 @@ MobileMessageDatabaseService.prototype = {
     if (DEBUG) debug("Getting thread list");
 
     let cursor = new GetThreadsCursor(this, callback);
-    this.db.newTxn(READ_ONLY, function (error, txn, threadStore) {
-      let collector = cursor.collector;
-      if (error) {
-        if (DEBUG) debug(error);
-        collector.collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
-        return;
-      }
-      txn.onerror = function onerror(event) {
-        if (DEBUG) debug("Caught error on transaction ", event.target.errorCode);
-        collector.collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
-      };
-      let request = threadStore.index("lastTimestamp").openKeyCursor();
+    let collector = cursor.collector;
+    let collect = collector.collect.bind(collector);
+    this.db.newTxn(READ_ONLY, THREAD_STORE_NAME,
+                   function ontxncallback(aTransaction, aThreadStore) {
+      let request = aThreadStore.index("lastTimestamp").openKeyCursor();
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor) {
-          if (collector.collect(txn, cursor.primaryKey, cursor.key)) {
+          if (collect(aTransaction, cursor.primaryKey, cursor.key)) {
             cursor.continue();
           }
         } else {
-          collector.collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
+          collect(aTransaction, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
         }
       };
-    }, [THREAD_STORE_NAME]);
+    }, null, function ontxnabort(aErrorName) {
+      if (DEBUG) {
+        debug("createThreadCursor: transaction aborted - " + aErrorName);
+      }
+      collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
+    });
 
     return cursor;
   }
@@ -1287,16 +1285,18 @@ GetThreadsCursor.prototype = {
     let self = this;
     getRequest.onsuccess = function onsuccess(event) {
       let threadRecord = event.target.result;
-      if (DEBUG) {
-        debug("notifyCursorResult: " + JSON.stringify(threadRecord));
+      if (!threadRecord) {
+        if (DEBUG) debug("notifyCursorError - threadId: " + threadId);
+        self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR);
+        return;
       }
+
+      if (DEBUG) debug("notifyCursorResult: " + JSON.stringify(threadRecord));
       let thread = self.service.db.createDomThreadFromRecord(threadRecord);
       self.callback.notifyCursorResult(thread);
     };
     getRequest.onerror = function onerror(event) {
-      if (DEBUG) {
-        debug("notifyCursorError - threadId: " + threadId);
-      }
+      if (DEBUG) debug("notifyCursorError - threadId: " + threadId);
       self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
     };
   },
@@ -1322,13 +1322,15 @@ GetThreadsCursor.prototype = {
 
     // Or, we have to open another transaction ourselves.
     let self = this;
-    this.service.db.newTxn(READ_ONLY, function (error, txn, threadStore) {
-      if (error) {
-        self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-        return;
+    this.service.db.newTxn(READ_ONLY, THREAD_STORE_NAME,
+                           function ontxncallback(aTransaction, aThreadStore) {
+      self.getThreadTxn(aThreadStore, threadId);
+    }, null, function ontxnabort(aErrorName) {
+      if (DEBUG) {
+        debug("GetThreadsCursor.notify: transaction aborted - " + aErrorName);
       }
-      self.getThreadTxn(threadStore, threadId);
-    }, [THREAD_STORE_NAME]);
+      self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+    });
   },
 
   // nsICursorContinueCallback
