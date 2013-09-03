@@ -147,118 +147,21 @@ MobileMessageDB.prototype = {
     });
   },
 
-  /**
-   * Prepare the database. This may include opening the database and upgrading
-   * it to the latest schema version.
-   *
-   * @param callback
-   *        Function that takes an error and db argument. It is called when
-   *        the database is ready to use or if an error occurs while preparing
-   *        the database.
-   *
-   * @return (via callback) a database ready for use.
-   */
-  ensureDB: function ensureDB(callback) {
-    if (this.db) {
-      if (DEBUG) debug("ensureDB: already have a database, returning early.");
-      callback(null, this.db);
+  upgradeSchema: function upgradeSchema(aTransaction, aDb,
+                                        aOldVersion, aNewVersion) {
+    if (aOldVersion < aNewVersion) {
+      let next = this.upgradeSchema.bind(this, aTransaction, aDb,
+                                         aOldVersion + 1, aNewVersion);
+      this["upgradeSchema" + aOldVersion](aDb, aTransaction, next);
       return;
     }
 
-    let self = this;
-    function gotDB(db) {
-      self.db = db;
-      callback(null, db);
+    if (aOldVersion == aNewVersion) {
+      if (DEBUG) debug("Upgrade finished.");
+      return;
     }
 
-    let request = this.dbGlobal.indexedDB.open(this.dbName, this.dbVersion);
-    request.onsuccess = function (event) {
-      if (DEBUG) debug("Opened database:", this.dbName, this.dbVersion);
-      gotDB(event.target.result);
-    };
-    request.onupgradeneeded = function (event) {
-      if (DEBUG) {
-        debug("Database needs upgrade:", this.dbName,
-              event.oldVersion, event.newVersion);
-        debug("Correct new database version:", event.newVersion == this.dbVersion);
-      }
-
-      let db = event.target.result;
-
-      let currentVersion = event.oldVersion;
-
-      function update(currentVersion) {
-        let next = update.bind(self, currentVersion + 1);
-
-        switch (currentVersion) {
-          case 0:
-            if (DEBUG) debug("New database");
-            self.createSchema(db, next);
-            break;
-          case 1:
-            if (DEBUG) debug("Upgrade to version 2. Including `read` index");
-            self.upgradeSchema(event.target.transaction, next);
-            break;
-          case 2:
-            if (DEBUG) debug("Upgrade to version 3. Fix existing entries.");
-            self.upgradeSchema2(event.target.transaction, next);
-            break;
-          case 3:
-            if (DEBUG) debug("Upgrade to version 4. Add quick threads view.");
-            self.upgradeSchema3(db, event.target.transaction, next);
-            break;
-          case 4:
-            if (DEBUG) debug("Upgrade to version 5. Populate quick threads view.");
-            self.upgradeSchema4(event.target.transaction, next);
-            break;
-          case 5:
-            if (DEBUG) debug("Upgrade to version 6. Use PhonenumberJS.");
-            self.upgradeSchema5(event.target.transaction, next);
-            break;
-          case 6:
-            if (DEBUG) debug("Upgrade to version 7. Use multiple entry indexes.");
-            self.upgradeSchema6(event.target.transaction, next);
-            break;
-          case 7:
-            if (DEBUG) debug("Upgrade to version 8. Add participant/thread stores.");
-            self.upgradeSchema7(db, event.target.transaction, next);
-            break;
-          case 8:
-            if (DEBUG) debug("Upgrade to version 9. Add transactionId index for incoming MMS.");
-            self.upgradeSchema8(event.target.transaction, next);
-            break;
-          case 9:
-            if (DEBUG) debug("Upgrade to version 10. Upgrade type if it's not existing.");
-            self.upgradeSchema9(event.target.transaction, next);
-            break;
-          case 10:
-            if (DEBUG) debug("Upgrade to version 11. Add last message type into threadRecord.");
-            self.upgradeSchema10(event.target.transaction, next);
-            break;
-          case 11:
-            if (DEBUG) debug("Upgrade to version 12. Add envelopeId index for outgoing MMS.");
-            self.upgradeSchema11(event.target.transaction, next);
-            break;
-          case 12:
-            // This will need to be moved for each new version
-            if (DEBUG) debug("Upgrade finished.");
-            break;
-          default:
-            event.target.transaction.abort();
-            callback("Old database version: " + event.oldVersion, null);
-            break;
-        }
-      }
-
-      update(currentVersion);
-    };
-    request.onerror = function (event) {
-      //TODO look at event.target.Code and change error constant accordingly
-      callback("Error opening database!", null);
-    };
-    request.onblocked = function (event) {
-      callback("Opening database request is blocked.", null);
-    };
+    aTransaction.abort();
   },
 
   /**
@@ -267,7 +170,8 @@ MobileMessageDB.prototype = {
    * TODO need to worry about number normalization somewhere...
    * TODO full text search on body???
    */
-  createSchema: function createSchema(db, next) {
+  upgradeSchema0: function upgradeSchema0(db, transaction, next) {
+    if (DEBUG) debug("New database");
     // This messageStore holds the main mobile message data.
     let messageStore = db.createObjectStore(MESSAGE_STORE_NAME, { keyPath: "id" });
     messageStore.createIndex("timestamp", "timestamp", { unique: false });
@@ -278,13 +182,15 @@ MobileMessageDB.prototype = {
   /**
    * Upgrade to the corresponding database schema version.
    */
-  upgradeSchema: function upgradeSchema(transaction, next) {
+  upgradeSchema1: function upgradeSchema1(db, transaction, next) {
+    if (DEBUG) debug("Upgrade to version 2. Including `read` index");
     let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
     messageStore.createIndex("read", "read", { unique: false });
     next();
   },
 
-  upgradeSchema2: function upgradeSchema2(transaction, next) {
+  upgradeSchema2: function upgradeSchema2(db, transaction, next) {
+    if (DEBUG) debug("Upgrade to version 3. Fix existing entries.");
     let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
     messageStore.openCursor().onsuccess = function(event) {
       let cursor = event.target.result;
@@ -302,6 +208,7 @@ MobileMessageDB.prototype = {
   },
 
   upgradeSchema3: function upgradeSchema3(db, transaction, next) {
+    if (DEBUG) debug("Upgrade to version 4. Add quick threads view.");
     // Delete redundant "id" index.
     let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
     if (messageStore.indexNames.contains("id")) {
@@ -325,7 +232,8 @@ MobileMessageDB.prototype = {
     next();
   },
 
-  upgradeSchema4: function upgradeSchema4(transaction, next) {
+  upgradeSchema4: function upgradeSchema4(db, transaction, next) {
+    if (DEBUG) debug("Upgrade to version 5. Populate quick threads view.");
     let threads = {};
     let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
     let mostRecentStore = transaction.objectStore(MOST_RECENT_STORE_NAME);
@@ -366,12 +274,14 @@ MobileMessageDB.prototype = {
     };
   },
 
-  upgradeSchema5: function upgradeSchema5(transaction, next) {
+  upgradeSchema5: function upgradeSchema5(db, transaction, next) {
+    if (DEBUG) debug("Upgrade to version 6. Use PhonenumberJS.");
     // Don't perform any upgrade. See Bug 819560.
     next();
   },
 
-  upgradeSchema6: function upgradeSchema6(transaction, next) {
+  upgradeSchema6: function upgradeSchema6(db, transaction, next) {
+    if (DEBUG) debug("Upgrade to version 7. Use multiple entry indexes.");
     let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
 
     // Delete "delivery" index.
@@ -434,6 +344,7 @@ MobileMessageDB.prototype = {
    * "mostRecentStore" is dropped.
    */
   upgradeSchema7: function upgradeSchema7(db, transaction, next) {
+    if (DEBUG) debug("Upgrade to version 8. Add participant/thread stores.");
     /**
      * This "participant" object store keeps mappings of multiple phone numbers
      * of the same recipient to an integer participant id. Each entry looks
@@ -566,7 +477,10 @@ MobileMessageDB.prototype = {
   /**
    * Add transactionId index for MMS.
    */
-  upgradeSchema8: function upgradeSchema8(transaction, next) {
+  upgradeSchema8: function upgradeSchema8(db, transaction, next) {
+    if (DEBUG) {
+      debug("Upgrade to version 9. Add transactionId index for incoming MMS.");
+    }
     let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
 
     // Delete "transactionId" index.
@@ -597,7 +511,10 @@ MobileMessageDB.prototype = {
     };
   },
 
-  upgradeSchema9: function upgradeSchema9(transaction, next) {
+  upgradeSchema9: function upgradeSchema9(db, transaction, next) {
+    if (DEBUG) {
+      debug("Upgrade to version 10. Upgrade type if it's not existing.");
+    }
     let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
 
     // Update type attributes.
@@ -617,7 +534,10 @@ MobileMessageDB.prototype = {
     };
   },
 
-  upgradeSchema10: function upgradeSchema10(transaction, next) {
+  upgradeSchema10: function upgradeSchema10(db, transaction, next) {
+    if (DEBUG) {
+      debug("Upgrade to version 11. Add last message type into threadRecord.");
+    }
     let threadStore = transaction.objectStore(THREAD_STORE_NAME);
 
     // Add 'lastMessageType' to each thread record.
@@ -665,7 +585,10 @@ MobileMessageDB.prototype = {
   /**
    * Add envelopeId index for MMS.
    */
-  upgradeSchema11: function upgradeSchema11(transaction, next) {
+  upgradeSchema11: function upgradeSchema11(db, transaction, next) {
+    if (DEBUG) {
+      debug("Upgrade to version 12. Add envelopeId index for outgoing MMS.");
+    }
     let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
 
     // Delete "envelopeId" index.
