@@ -8,6 +8,7 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/IndexedDBHelper.jsm");
 Cu.import("resource://gre/modules/PhoneNumberUtils.jsm");
 
 this.DB_VERSION = 12;
@@ -56,14 +57,7 @@ this.MobileMessageDB = function MobileMessageDB() {
 };
 
 MobileMessageDB.prototype = {
-  dbName: null,
-  dbVersion: null,
-  dbGlobal: null,
-
-  /**
-   * Cache the DB here.
-   */
-  db: null,
+  __proto__: IndexedDBHelper.prototype,
 
   /**
    * Last sms/mms object store key value in the database.
@@ -72,10 +66,8 @@ MobileMessageDB.prototype = {
 
   init: function init(aDbName, aDbVersion, aGlobal) {
     if (DEBUG) debug("init: '" + aDbName + "', " + aDbVersion);
-    this.dbName = aDbName;
-    this.dbVersion = aDbVersion;
     IDB_GLOBAL = aGlobal;
-    this.dbGlobal = aGlobal;
+    this.initDBHelper(aDbName, aDbVersion, aGlobal);
 
     let that = this;
     this.newTxn(READ_ONLY, function(error, txn, messageStore){
