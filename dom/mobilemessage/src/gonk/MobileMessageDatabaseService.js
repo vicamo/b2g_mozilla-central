@@ -747,44 +747,29 @@ MobileMessageDatabaseService.prototype = {
 
   markMessageRead: function markMessageRead(messageId, value, aRequest) {
     if (DEBUG) debug("Setting message " + messageId + " read to " + value);
-    this.db.newTxn(READ_WRITE, function (error, txn, stores) {
-      if (error) {
-        if (DEBUG) debug(error);
-        aRequest.notifyMarkMessageReadFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-        return;
-      }
-      txn.onerror = function onerror(event) {
-        if (DEBUG) debug("Caught error on transaction ", event.target.errorCode);
-        aRequest.notifyMarkMessageReadFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-      };
-      let messageStore = stores[0];
-      let threadStore = stores[1];
-      messageStore.get(messageId).onsuccess = function onsuccess(event) {
-        let messageRecord = event.target.result;
+    let messageRecord;
+    let errorCode;
+    this.db.newTxn(READ_WRITE, [MESSAGE_STORE_NAME, THREAD_STORE_NAME],
+                   function ontxncallback(aTransaction, aMessageStore,
+                                          aThreadStore) {
+      aMessageStore.get(messageId).onsuccess = function onsuccess(event) {
+        messageRecord = event.target.result;
         if (!messageRecord) {
           if (DEBUG) debug("Message ID " + messageId + " not found");
-          aRequest.notifyMarkMessageReadFailed(Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR);
-          return;
-        }
-        if (messageRecord.id != messageId) {
-          if (DEBUG) {
-            debug("Retrieve message ID (" + messageId + ") is " +
-                  "different from the one we got");
-          }
-          aRequest.notifyMarkMessageReadFailed(Ci.nsIMobileMessageCallback.UNKNOWN_ERROR);
+          errorCode = Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR;
+          aTransaction.abort();
           return;
         }
         // If the value to be set is the same as the current message `read`
         // value, we just notify successfully.
         if (messageRecord.read == value) {
           if (DEBUG) debug("The value of messageRecord.read is already " + value);
-          aRequest.notifyMessageMarkedRead(messageRecord.read);
           return;
         }
         messageRecord.read = value ? FILTER_READ_READ : FILTER_READ_UNREAD;
         messageRecord.readIndex = [messageRecord.read, messageRecord.timestamp];
         if (DEBUG) debug("Message.read set to: " + value);
-        messageStore.put(messageRecord).onsuccess = function onsuccess(event) {
+        aMessageStore.put(messageRecord).onsuccess = function onsuccess(event) {
           if (DEBUG) {
             debug("Update successfully completed. Message: " +
                   JSON.stringify(event.target.result));
@@ -793,7 +778,7 @@ MobileMessageDatabaseService.prototype = {
           // Now update the unread count.
           let threadId = messageRecord.threadId;
 
-          threadStore.get(threadId).onsuccess = function(event) {
+          aThreadStore.get(threadId).onsuccess = function(event) {
             let threadRecord = event.target.result;
             threadRecord.unreadCount += value ? -1 : 1;
             if (DEBUG) {
@@ -803,13 +788,17 @@ MobileMessageDatabaseService.prototype = {
                      threadRecord.unreadCount - 1) +
                      " -> " + threadRecord.unreadCount);
             }
-            threadStore.put(threadRecord).onsuccess = function(event) {
-              aRequest.notifyMessageMarkedRead(messageRecord.read);
-            };
+            aThreadStore.put(threadRecord);
           };
         };
       };
-    }, [MESSAGE_STORE_NAME, THREAD_STORE_NAME]);
+    }, function ontxncomplete() {
+      aRequest.notifyMessageMarkedRead(messageRecord.read);
+    }, function ontxnabort(aErrorName) {
+      if (DEBUG) debug("markMessageRead: transaction aborted - " + aErrorName);
+      aRequest.notifyMarkMessageReadFailed(
+        errorCode || Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+    });
   },
 
   createThreadCursor: function createThreadCursor(callback) {
