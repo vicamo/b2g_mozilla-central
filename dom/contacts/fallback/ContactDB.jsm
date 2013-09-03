@@ -1135,6 +1135,6 @@ ContactDB.prototype = {
   },
 
   init: function init(aGlobal) {
-    this.initDBHelper(DB_NAME, DB_VERSION, [STORE_NAME, SAVED_GETALL_STORE_NAME, REVISION_STORE], aGlobal);
+    this.initDBHelper(DB_NAME, DB_VERSION, aGlobal);
   }
 };

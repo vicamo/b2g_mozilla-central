@@ -44,7 +44,7 @@ ActivitiesDb.prototype = {
     let idbManager = Cc["@mozilla.org/dom/indexeddb/manager;1"]
                        .getService(Ci.nsIIndexedDatabaseManager);
     idbManager.initWindowless(idbGlobal);
-    this.initDBHelper(DB_NAME, DB_VERSION, [STORE_NAME], idbGlobal);
+    this.initDBHelper(DB_NAME, DB_VERSION, idbGlobal);
   },
 
   /**

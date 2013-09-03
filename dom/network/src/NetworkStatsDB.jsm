@@ -31,7 +31,7 @@ this.NetworkStatsDB = function NetworkStatsDB(aGlobal, aConnectionTypes) {
     debug("Constructor");
   }
   this._connectionTypes = aConnectionTypes;
-  this.initDBHelper(DB_NAME, DB_VERSION, [STORE_NAME_V2], aGlobal);
+  this.initDBHelper(DB_NAME, DB_VERSION, aGlobal);
 }
 
 NetworkStatsDB.prototype = {

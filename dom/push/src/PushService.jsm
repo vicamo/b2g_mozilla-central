@@ -46,8 +46,7 @@ this.PushDB = function PushDB(aGlobal) {
   let idbManager = Cc["@mozilla.org/dom/indexeddb/manager;1"]
                      .getService(Ci.nsIIndexedDatabaseManager);
   idbManager.initWindowless(aGlobal);
-  this.initDBHelper(kPUSHDB_DB_NAME, kPUSHDB_DB_VERSION,
-                    [kPUSHDB_STORE_NAME], aGlobal);
+  this.initDBHelper(kPUSHDB_DB_NAME, kPUSHDB_DB_VERSION, aGlobal);
 };
 
 this.PushDB.prototype = {
