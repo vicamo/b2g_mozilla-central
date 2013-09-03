@@ -494,48 +494,31 @@ MobileMessageDatabaseService.prototype = {
   getMessageRecordById: function getMessageRecordById(aMessageId, aCallback) {
     if (DEBUG) debug("Retrieving message with ID " + aMessageId);
     let self = this;
-    this.db.newTxn(READ_ONLY, function (error, txn, messageStore) {
-      if (error) {
-        if (DEBUG) debug(error);
-        aCallback.notify(Ci.nsIMobileMessageCallback.INTERNAL_ERROR, null, null);
-        return;
-      }
-      let request = messageStore.mozGetAll(aMessageId);
-
-      txn.oncomplete = function oncomplete() {
-        if (DEBUG) debug("Transaction " + txn + " completed.");
-        if (request.result.length > 1) {
-          if (DEBUG) debug("Got too many results for id " + aMessageId);
-          aCallback.notify(Ci.nsIMobileMessageCallback.UNKNOWN_ERROR, null, null);
-          return;
-        }
-        let messageRecord = request.result[0];
+    let errorCode;
+    let messageRecord;
+    this.db.newTxn(READ_ONLY, MESSAGE_STORE_NAME,
+                   function ontxncallback(aTransaction, aMessageStore) {
+      let request = aMessageStore.mozGetAll(aMessageId);
+      request.onsuccess = function onsuccess(event) {
+        messageRecord = request.result[0];
         if (!messageRecord) {
           if (DEBUG) debug("Message ID " + aMessageId + " not found");
-          aCallback.notify(Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR, null, null);
+          errorCode = Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR;
+          aTransaction.abort();
           return;
         }
-        if (messageRecord.id != aMessageId) {
-          if (DEBUG) {
-            debug("Requested message ID (" + aMessageId + ") is " +
-                  "different from the one we got");
-          }
-          aCallback.notify(Ci.nsIMobileMessageCallback.UNKNOWN_ERROR, null, null);
-          return;
-        }
-        let domMessage = self.db.createDomMessageFromRecord(messageRecord);
-        aCallback.notify(Ci.nsIMobileMessageCallback.SUCCESS_NO_ERROR,
-                         messageRecord, domMessage);
       };
-
-      txn.onerror = function onerror(event) {
-        if (DEBUG) {
-          if (event.target) {
-            debug("Caught error on transaction", event.target.errorCode);
-          }
-        }
-        aCallback.notify(Ci.nsIMobileMessageCallback.INTERNAL_ERROR, null, null);
-      };
+    }, function ontxncomplete() {
+      if (DEBUG) debug("Transaction completed.");
+      let domMessage = self.db.createDomMessageFromRecord(messageRecord);
+      aCallback.notify(Ci.nsIMobileMessageCallback.SUCCESS_NO_ERROR,
+                       messageRecord, domMessage);
+    }, function ontxnabort(aErrorName) {
+      if (DEBUG) {
+        debug("getMessageRecordById: transaction aborted - " + aErrorName);
+      }
+      aCallback.notify(errorCode || Ci.nsIMobileMessageCallback.INTERNAL_ERROR,
+                       null, null);
     });
   },
 
