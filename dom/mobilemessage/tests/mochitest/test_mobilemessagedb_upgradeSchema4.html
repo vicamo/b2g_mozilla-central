@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=836542
+-->
+<head>
+  <title>Test upgradeSchema4 for Bug 836542</title>
+  <script type="application/javascript" src="/MochiKit/MochiKit.js"></script>
+  <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
+  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
+</head>
+<body>
+
+<a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=836542">Mozilla Bug 836542</a>
+<p id="display"></p>
+<div id="content" style="display: none">
+</div>
+<pre id="test">
+<script type="application/javascript;version=1.7" src="test_mobilemessagedb.js"></script>
+<script class="testbody" type="application/javascript;version=1.7">
+"use strict";
+
+const {Cc, Ci, Cu} = SpecialPowers;
+Cu.import("resource://gre/modules/MobileMessageDB.jsm", window);
+
+const DB_NAME = "test_mobilemessagedb_upgradeSchema4";
+
+let IDB_SCOPE = {};
+Cc["@mozilla.org/dom/indexeddb/manager;1"]
+  .getService(Ci.nsIIndexedDatabaseManager)
+  .initWindowless(IDB_SCOPE);
+
+let mmdb;
+let Tests = [
+  function deleteDb() {
+    deleteDatabaseIfExists(IDB_SCOPE, DB_NAME, next);
+  },
+
+  function initDbAsVersion4() {
+    mmdb = new MobileMessageDB();
+    let storeNames = [ MESSAGE_STORE_NAME, MOST_RECENT_STORE_NAME ];
+    initDatabase(mmdb, DB_NAME, 4, IDB_SCOPE, storeNames, next);
+  },
+
+  function populateRecords() {
+    next();
+  },
+
+  function reinitDbAsVersion5() {
+    mmdb.close();
+    let storeNames = [ MESSAGE_STORE_NAME, MOST_RECENT_STORE_NAME ];
+    initDatabase(mmdb, DB_NAME, 5, IDB_SCOPE, storeNames, next);
+  },
+
+  function verifyRecordsOfVersion5() {
+    next();
+  },
+
+  function reinitDbAsLastestVersion() {
+    mmdb.close();
+
+    let storeNames = [ MESSAGE_STORE_NAME, THREAD_STORE_NAME,
+                       PARTICIPANT_STORE_NAME ];
+    initDatabase(mmdb, DB_NAME, DB_VERSION, IDB_SCOPE, storeNames, next);
+  },
+
+  function verifyRecordsOfLastestVersion() {
+    next();
+  },
+
+  function closeDb() {
+    // Leave the database data for further analysis.
+    mmdb.close();
+
+    next();
+  }
+];
+
+function next() {
+  let step = Tests.shift();
+  if (step) {
+    step();
+  } else {
+    info("All done");
+    SimpleTest.finish();
+  }
+}
+
+SimpleTest.waitForExplicitFinish();
+next();
+
+</script>
+</pre>
+</body>
+</html>
+
