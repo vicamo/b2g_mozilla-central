@@ -25,7 +25,30 @@ public:
 
   SmsSegmentInfo(const mobilemessage::SmsSegmentInfoData& aData);
 
-  const mobilemessage::SmsSegmentInfoData& GetData() const;
+  const mobilemessage::SmsSegmentInfoData&
+  GetData() const
+  {
+    return mData;
+  }
+
+  // WebIDL Interface
+  int32_t
+  Segments() const
+  {
+    return mData.segments();
+  }
+
+  int32_t
+  CharsPerSegment() const
+  {
+    return mData.charsPerSegment();
+  }
+
+  int32_t
+  CharsAvailableInLastSegment() const
+  {
+    return mData.charsAvailableInLastSegment();
+  }
 
 private:
   mobilemessage::SmsSegmentInfoData mData;

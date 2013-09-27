@@ -6,12 +6,15 @@
 #ifndef mozilla_dom_mobilemessage_MmsMessage_h
 #define mozilla_dom_mobilemessage_MmsMessage_h
 
+#include "mozilla/Attributes.h"
+#include "mozilla/dom/Date.h"
+#include "mozilla/dom/MmsAttachmentList.h"
+#include "mozilla/dom/mobilemessage/Types.h"
+#include "mozilla/dom/MozMobileMessageManagerBinding.h"
+#include "nsIDOMDOMStringList.h"
 #include "nsIDOMMozMmsAttachment.h"
 #include "nsIDOMMozMmsMessage.h"
 #include "nsString.h"
-#include "mozilla/dom/mobilemessage/Types.h"
-#include "mozilla/Attributes.h"
-#include "DictionaryHelpers.h"
 
 namespace mozilla {
 namespace dom {
@@ -63,6 +66,46 @@ public:
   GetData(ContentParent* aParent,
           mobilemessage::MmsMessageData& aData);
 
+  // WebIDL Interface
+  int32_t
+  Id() const
+  {
+    return mId;
+  }
+
+  uint64_t
+  ThreadId() const
+  {
+    return mThreadId;
+  }
+
+  already_AddRefed<nsIDOMDOMStringList>
+  DeliveryStatus() const;
+
+  already_AddRefed<nsIDOMDOMStringList>
+  Receivers() const;
+
+  Date
+  Timestamp() const
+  {
+    return mTimestamp;
+  }
+
+  bool
+  Read() const
+  {
+    return mRead;
+  }
+
+  already_AddRefed<MmsAttachmentList>
+  Attachments() const;
+
+  Date
+  ExpiryDate() const
+  {
+    return mExpiryDate;
+  }
+
 private:
 
   int32_t mId;
@@ -75,7 +118,7 @@ private:
   bool mRead;
   nsString mSubject;
   nsString mSmil;
-  nsTArray<nsCOMPtr<nsIDOMMozMmsAttachment> > mAttachments;
+  nsRefPtr<MmsAttachmentList> mAttachments;
   double mExpiryDate;
 };
 

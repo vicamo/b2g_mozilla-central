@@ -43,8 +43,11 @@ else:
     ]
 
 EXPORTS.mozilla.dom += [
+    'MmsAttachment.h',
+    'MmsAttachmentList.h',
     'MmsMessage.h',
     'MobileMessageManager.h',
+    'MobileMessageThread.h',
     'SmsFilter.h',
     'SmsMessage.h',
     'SmsSegmentInfo.h',

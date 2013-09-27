@@ -6,9 +6,12 @@
 #ifndef mozilla_dom_mobilemessage_SmsFilter_h
 #define mozilla_dom_mobilemessage_SmsFilter_h
 
-#include "mozilla/dom/mobilemessage/SmsTypes.h"
-#include "nsIDOMSmsFilter.h"
 #include "mozilla/Attributes.h"
+#include "mozilla/dom/Date.h"
+#include "mozilla/dom/MozSmsFilterBinding.h"
+#include "mozilla/dom/mobilemessage/SmsTypes.h"
+#include "mozilla/dom/UnionTypes.h"
+#include "nsIDOMSmsFilter.h"
 
 namespace mozilla {
 namespace dom {
@@ -22,18 +25,50 @@ public:
   SmsFilter();
   SmsFilter(const mobilemessage::SmsFilterData& aData);
 
-  const mobilemessage::SmsFilterData& GetData() const;
+  static already_AddRefed<SmsFilter>
+  Constructor(const GlobalObject& aGlobal,
+              ErrorResult& rv);
 
-  static nsresult NewSmsFilter(nsISupports** aSmsFilter);
+  const mobilemessage::SmsFilterData&
+  GetData() const
+  {
+    return mData;
+  }
+
+  // WebIDL Interface
+  Nullable<Date>
+  GetStartDate() const;
+
+  void
+  SetStartDate(const Nullable<Date>& aStartDate);
+
+  Nullable<Date>
+  GetEndDate() const;
+
+  void
+  SetEndDate(const Nullable<Date>& aEndDate);
+
+  Nullable<OwningStringOrDOMStringList>
+  GetNumbers() const;
+
+  void
+  SetNumbers(const Nullable<OwningStringOrDOMStringList>& aNumbers);
+
+  Nullable<bool>
+  GetRead() const;
+
+  void
+  SetRead(const Nullable<bool>& aRead);
+
+  Nullable<uint64_t>
+  GetThreadId() const;
+
+  void
+  SetThreadId(const Nullable<uint64_t>& aThreadId);
 
 private:
   mobilemessage::SmsFilterData mData;
 };
-
-inline const mobilemessage::SmsFilterData&
-SmsFilter::GetData() const {
-  return mData;
-}
 
 } // namespace dom
 } // namespace mozilla

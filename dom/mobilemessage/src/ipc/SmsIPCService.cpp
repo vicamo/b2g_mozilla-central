@@ -14,7 +14,7 @@
 #include "DictionaryHelpers.h"
 #include "nsJSUtils.h"
 #include "nsCxPusher.h"
-#include "mozilla/dom/MobileMessageManagerBinding.h"
+#include "mozilla/dom/MozMobileMessageManagerBinding.h"
 #include "mozilla/dom/BindingUtils.h"
 
 using namespace mozilla::dom;

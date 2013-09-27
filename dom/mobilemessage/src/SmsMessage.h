@@ -9,6 +9,7 @@
 #include "mozilla/dom/mobilemessage/SmsTypes.h"
 #include "nsIDOMMozSmsMessage.h"
 #include "nsString.h"
+#include "mozilla/dom/Date.h"
 #include "mozilla/dom/mobilemessage/Types.h"
 #include "mozilla/Attributes.h"
 
@@ -21,31 +22,52 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDOMMOZSMSMESSAGE
 
-  SmsMessage(int32_t aId,
-             const uint64_t aThreadId,
-             mobilemessage::DeliveryState aDelivery,
-             mobilemessage::DeliveryStatus aDeliveryStatus,
-             const nsString& aSender,
-             const nsString& aReceiver,
-             const nsString& aBody,
-             mobilemessage::MessageClass aMessageClass,
-             double aTimestamp,
-             bool aRead);
   SmsMessage(const mobilemessage::SmsMessageData& aData);
 
-  static nsresult Create(int32_t aId,
-                         const uint64_t aThreadId,
-                         const nsAString& aDelivery,
-                         const nsAString& aDeliveryStatus,
-                         const nsAString& aSender,
-                         const nsAString& aReceiver,
-                         const nsAString& aBody,
-                         const nsAString& aMessageClass,
-                         const JS::Value& aTimestamp,
-                         const bool aRead,
-                         JSContext* aCx,
-                         nsIDOMMozSmsMessage** aMessage);
-  const mobilemessage::SmsMessageData& GetData() const;
+  static nsresult
+  Create(int32_t aId,
+         const uint64_t aThreadId,
+         const nsAString& aDelivery,
+         const nsAString& aDeliveryStatus,
+         const nsAString& aSender,
+         const nsAString& aReceiver,
+         const nsAString& aBody,
+         const nsAString& aMessageClass,
+         const JS::Value& aTimestamp,
+         const bool aRead,
+         JSContext* aCx,
+         nsIDOMMozSmsMessage** aMessage);
+
+  const mobilemessage::SmsMessageData&
+  GetData() const
+  {
+    return mData;
+  }
+
+  // WebIDL Interface
+  int32_t
+  Id() const
+  {
+    return mData.id();
+  }
+
+  uint64_t
+  ThreadId() const
+  {
+    return mData.threadId();
+  }
+
+  Date
+  Timestamp() const
+  {
+    return mData.timestamp();
+  }
+
+  bool
+  Read() const
+  {
+    return mData.read();
+  }
 
 private:
   // Don't try to use the default constructor.

@@ -3,31 +3,20 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "SmsFilter.h"
+#include "mozilla/dom/SmsFilter.h"
+
 #include "jsapi.h"
 #include "jsfriendapi.h" // For js_DateGetMsecSinceEpoch.
 #include "js/Utility.h"
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
 #include "nsDOMString.h"
 #include "nsError.h"
-#include "nsIDOMClassInfo.h"
 #include "nsJSUtils.h"
 
 using namespace mozilla::dom::mobilemessage;
+using namespace mozilla::dom;
 
-DOMCI_DATA(MozSmsFilter, mozilla::dom::SmsFilter)
-
-namespace mozilla {
-namespace dom {
-
-NS_INTERFACE_MAP_BEGIN(SmsFilter)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMMozSmsFilter)
-  NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MozSmsFilter)
-NS_INTERFACE_MAP_END
-
-NS_IMPL_ADDREF(SmsFilter)
-NS_IMPL_RELEASE(SmsFilter)
+NS_IMPL_ISUPPORTS1(SmsFilter, nsIDOMMozSmsFilter)
 
 SmsFilter::SmsFilter()
 {
@@ -43,11 +32,12 @@ SmsFilter::SmsFilter(const SmsFilterData& aData)
 {
 }
 
-/* static */ nsresult
-SmsFilter::NewSmsFilter(nsISupports** aSmsFilter)
+/* static */ already_AddRefed<SmsFilter>
+SmsFilter::Constructor(const GlobalObject& aGlobal,
+                       ErrorResult& rv)
 {
-  NS_ADDREF(*aSmsFilter = new SmsFilter());
-  return NS_OK;
+  nsRefPtr<SmsFilter> filter = new SmsFilter();
+  return filter.forget();
 }
 
 NS_IMETHODIMP
@@ -303,6 +293,3 @@ SmsFilter::SetThreadId(JSContext* aCx, const JS::Value& aThreadId)
 
   return NS_OK;
 }
-
-} // namespace dom
-} // namespace mozilla

@@ -3,20 +3,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "MmsAttachment.h"
+#include "mozilla/dom/MmsAttachment.h"
 
 #include "mozilla/dom/ContentParent.h"
 #include "mozilla/dom/ipc/Blob.h"
-#include "mozilla/dom/MobileMessageManagerBinding.h"
+#include "mozilla/dom/MozMobileMessageManagerBinding.h"
 #include "mozilla/dom/mobilemessage/SmsTypes.h"
 #include "mozilla/dom/RootedDictionary.h"
 #include "nsDOMFile.h"
-#include "nsIDOMClassInfo.h"
 
 using namespace mozilla::dom::mobilemessage;
 using namespace mozilla::dom;
-
-DOMCI_DATA(MozMmsAttachment, mozilla::dom::MmsAttachment)
 
 NS_IMPL_ISUPPORTS1(MmsAttachment, nsIDOMMozMmsAttachment)
 
@@ -98,9 +95,17 @@ MmsAttachment::GetLocation(nsAString& aLocation)
   return NS_OK;
 }
 
+already_AddRefed<nsIDOMBlob>
+MmsAttachment::GetContent() const
+{
+  nsRefPtr<nsIDOMBlob> content = mContent;
+  return content.forget();
+}
+
 NS_IMETHODIMP
 MmsAttachment::GetContent(nsIDOMBlob** aContent)
 {
-  NS_ADDREF(*aContent = mContent);
+  nsRefPtr<nsIDOMBlob> result = this->GetContent();
+  result.forget(aContent);
   return NS_OK;
 }

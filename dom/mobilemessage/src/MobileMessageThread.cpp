@@ -4,29 +4,19 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MobileMessageThread.h"
-#include "nsIDOMClassInfo.h"
-#include "jsapi.h"           // For OBJECT_TO_JSVAL and JS_NewDateObjectMsec
-#include "jsfriendapi.h"     // For js_DateGetMsecSinceEpoch
-#include "nsJSUtils.h"       // For nsDependentJSString
-#include "nsTArrayHelpers.h" // For nsTArrayToJSArray
+
+#include "jsapi.h" // For OBJECT_TO_JSVAL and JS_NewDateObjectMsec
+#include "jsfriendapi.h" // For js_DateGetMsecSinceEpoch
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
+#include "nsDOMLists.h" // For nsDOMStringList
+#include "nsJSUtils.h" // For nsDependentJSString
+#include "nsTArrayHelpers.h" // For nsTArrayToJSArray
 
 
 using namespace mozilla::dom::mobilemessage;
+using namespace mozilla::dom;
 
-DOMCI_DATA(MozMobileMessageThread, mozilla::dom::MobileMessageThread)
-
-namespace mozilla {
-namespace dom {
-
-NS_INTERFACE_MAP_BEGIN(MobileMessageThread)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMMozMobileMessageThread)
-  NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MozMobileMessageThread)
-NS_INTERFACE_MAP_END
-
-NS_IMPL_ADDREF(MobileMessageThread)
-NS_IMPL_RELEASE(MobileMessageThread)
+NS_IMPL_ISUPPORTS1(MobileMessageThread, nsIDOMMozMobileMessageThread)
 
 /* static */ nsresult
 MobileMessageThread::Create(const uint64_t aId,
@@ -107,17 +97,6 @@ MobileMessageThread::Create(const uint64_t aId,
   return NS_OK;
 }
 
-MobileMessageThread::MobileMessageThread(const uint64_t aId,
-                                         const nsTArray<nsString>& aParticipants,
-                                         const double aTimestamp,
-                                         const nsString& aBody,
-                                         const uint64_t aUnreadCount,
-                                         MessageType aLastMessageType)
-  : mData(aId, aParticipants, aTimestamp, aBody, aUnreadCount, aLastMessageType)
-{
-  MOZ_ASSERT(aParticipants.Length());
-}
-
 MobileMessageThread::MobileMessageThread(const ThreadData& aData)
   : mData(aData)
 {
@@ -127,7 +106,7 @@ MobileMessageThread::MobileMessageThread(const ThreadData& aData)
 NS_IMETHODIMP
 MobileMessageThread::GetId(uint64_t* aId)
 {
-  *aId = mData.id();
+  *aId = this->Id();
   return NS_OK;
 }
 
@@ -141,20 +120,27 @@ MobileMessageThread::GetBody(nsAString& aBody)
 NS_IMETHODIMP
 MobileMessageThread::GetUnreadCount(uint64_t* aUnreadCount)
 {
-  *aUnreadCount = mData.unreadCount();
+  *aUnreadCount = this->UnreadCount();
   return NS_OK;
 }
 
-NS_IMETHODIMP
-MobileMessageThread::GetParticipants(JSContext* aCx,
-                                     JS::Value* aParticipants)
+already_AddRefed<nsIDOMDOMStringList>
+MobileMessageThread::Participants() const
 {
-  JS::Rooted<JSObject*> obj(aCx);
+  nsRefPtr<nsDOMStringList> participants = new nsDOMStringList();
 
-  nsresult rv = nsTArrayToJSArray(aCx, mData.participants(), obj.address());
-  NS_ENSURE_SUCCESS(rv, rv);
+  for (uint32_t i = 0; i < mData.participants().Length(); i++) {
+    participants->Add(mData.participants()[i]);
+  }
 
-  aParticipants->setObject(*obj);
+  return participants.forget();
+}
+
+NS_IMETHODIMP
+MobileMessageThread::GetParticipants(nsIDOMDOMStringList** aParticipants)
+{
+  nsRefPtr<nsIDOMDOMStringList> result = this->Participants();
+  result.forget(aParticipants);
   return NS_OK;
 }
 
@@ -162,7 +148,8 @@ NS_IMETHODIMP
 MobileMessageThread::GetTimestamp(JSContext* aCx,
                                   JS::Value* aDate)
 {
-  JSObject *obj = JS_NewDateObjectMsec(aCx, mData.timestamp());
+  Date date = this->Timestamp();
+  JSObject *obj = JS_NewDateObjectMsec(aCx, date.TimeStamp());
   NS_ENSURE_TRUE(obj, NS_ERROR_FAILURE);
 
   *aDate = OBJECT_TO_JSVAL(obj);
@@ -186,6 +173,3 @@ MobileMessageThread::GetLastMessageType(nsAString& aLastMessageType)
 
   return NS_OK;
 }
-
-} // namespace dom
-} // namespace mozilla

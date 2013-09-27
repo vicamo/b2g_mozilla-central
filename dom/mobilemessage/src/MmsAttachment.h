@@ -42,6 +42,10 @@ public:
   GetData(ContentParent* aParent,
           mobilemessage::MmsAttachmentData& aData);
 
+  // WebIDL Interface
+  already_AddRefed<nsIDOMBlob>
+  GetContent() const;
+
 private:
   nsString mId;
   nsString mLocation;

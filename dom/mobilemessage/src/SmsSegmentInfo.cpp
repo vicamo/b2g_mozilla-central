@@ -3,24 +3,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "SmsSegmentInfo.h"
-#include "nsIDOMClassInfo.h"
+#include "mozilla/dom/SmsSegmentInfo.h"
 
 using namespace mozilla::dom::mobilemessage;
+using namespace mozilla::dom;
 
-DOMCI_DATA(MozSmsSegmentInfo, mozilla::dom::SmsSegmentInfo)
-
-namespace mozilla {
-namespace dom {
-
-NS_INTERFACE_MAP_BEGIN(SmsSegmentInfo)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMMozSmsSegmentInfo)
-  NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MozSmsSegmentInfo)
-NS_INTERFACE_MAP_END
-
-NS_IMPL_ADDREF(SmsSegmentInfo)
-NS_IMPL_RELEASE(SmsSegmentInfo)
+NS_IMPL_ISUPPORTS1(SmsSegmentInfo, nsIDOMMozSmsSegmentInfo)
 
 SmsSegmentInfo::SmsSegmentInfo(int32_t aSegments,
                                int32_t aCharsPerSegment,
@@ -37,29 +25,20 @@ SmsSegmentInfo::SmsSegmentInfo(const SmsSegmentInfoData& aData)
 NS_IMETHODIMP
 SmsSegmentInfo::GetSegments(int32_t* aSegments)
 {
-  *aSegments = mData.segments();
+  *aSegments = this->Segments();
   return NS_OK;
 }
 
 NS_IMETHODIMP
 SmsSegmentInfo::GetCharsPerSegment(int32_t* aCharsPerSegment)
 {
-  *aCharsPerSegment = mData.charsPerSegment();
+  *aCharsPerSegment = this->CharsPerSegment();
   return NS_OK;
 }
 
 NS_IMETHODIMP
 SmsSegmentInfo::GetCharsAvailableInLastSegment(int32_t* aCharsAvailableInLastSegment)
 {
-  *aCharsAvailableInLastSegment = mData.charsAvailableInLastSegment();
+  *aCharsAvailableInLastSegment = this->CharsAvailableInLastSegment();
   return NS_OK;
 }
-
-const SmsSegmentInfoData&
-SmsSegmentInfo::GetData() const
-{
-  return mData;
-}
-
-} // namespace dom
-} // namespace mozilla

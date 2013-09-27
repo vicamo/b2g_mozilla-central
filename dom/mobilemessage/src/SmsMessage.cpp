@@ -3,42 +3,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "SmsMessage.h"
-#include "nsIDOMClassInfo.h"
+#include "mozilla/dom/SmsMessage.h"
+
 #include "jsapi.h" // For OBJECT_TO_JSVAL and JS_NewDateObjectMsec
 #include "jsfriendapi.h" // For js_DateGetMsecSinceEpoch
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
 
 using namespace mozilla::dom::mobilemessage;
+using namespace mozilla::dom;
 
-DOMCI_DATA(MozSmsMessage, mozilla::dom::SmsMessage)
-
-namespace mozilla {
-namespace dom {
-
-NS_INTERFACE_MAP_BEGIN(SmsMessage)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMMozSmsMessage)
-  NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MozSmsMessage)
-NS_INTERFACE_MAP_END
-
-NS_IMPL_ADDREF(SmsMessage)
-NS_IMPL_RELEASE(SmsMessage)
-
-SmsMessage::SmsMessage(int32_t aId,
-                       const uint64_t aThreadId,
-                       DeliveryState aDelivery,
-                       DeliveryStatus aDeliveryStatus,
-                       const nsString& aSender,
-                       const nsString& aReceiver,
-                       const nsString& aBody,
-                       MessageClass aMessageClass,
-                       double aTimestamp,
-                       bool aRead)
-  : mData(aId, aThreadId, aDelivery, aDeliveryStatus, aSender, aReceiver, aBody,
-          aMessageClass, aTimestamp, aRead)
-{
-}
+NS_IMPL_ISUPPORTS1(SmsMessage, nsIDOMMozSmsMessage)
 
 SmsMessage::SmsMessage(const SmsMessageData& aData)
   : mData(aData)
@@ -128,12 +102,6 @@ SmsMessage::Create(int32_t aId,
   return NS_OK;
 }
 
-const SmsMessageData&
-SmsMessage::GetData() const
-{
-  return mData;
-}
-
 NS_IMETHODIMP
 SmsMessage::GetType(nsAString& aType)
 {
@@ -144,14 +112,14 @@ SmsMessage::GetType(nsAString& aType)
 NS_IMETHODIMP
 SmsMessage::GetId(int32_t* aId)
 {
-  *aId = mData.id();
+  *aId = this->Id();
   return NS_OK;
 }
 
 NS_IMETHODIMP
 SmsMessage::GetThreadId(uint64_t* aThreadId)
 {
-  *aThreadId = mData.threadId();
+  *aThreadId = this->ThreadId();
   return NS_OK;
 }
 
@@ -254,7 +222,8 @@ SmsMessage::GetMessageClass(nsAString& aMessageClass)
 NS_IMETHODIMP
 SmsMessage::GetTimestamp(JSContext* cx, JS::Value* aDate)
 {
-  JSObject *obj = JS_NewDateObjectMsec(cx, mData.timestamp());
+  Date date = this->Timestamp();
+  JSObject *obj = JS_NewDateObjectMsec(cx, date.TimeStamp());
   NS_ENSURE_TRUE(obj, NS_ERROR_FAILURE);
 
   *aDate = OBJECT_TO_JSVAL(obj);
@@ -264,9 +233,6 @@ SmsMessage::GetTimestamp(JSContext* cx, JS::Value* aDate)
 NS_IMETHODIMP
 SmsMessage::GetRead(bool* aRead)
 {
-  *aRead = mData.read();
+  *aRead = this->Read();
   return NS_OK;
 }
-
-} // namespace dom
-} // namespace mozilla

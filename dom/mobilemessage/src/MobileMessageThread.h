@@ -7,6 +7,8 @@
 #define mozilla_dom_mobilemessage_MobileMessageThread_h
 
 #include "mozilla/Attributes.h"
+#include "mozilla/dom/Date.h"
+#include "nsIDOMDOMStringList.h"
 #include "mozilla/dom/mobilemessage/SmsTypes.h"
 #include "nsIDOMMozMobileMessageThread.h"
 #include "nsString.h"
@@ -23,25 +25,45 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDOMMOZMOBILEMESSAGETHREAD
 
-  MobileMessageThread(const uint64_t aId,
-                      const nsTArray<nsString>& aParticipants,
-                      const double aTimestamp,
-                      const nsString& aBody,
-                      const uint64_t aUnreadCount,
-                      mobilemessage::MessageType aLastMessageType);
-
   MobileMessageThread(const ThreadData& aData);
 
-  static nsresult Create(const uint64_t aId,
-                         const JS::Value& aParticipants,
-                         const JS::Value& aTimestamp,
-                         const nsAString& aBody,
-                         const uint64_t aUnreadCount,
-                         const nsAString& aLastMessageType,
-                         JSContext* aCx,
-                         nsIDOMMozMobileMessageThread** aThread);
+  static nsresult
+  Create(const uint64_t aId,
+         const JS::Value& aParticipants,
+         const JS::Value& aTimestamp,
+         const nsAString& aBody,
+         const uint64_t aUnreadCount,
+         const nsAString& aLastMessageType,
+         JSContext* aCx,
+         nsIDOMMozMobileMessageThread** aThread);
 
-  const ThreadData& GetData() const { return mData; }
+  const ThreadData&
+  GetData() const
+  {
+    return mData;
+  }
+
+  // WebIDL Interface
+  uint64_t
+  Id() const
+  {
+    return mData.id();
+  }
+
+  uint64_t
+  UnreadCount() const
+  {
+    return mData.unreadCount();
+  }
+
+  already_AddRefed<nsIDOMDOMStringList>
+  Participants() const;
+
+  Date
+  Timestamp() const
+  {
+    return mData.timestamp();
+  }
 
 private:
   // Don't try to use the default constructor.

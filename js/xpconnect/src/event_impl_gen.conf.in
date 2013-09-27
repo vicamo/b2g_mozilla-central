@@ -41,8 +41,6 @@ simple_events = [
     'USSDReceivedEvent',
 #endif
     'ElementReplaceEvent',
-    'MozSmsEvent',
-    'MozMmsEvent',
 #ifdef MOZ_WEBSPEECH
     'SpeechSynthesisEvent',
 #endif

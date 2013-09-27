@@ -3,31 +3,21 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "MmsMessage.h"
-#include "MmsAttachment.h"
-#include "nsIDOMClassInfo.h"
+#include "mozilla/dom/MmsMessage.h"
+
 #include "jsapi.h" // For OBJECT_TO_JSVAL and JS_NewDateObjectMsec
 #include "jsfriendapi.h" // For js_DateGetMsecSinceEpoch
-#include "nsJSUtils.h"
-#include "nsTArrayHelpers.h"
+#include "mozilla/dom/MmsAttachment.h"
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
 #include "mozilla/dom/mobilemessage/SmsTypes.h"
+#include "nsDOMLists.h" // For nsDOMStringList
+#include "nsJSUtils.h"
+#include "nsTArrayHelpers.h"
 
 using namespace mozilla::dom::mobilemessage;
+using namespace mozilla::dom;
 
-DOMCI_DATA(MozMmsMessage, mozilla::dom::MmsMessage)
-
-namespace mozilla {
-namespace dom {
-
-NS_INTERFACE_MAP_BEGIN(MmsMessage)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMMozMmsMessage)
-  NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MozMmsMessage)
-NS_INTERFACE_MAP_END
-
-NS_IMPL_ADDREF(MmsMessage)
-NS_IMPL_RELEASE(MmsMessage)
+NS_IMPL_ISUPPORTS1(MmsMessage, nsIDOMMozMmsMessage)
 
 MmsMessage::MmsMessage(int32_t aId,
                        const uint64_t aThreadId,
@@ -56,7 +46,7 @@ MmsMessage::MmsMessage(int32_t aId,
 {
 }
 
-MmsMessage::MmsMessage(const mobilemessage::MmsMessageData& aData)
+MmsMessage::MmsMessage(const MmsMessageData& aData)
   : mId(aData.id())
   , mThreadId(aData.threadId())
   , mDelivery(aData.delivery())
@@ -263,7 +253,7 @@ MmsMessage::Create(int32_t aId,
 
 bool
 MmsMessage::GetData(ContentParent* aParent,
-                    mobilemessage::MmsMessageData& aData)
+                    MmsMessageData& aData)
 {
   NS_ASSERTION(aParent, "aParent is null");
 
@@ -301,14 +291,14 @@ MmsMessage::GetType(nsAString& aType)
 NS_IMETHODIMP
 MmsMessage::GetId(int32_t* aId)
 {
-  *aId = mId;
+  *aId = this->Id();
   return NS_OK;
 }
 
 NS_IMETHODIMP
 MmsMessage::GetThreadId(uint64_t* aThreadId)
 {
-  *aThreadId = mThreadId;
+  *aThreadId = this->ThreadId();
   return NS_OK;
 }
 
@@ -340,52 +330,52 @@ MmsMessage::GetDelivery(nsAString& aDelivery)
   return NS_OK;
 }
 
-NS_IMETHODIMP
-MmsMessage::GetDeliveryStatus(JSContext* aCx, JS::Value* aDeliveryStatus)
+already_AddRefed<nsIDOMDOMStringList>
+MmsMessage::DeliveryStatus() const
 {
   // TODO Bug 850525 It'd be better to depend on the delivery of MmsMessage
   // to return a more correct value. Ex, if .delivery = 'received', we should
   // also make .deliveryStatus = null, since the .deliveryStatus is useless.
   uint32_t length = mDeliveryStatus.Length();
   if (length == 0) {
-    *aDeliveryStatus = JSVAL_NULL;
-    return NS_OK;
+    return nullptr;
   }
 
-  nsTArray<nsString> tempStrArray;
+  nsRefPtr<nsDOMStringList> deliveryStatus = new nsDOMStringList();
   for (uint32_t i = 0; i < length; ++i) {
-    nsString statusStr;
     switch (mDeliveryStatus[i]) {
       case eDeliveryStatus_NotApplicable:
-        statusStr = DELIVERY_STATUS_NOT_APPLICABLE;
+        deliveryStatus->Add(DELIVERY_STATUS_NOT_APPLICABLE);
         break;
       case eDeliveryStatus_Success:
-        statusStr = DELIVERY_STATUS_SUCCESS;
+        deliveryStatus->Add(DELIVERY_STATUS_SUCCESS);
         break;
       case eDeliveryStatus_Pending:
-        statusStr = DELIVERY_STATUS_PENDING;
+        deliveryStatus->Add(DELIVERY_STATUS_PENDING);
         break;
       case eDeliveryStatus_Error:
-        statusStr = DELIVERY_STATUS_ERROR;
+        deliveryStatus->Add(DELIVERY_STATUS_ERROR);
         break;
       case eDeliveryStatus_Reject:
-        statusStr = DELIVERY_STATUS_REJECTED;
+        deliveryStatus->Add(DELIVERY_STATUS_REJECTED);
         break;
       case eDeliveryStatus_Manual:
-        statusStr = DELIVERY_STATUS_MANUAL;
+        deliveryStatus->Add(DELIVERY_STATUS_MANUAL);
         break;
       case eDeliveryStatus_EndGuard:
       default:
         MOZ_CRASH("We shouldn't get any other delivery status!");
     }
-    tempStrArray.AppendElement(statusStr);
   }
 
-  JS::Rooted<JSObject*> deliveryStatusObj(aCx);
-  nsresult rv = nsTArrayToJSArray(aCx, tempStrArray, deliveryStatusObj.address());
-  NS_ENSURE_SUCCESS(rv, rv);
+  return deliveryStatus.forget();
+}
 
-  aDeliveryStatus->setObject(*deliveryStatusObj);
+NS_IMETHODIMP
+MmsMessage::GetDeliveryStatus(nsIDOMDOMStringList** aDeliveryStatus)
+{
+  nsRefPtr<nsIDOMDOMStringList> result = this->DeliveryStatus();
+  result.forget(aDeliveryStatus);
   return NS_OK;
 }
 
@@ -396,21 +386,31 @@ MmsMessage::GetSender(nsAString& aSender)
   return NS_OK;
 }
 
-NS_IMETHODIMP
-MmsMessage::GetReceivers(JSContext* aCx, JS::Value* aReceivers)
+already_AddRefed<nsIDOMDOMStringList>
+MmsMessage::Receivers() const
 {
-  JS::Rooted<JSObject*> reveiversObj(aCx);
-  nsresult rv = nsTArrayToJSArray(aCx, mReceivers, reveiversObj.address());
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsRefPtr<nsDOMStringList> receivers = new nsDOMStringList();
 
-  aReceivers->setObject(*reveiversObj);
+  for (uint32_t i = 0; i < mReceivers.Length(); i++) {
+    receivers->Add(mReceivers[i]);
+  }
+
+  return receivers.forget();
+}
+
+NS_IMETHODIMP
+MmsMessage::GetReceivers(nsIDOMDOMStringList** aReceivers)
+{
+  nsRefPtr<nsIDOMDOMStringList> result = this->Receivers();
+  result.forget(aReceivers);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 MmsMessage::GetTimestamp(JSContext* cx, JS::Value* aDate)
 {
-  JSObject *obj = JS_NewDateObjectMsec(cx, mTimestamp);
+  Date date = this->Timestamp();
+  JSObject *obj = JS_NewDateObjectMsec(cx, date.TimeStamp());
   NS_ENSURE_TRUE(obj, NS_ERROR_FAILURE);
 
   *aDate = OBJECT_TO_JSVAL(obj);
@@ -420,7 +420,7 @@ MmsMessage::GetTimestamp(JSContext* cx, JS::Value* aDate)
 NS_IMETHODIMP
 MmsMessage::GetRead(bool* aRead)
 {
-  *aRead = mRead;
+  *aRead = this->Read();
   return NS_OK;
 }
 
@@ -438,9 +438,17 @@ MmsMessage::GetSmil(nsAString& aSmil)
   return NS_OK;
 }
 
+already_AddRefed<MmsAttachmentList>
+MmsMessage::Attachments() const
+{
+  nsRefPtr<MmsAttachmentList> attachments = mAttachments;
+  return attachments.forget();
+}
+
 NS_IMETHODIMP
 MmsMessage::GetAttachments(JSContext* aCx, JS::Value* aAttachments)
 {
+#if 0
   uint32_t length = mAttachments.Length();
 
   JS::Rooted<JSObject*> attachments(aCx, JS_NewArrayObject(aCx, length, nullptr));
@@ -462,18 +470,17 @@ MmsMessage::GetAttachments(JSContext* aCx, JS::Value* aAttachments)
   }
 
   aAttachments->setObject(*attachments);
+#endif
   return NS_OK;
 }
 
 NS_IMETHODIMP
 MmsMessage::GetExpiryDate(JSContext* cx, JS::Value* aDate)
 {
-  JSObject *obj = JS_NewDateObjectMsec(cx, mExpiryDate);
+  Date date = this->ExpiryDate();
+  JSObject *obj = JS_NewDateObjectMsec(cx, date.TimeStamp());
   NS_ENSURE_TRUE(obj, NS_ERROR_FAILURE);
 
   *aDate = OBJECT_TO_JSVAL(obj);
   return NS_OK;
 }
-
-} // namespace dom
-} // namespace mozilla
