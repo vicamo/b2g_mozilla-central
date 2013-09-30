@@ -214,12 +214,14 @@ static void Shutdown();
 #include "mozilla/dom/GamepadService.h"
 #endif
 #include "nsCSPService.h"
+#ifdef MOZ_WEBSMS_BACKEND
 #include "nsISmsService.h"
 #include "nsIMmsService.h"
 #include "nsIMobileMessageService.h"
 #include "nsIMobileMessageDatabaseService.h"
 #include "mozilla/dom/mobilemessage/MobileMessageService.h"
 #include "mozilla/dom/mobilemessage/SmsServicesFactory.h"
+#endif
 #include "nsIPowerManagerService.h"
 #include "nsIAlarmHalService.h"
 #include "nsIMediaManager.h"
@@ -241,7 +243,9 @@ static void Shutdown();
 
 using namespace mozilla;
 using namespace mozilla::dom;
+#ifdef MOZ_WEBSMS_BACKEND
 using namespace mozilla::dom::mobilemessage;
+#endif
 using namespace mozilla::dom::telephony;
 using mozilla::dom::alarm::AlarmHalService;
 using mozilla::dom::indexedDB::IndexedDatabaseManager;
@@ -314,6 +318,7 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsHapticFeedback)
 #endif
 #endif
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(ThirdPartyUtil, Init)
+#ifdef MOZ_WEBSMS_BACKEND
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsISmsService,
                                          SmsServicesFactory::CreateSmsService)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIMmsService,
@@ -322,6 +327,7 @@ NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIMobileMessageService,
                                          MobileMessageService::GetInstance)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIMobileMessageDatabaseService,
                                          SmsServicesFactory::CreateMobileMessageDatabaseService)
+#endif
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIPowerManagerService,
                                          PowerManagerService::GetInstance)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIAlarmHalService,
@@ -793,10 +799,12 @@ NS_DEFINE_NAMED_CID(NS_DEVICE_SENSORS_CID);
 NS_DEFINE_NAMED_CID(NS_HAPTICFEEDBACK_CID);
 #endif
 #endif
+#ifdef MOZ_WEBSMS_BACKEND
 NS_DEFINE_NAMED_CID(SMS_SERVICE_CID);
 NS_DEFINE_NAMED_CID(MMS_SERVICE_CID);
 NS_DEFINE_NAMED_CID(MOBILE_MESSAGE_SERVICE_CID);
 NS_DEFINE_NAMED_CID(MOBILE_MESSAGE_DATABASE_SERVICE_CID);
+#endif
 NS_DEFINE_NAMED_CID(NS_POWERMANAGERSERVICE_CID);
 NS_DEFINE_NAMED_CID(OSFILECONSTANTSSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_ALARMHALSERVICE_CID);
@@ -1082,10 +1090,12 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
 #endif
   { &kTHIRDPARTYUTIL_CID, false, NULL, ThirdPartyUtilConstructor },
   { &kNS_STRUCTUREDCLONECONTAINER_CID, false, NULL, nsStructuredCloneContainerConstructor },
+#ifdef MOZ_WEBSMS_BACKEND
   { &kSMS_SERVICE_CID, false, NULL, nsISmsServiceConstructor },
   { &kMMS_SERVICE_CID, false, NULL, nsIMmsServiceConstructor },
   { &kMOBILE_MESSAGE_SERVICE_CID, false, NULL, nsIMobileMessageServiceConstructor },
   { &kMOBILE_MESSAGE_DATABASE_SERVICE_CID, false, NULL, nsIMobileMessageDatabaseServiceConstructor },
+#endif
   { &kNS_POWERMANAGERSERVICE_CID, false, NULL, nsIPowerManagerServiceConstructor },
   { &kOSFILECONSTANTSSERVICE_CID, true, NULL, OSFileConstantsServiceConstructor },
   { &kNS_ALARMHALSERVICE_CID, false, NULL, nsIAlarmHalServiceConstructor },
@@ -1238,10 +1248,12 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
 #endif
   { THIRDPARTYUTIL_CONTRACTID, &kTHIRDPARTYUTIL_CID },
   { NS_STRUCTUREDCLONECONTAINER_CONTRACTID, &kNS_STRUCTUREDCLONECONTAINER_CID },
+#ifdef MOZ_WEBSMS_BACKEND
   { SMS_SERVICE_CONTRACTID, &kSMS_SERVICE_CID },
   { MMS_SERVICE_CONTRACTID, &kMMS_SERVICE_CID },
   { MOBILE_MESSAGE_SERVICE_CONTRACTID, &kMOBILE_MESSAGE_SERVICE_CID },
   { MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID, &kMOBILE_MESSAGE_DATABASE_SERVICE_CID },
+#endif
   { POWERMANAGERSERVICE_CONTRACTID, &kNS_POWERMANAGERSERVICE_CID },
   { OSFILECONSTANTSSERVICE_CONTRACTID, &kOSFILECONSTANTSSERVICE_CID },
   { ALARMHALSERVICE_CONTRACTID, &kNS_ALARMHALSERVICE_CID },

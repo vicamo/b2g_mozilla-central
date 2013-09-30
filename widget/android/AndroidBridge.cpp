@@ -1073,13 +1073,11 @@ AndroidBridge::HandleGeckoMessage(const nsAString &aMessage, nsAString &aRet)
     ALOG_BRIDGE("leaving %s", __PRETTY_FUNCTION__);
 }
 
+#ifdef MOZ_WEBSMS_BACKEND
 nsresult
 AndroidBridge::GetSegmentInfoForText(const nsAString& aText,
                                      nsIMobileMessageCallback* aRequest)
 {
-#ifndef MOZ_WEBSMS_BACKEND
-    return NS_ERROR_FAILURE;
-#else
     ALOG_BRIDGE("AndroidBridge::GetSegmentInfoForText");
 
     dom::mobilemessage::SmsSegmentInfoData data;
@@ -1116,7 +1114,6 @@ AndroidBridge::GetSegmentInfoForText(const nsAString& aText,
     // the nsIMobileMessageCallback just like other functions.
     nsCOMPtr<nsIDOMMozSmsSegmentInfo> info = new SmsSegmentInfo(data);
     return aRequest->NotifySegmentInfoForTextGot(info);
-#endif
 }
 
 void
@@ -1234,6 +1231,7 @@ AndroidBridge::DequeueSmsRequest(uint32_t aRequestId)
 
     return mSmsRequests[aRequestId].forget();
 }
+#endif // MOZ_WEBSMS_BACKEND
 
 void
 AndroidBridge::GetCurrentNetworkInformation(hal::NetworkInformation* aNetworkInfo)

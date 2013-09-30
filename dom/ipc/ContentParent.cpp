@@ -36,7 +36,9 @@
 #include "mozilla/dom/devicestorage/DeviceStorageRequestParent.h"
 #include "mozilla/dom/GeolocationBinding.h"
 #include "mozilla/dom/telephony/TelephonyParent.h"
+#ifdef MOZ_WEBSMS_BACKEND
 #include "SmsParent.h"
+#endif
 #include "mozilla/hal_sandbox/PHalParent.h"
 #include "mozilla/ipc/TestShellParent.h"
 #include "mozilla/ipc/InputStreamUtils.h"
@@ -141,7 +143,9 @@ using namespace mozilla::dom::bluetooth;
 using namespace mozilla::dom::devicestorage;
 using namespace mozilla::dom::indexedDB;
 using namespace mozilla::dom::power;
+#ifdef MOZ_WEBSMS_BACKEND
 using namespace mozilla::dom::mobilemessage;
+#endif
 using namespace mozilla::dom::telephony;
 using namespace mozilla::hal;
 using namespace mozilla::ipc;
@@ -2251,6 +2255,7 @@ ContentParent::DeallocPExternalHelperAppParent(PExternalHelperAppParent* aServic
 PSmsParent*
 ContentParent::AllocPSmsParent()
 {
+#ifdef MOZ_WEBSMS_BACKEND
     if (!AssertAppProcessPermission(this, "sms")) {
         return nullptr;
     }
@@ -2258,13 +2263,20 @@ ContentParent::AllocPSmsParent()
     SmsParent* parent = new SmsParent();
     parent->AddRef();
     return parent;
+#else
+    MOZ_CRASH("No support for mobilemessage on this platform!");
+#endif
 }
 
 bool
 ContentParent::DeallocPSmsParent(PSmsParent* aSms)
 {
+#ifdef MOZ_WEBSMS_BACKEND
     static_cast<SmsParent*>(aSms)->Release();
     return true;
+#else
+    MOZ_CRASH("No support for mobilemessage on this platform!");
+#endif
 }
 
 PTelephonyParent*

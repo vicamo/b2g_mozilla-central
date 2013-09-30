@@ -31,11 +31,13 @@
 
 #include "mozilla/unused.h"
 
+#ifdef MOZ_WEBSMS_BACKEND
 #include "mozilla/dom/SmsMessage.h"
 #include "mozilla/dom/mobilemessage/Constants.h"
 #include "mozilla/dom/mobilemessage/Types.h"
 #include "mozilla/dom/mobilemessage/PSms.h"
 #include "mozilla/dom/mobilemessage/SmsParent.h"
+#endif
 #include "mozilla/layers/APZCTreeManager.h"
 #include "nsIMobileMessageDatabaseService.h"
 #include "nsPluginInstanceOwner.h"

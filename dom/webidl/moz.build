@@ -212,11 +212,9 @@ WEBIDL_FILES = [
     'MessagePortList.webidl',
     'MimeType.webidl',
     'MimeTypeArray.webidl',
-    'MobileMessageManager.webidl',
     'MouseEvent.webidl',
     'MouseScrollEvent.webidl',
     'MozActivity.webidl',
-    'MozMmsMessage.webidl',
     'MozNamedAttrMap.webidl',
     'MozPowerManager.webidl',
     'MozTimeManager.webidl',
@@ -471,9 +469,7 @@ WEBIDL_FILES += [
     'HashChangeEvent.webidl',
     'MozApplicationEvent.webidl',
     'MozContactChangeEvent.webidl',
-    'MozMmsEvent.webidl',
     'MozSettingsEvent.webidl',
-    'MozSmsEvent.webidl',
     'PageTransitionEvent.webidl',
     'PopStateEvent.webidl',
     'PopupBlockedEvent.webidl',
@@ -519,6 +515,14 @@ if CONFIG['MOZ_WEBSPEECH']:
 if CONFIG['MOZ_B2G_FM']:
     WEBIDL_FILES += [
         'FMRadio.webidl',
+    ]
+
+if CONFIG['MOZ_WEBSMS_BACKEND']:
+    WEBIDL_FILES += [
+        'MobileMessageManager.webidl',
+        'MozMmsEvent.webidl',
+        'MozMmsMessage.webidl',
+        'MozSmsEvent.webidl',
     ]
 
 if CONFIG['ENABLE_TESTS']:

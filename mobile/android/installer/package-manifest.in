@@ -155,7 +155,9 @@
 @BINPATH@/components/dom_settings.xpt
 @BINPATH@/components/dom_permissionsettings.xpt
 @BINPATH@/components/dom_sidebar.xpt
+#ifdef MOZ_WEBSMS_BACKEND
 @BINPATH@/components/dom_mobilemessage.xpt
+#endif
 @BINPATH@/components/dom_storage.xpt
 @BINPATH@/components/dom_stylesheets.xpt
 @BINPATH@/components/dom_system.xpt

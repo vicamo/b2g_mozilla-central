@@ -22,7 +22,9 @@
 #include "gfxRect.h"
 
 #include "nsIAndroidBridge.h"
+#ifdef MOZ_WEBSMS_BACKEND
 #include "nsIMobileMessageCallback.h"
+#endif
 
 #include "mozilla/Likely.h"
 #include "mozilla/StaticPtr.h"
@@ -34,7 +36,6 @@
 // #define DEBUG_ANDROID_WIDGET
 
 class nsWindow;
-class nsIDOMMozSmsMessage;
 class nsIObserver;
 
 /* See the comment in AndroidBridge about this function before using it */
@@ -56,12 +57,15 @@ class BatteryInformation;
 class NetworkInformation;
 } // namespace hal
 
+#ifdef MOZ_WEBSMS_BACKEND
+class nsIDOMMozSmsMessage;
 namespace dom {
 namespace mobilemessage {
 struct SmsFilterData;
 struct SmsSegmentInfoData;
 } // namespace mobilemessage
 } // namespace dom
+#endif
 
 namespace layers {
 class CompositorParent;
@@ -272,6 +276,7 @@ public:
 
     void GetCurrentBatteryInformation(hal::BatteryInformation* aBatteryInfo);
 
+#ifdef MOZ_WEBSMS_BACKEND
     nsresult GetSegmentInfoForText(const nsAString& aText,
                                    nsIMobileMessageCallback* aRequest);
     void SendMessage(const nsAString& aNumber, const nsAString& aText,
@@ -282,6 +287,7 @@ public:
                            bool aReverse, nsIMobileMessageCallback* aRequest);
     void GetNextMessageInList(int32_t aListId, nsIMobileMessageCallback* aRequest);
     already_AddRefed<nsIMobileMessageCallback> DequeueSmsRequest(uint32_t aRequestId);
+#endif
 
     void GetCurrentNetworkInformation(hal::NetworkInformation* aNetworkInfo);
 
@@ -332,7 +338,6 @@ public:
     static jmethodID GetStaticMethodID(JNIEnv* env, jclass jClass, const char* methodName, const char* methodType);
 protected:
     static StaticRefPtr<AndroidBridge> sBridge;
-    nsTArray<nsCOMPtr<nsIMobileMessageCallback> > mSmsRequests;
 
     // the global JavaVM
     JavaVM *mJavaVM;
@@ -342,9 +347,6 @@ protected:
     pthread_t mThread;
 
     AndroidGeckoLayerClient *mLayerClient;
-
-    // the android.telephony.SmsMessage class
-    jclass mAndroidSmsMessageClass;
 
     AndroidBridge();
     ~AndroidBridge();
@@ -362,7 +364,13 @@ protected:
 
     int mAPIVersion;
 
+#ifdef MOZ_WEBSMS_BACKEND
+    // the android.telephony.SmsMessage class
+    jclass mAndroidSmsMessageClass;
+    jmethodID jCalculateLength;
+    nsTArray<nsCOMPtr<nsIMobileMessageCallback> > mSmsRequests;
     bool QueueSmsRequest(nsIMobileMessageCallback* aRequest, uint32_t* aRequestIdOut);
+#endif
 
     // other things
     jmethodID jNotifyAppShellReady;
@@ -372,8 +380,6 @@ protected:
     jmethodID jShowSurface;
     jmethodID jHideSurface;
     jmethodID jDestroySurface;
-
-    jmethodID jCalculateLength;
 
     // For native surface stuff
     jclass jSurfaceClass;

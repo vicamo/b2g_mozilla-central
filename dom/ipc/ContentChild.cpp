@@ -91,7 +91,9 @@
 #endif
 
 #include "mozilla/dom/indexedDB/PIndexedDBChild.h"
+#ifdef MOZ_WEBSMS_BACKEND
 #include "mozilla/dom/mobilemessage/SmsChild.h"
+#endif
 #include "mozilla/dom/devicestorage/DeviceStorageRequestChild.h"
 #include "mozilla/dom/bluetooth/PBluetoothChild.h"
 #include "mozilla/dom/PFMRadioChild.h"
@@ -119,7 +121,9 @@ using namespace mozilla::docshell;
 using namespace mozilla::dom::bluetooth;
 using namespace mozilla::dom::devicestorage;
 using namespace mozilla::dom::ipc;
+#ifdef MOZ_WEBSMS_BACKEND
 using namespace mozilla::dom::mobilemessage;
+#endif
 using namespace mozilla::dom::indexedDB;
 using namespace mozilla::dom::telephony;
 using namespace mozilla::hal_sandbox;
@@ -881,14 +885,22 @@ ContentChild::DeallocPExternalHelperAppChild(PExternalHelperAppChild* aService)
 PSmsChild*
 ContentChild::AllocPSmsChild()
 {
+#ifdef MOZ_WEBSMS_BACKEND
     return new SmsChild();
+#else
+    MOZ_CRASH("No support for mobilemessage on this platform!");
+#endif
 }
 
 bool
 ContentChild::DeallocPSmsChild(PSmsChild* aSms)
 {
+#ifdef MOZ_WEBSMS_BACKEND
     delete aSms;
     return true;
+#else
+    MOZ_CRASH("No support for mobilemessage on this platform!");
+#endif
 }
 
 PTelephonyChild*

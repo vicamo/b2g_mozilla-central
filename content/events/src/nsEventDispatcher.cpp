@@ -835,10 +835,12 @@ nsEventDispatcher::CreateEvent(mozilla::dom::EventTarget* aOwner,
     return NS_NewDOMHashChangeEvent(aDOMEvent, aOwner, aPresContext, nullptr);
   if (aEventType.LowerCaseEqualsLiteral("customevent"))
     return NS_NewDOMCustomEvent(aDOMEvent, aOwner, aPresContext, nullptr);
+#ifdef MOZ_WEBSMS_BACKEND
   if (aEventType.LowerCaseEqualsLiteral("mozsmsevent"))
     return NS_NewDOMMozSmsEvent(aDOMEvent, aOwner, aPresContext, nullptr);
   if (aEventType.LowerCaseEqualsLiteral("mozmmsevent"))
     return NS_NewDOMMozMmsEvent(aDOMEvent, aOwner, aPresContext, nullptr);
+#endif
   if (aEventType.LowerCaseEqualsLiteral("storageevent")) {
     return NS_NewDOMStorageEvent(aDOMEvent, aOwner, aPresContext, nullptr);
   }
