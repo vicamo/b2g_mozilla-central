@@ -1,0 +1,21 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "nsISupports.idl"
+
+interface nsIDOMBlob;
+
+[scriptable, builtinclass, uuid(c9ed7a23-b7e8-49e2-86db-c4f25391e610)]
+interface nsIDOMMozMmsAttachment : nsISupports
+{
+  readonly attribute DOMString id;
+
+  readonly attribute DOMString location;
+
+  /**
+   * If the content blob is a text/plain type, the encoding for text should
+   * always be "utf-8".
+   */
+  readonly attribute nsIDOMBlob content;
+};

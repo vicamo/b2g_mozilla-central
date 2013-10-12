@@ -21,7 +21,6 @@ interface DummyInterface : EventTarget {
   void funcConnStatusDict(optional ConnStatusDict arg);
   void frameRequestCallback(FrameRequestCallback arg);
   void MmsParameters(optional MmsParameters arg);
-  void MmsAttachment(optional MmsAttachment arg);
   void AsyncScrollEventDetail(optional AsyncScrollEventDetail arg);
   void OpenWindowEventDetail(optional OpenWindowEventDetail arg);
   void DOMWindowResizeEventDetail(optional DOMWindowResizeEventDetail arg);

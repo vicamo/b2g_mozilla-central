@@ -4,11 +4,17 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
+dictionary MmsAttachmentDict {
+  DOMString? id = null;
+  DOMString? location = null;
+  Blob? content = null;
+};
+
 dictionary MmsParameters {
   sequence<DOMString> receivers;
   DOMString? subject = null;
   DOMString? smil = null;
-  sequence<MmsAttachment> attachments;
+  sequence<MmsAttachmentDict> attachments;
 };
 
 // If we start using MmsParameters here, remove it from DummyBinding.
