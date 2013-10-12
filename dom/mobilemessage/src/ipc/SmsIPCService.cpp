@@ -15,7 +15,6 @@
 #include "nsJSUtils.h"
 #include "nsCxPusher.h"
 #include "mozilla/dom/MobileMessageManagerBinding.h"
-#include "mozilla/dom/MozMmsMessageBinding.h"
 #include "mozilla/dom/BindingUtils.h"
 
 using namespace mozilla::dom;
@@ -219,15 +218,15 @@ GetSendMmsMessageRequestFromParams(const JS::Value& aParam,
   }
 
   for (uint32_t i = 0; i < params.mAttachments.Value().Length(); i++) {
-    MmsAttachment& attachment = params.mAttachments.Value()[i];
-    MmsAttachmentData mmsAttachment;
-    mmsAttachment.id().Assign(attachment.mId);
-    mmsAttachment.location().Assign(attachment.mLocation);
-    mmsAttachment.contentChild() = cc->GetOrCreateActorForBlob(attachment.mContent);
-    if (!mmsAttachment.contentChild()) {
+    MmsAttachmentDict& dict = params.mAttachments.Value()[i];
+    MmsAttachmentData data;
+    data.id().Assign(dict.mId);
+    data.location().Assign(dict.mLocation);
+    data.contentChild() = cc->GetOrCreateActorForBlob(dict.mContent);
+    if (!data.contentChild()) {
       return false;
     }
-    request.attachments().AppendElement(mmsAttachment);
+    request.attachments().AppendElement(data);
   }
 
   request.smil() = params.mSmil;

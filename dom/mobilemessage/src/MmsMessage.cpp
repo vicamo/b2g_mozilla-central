@@ -4,19 +4,15 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MmsMessage.h"
+#include "MmsAttachment.h"
 #include "nsIDOMClassInfo.h"
 #include "jsapi.h" // For OBJECT_TO_JSVAL and JS_NewDateObjectMsec
 #include "jsfriendapi.h" // For js_DateGetMsecSinceEpoch
 #include "nsJSUtils.h"
-#include "nsContentUtils.h"
-#include "nsIDOMFile.h"
 #include "nsTArrayHelpers.h"
-#include "mozilla/dom/ContentParent.h"
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
 #include "mozilla/dom/mobilemessage/SmsTypes.h"
-#include "nsDOMFile.h"
 
-using namespace mozilla::idl;
 using namespace mozilla::dom::mobilemessage;
 
 DOMCI_DATA(MozMmsMessage, mozilla::dom::MmsMessage)
@@ -43,7 +39,7 @@ MmsMessage::MmsMessage(int32_t aId,
                        bool aRead,
                        const nsAString& aSubject,
                        const nsAString& aSmil,
-                       const nsTArray<MmsAttachment>& aAttachments,
+                       const nsTArray<nsCOMPtr<nsIDOMMozMmsAttachment> >& aAttachments,
                        uint64_t aExpiryDate)
   : mId(aId),
     mThreadId(aThreadId),
@@ -76,18 +72,8 @@ MmsMessage::MmsMessage(const mobilemessage::MmsMessageData& aData)
   uint32_t len = aData.attachments().Length();
   mAttachments.SetCapacity(len);
   for (uint32_t i = 0; i < len; i++) {
-    MmsAttachment att;
     const MmsAttachmentData &element = aData.attachments()[i];
-    att.id = element.id();
-    att.location = element.location();
-    if (element.contentParent()) {
-      att.content = static_cast<BlobParent*>(element.contentParent())->GetBlob();
-    } else if (element.contentChild()) {
-      att.content = static_cast<BlobChild*>(element.contentChild())->GetBlob();
-    } else {
-      NS_WARNING("MmsMessage: Unable to get attachment content.");
-    }
-    mAttachments.AppendElement(att);
+    mAttachments.AppendElement(new MmsAttachment(element));
   }
 }
 
@@ -239,7 +225,7 @@ MmsMessage::Create(int32_t aId,
     return NS_ERROR_INVALID_ARG;
   }
 
-  nsTArray<MmsAttachment> attachments;
+  nsTArray<nsCOMPtr<nsIDOMMozMmsAttachment> > attachments;
   JS_ALWAYS_TRUE(JS_GetArrayLength(aCx, attachmentsObj, &length));
 
   JS::Rooted<JS::Value> attachmentJsVal(aCx);
@@ -248,8 +234,9 @@ MmsMessage::Create(int32_t aId,
       return NS_ERROR_INVALID_ARG;
     }
 
-    MmsAttachment attachment;
-    rv = attachment.Init(aCx, attachmentJsVal.address());
+    nsCOMPtr<nsIDOMMozMmsAttachment> attachment;
+    rv = MmsAttachment::Create(attachmentJsVal, aCx,
+                               getter_AddRefs(attachment));
     NS_ENSURE_SUCCESS(rv, rv);
 
     attachments.AppendElement(attachment);
@@ -296,28 +283,11 @@ MmsMessage::GetData(ContentParent* aParent,
 
   aData.attachments().SetCapacity(mAttachments.Length());
   for (uint32_t i = 0; i < mAttachments.Length(); i++) {
-    MmsAttachmentData mma;
-    const MmsAttachment &element = mAttachments[i];
-    mma.id().Assign(element.id);
-    mma.location().Assign(element.location);
-
-    // This is a workaround. Sometimes the blob we get from the database
-    // doesn't have a valid last modified date, making the ContentParent
-    // send a "Mystery Blob" to the ContentChild. Attempting to get the
-    // last modified date of blob can force that value to be initialized.
-    nsDOMFileBase* file = static_cast<nsDOMFileBase*>(element.content.get());
-    if (file->IsDateUnknown()) {
-      uint64_t date;
-      if (NS_FAILED(file->GetMozLastModifiedDate(&date))) {
-        NS_WARNING("Failed to get last modified date!");
-      }
-    }
-
-    mma.contentParent() = aParent->GetOrCreateActorForBlob(element.content);
-    if (!mma.contentParent()) {
+    MmsAttachment* attachment =
+      static_cast<MmsAttachment*>(mAttachments[i].get());
+    if (!attachment->GetData(aParent, *aData.attachments().AppendElement())) {
       return false;
     }
-    aData.attachments().AppendElement(mma);
   }
 
   return true;
@@ -479,54 +449,16 @@ MmsMessage::GetAttachments(JSContext* aCx, JS::Value* aAttachments)
   NS_ENSURE_TRUE(attachments, NS_ERROR_OUT_OF_MEMORY);
 
   for (uint32_t i = 0; i < length; ++i) {
-    const MmsAttachment &attachment = mAttachments[i];
-
-    JS::Rooted<JSObject*> attachmentObj(aCx, JS_NewObject(aCx, nullptr, nullptr, nullptr));
-    NS_ENSURE_TRUE(attachmentObj, NS_ERROR_OUT_OF_MEMORY);
-
-    JS::Rooted<JS::Value> tmpJsVal(aCx);
-    JSString* tmpJsStr;
-
-    // Get |attachment.mId|.
-    tmpJsStr = JS_NewUCStringCopyN(aCx,
-                                   attachment.id.get(),
-                                   attachment.id.Length());
-    NS_ENSURE_TRUE(tmpJsStr, NS_ERROR_OUT_OF_MEMORY);
-
-    tmpJsVal.setString(tmpJsStr);
-    if (!JS_DefineProperty(aCx, attachmentObj, "id", tmpJsVal,
-                           NULL, NULL, JSPROP_ENUMERATE)) {
-      return NS_ERROR_FAILURE;
-    }
-
-    // Get |attachment.mLocation|.
-    tmpJsStr = JS_NewUCStringCopyN(aCx,
-                                   attachment.location.get(),
-                                   attachment.location.Length());
-    NS_ENSURE_TRUE(tmpJsStr, NS_ERROR_OUT_OF_MEMORY);
-
-    tmpJsVal.setString(tmpJsStr);
-    if (!JS_DefineProperty(aCx, attachmentObj, "location", tmpJsVal,
-                           NULL, NULL, JSPROP_ENUMERATE)) {
-      return NS_ERROR_FAILURE;
-    }
-
-    // Get |attachment.mContent|.
+    nsCOMPtr<nsIDOMMozMmsAttachment> &attachment = mAttachments[i];
+    JS::Rooted<JS::Value> value(aCx);
     JS::Rooted<JSObject*> global(aCx, JS::CurrentGlobalOrNull(aCx));
-    nsresult rv = nsContentUtils::WrapNative(aCx,
-                                             global,
-                                             attachment.content,
-                                             &NS_GET_IID(nsIDOMBlob),
-                                             &tmpJsVal);
+
+    nsresult rv = nsContentUtils::WrapNative(aCx, global, attachment,
+                                             &NS_GET_IID(nsIDOMMozMmsAttachment),
+                                             &value);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    if (!JS_DefineProperty(aCx, attachmentObj, "content", tmpJsVal,
-                           NULL, NULL, JSPROP_ENUMERATE)) {
-      return NS_ERROR_FAILURE;
-    }
-
-    tmpJsVal = OBJECT_TO_JSVAL(attachmentObj);
-    if (!JS_SetElement(aCx, attachments, i, &tmpJsVal)) {
+    if (!JS_SetElement(aCx, attachments, i, &value)) {
       return NS_ERROR_FAILURE;
     }
   }

@@ -88,6 +88,7 @@ DOMCI_CLASS(MozWakeLock)
 
 DOMCI_CLASS(MozMobileMessageManager)
 DOMCI_CLASS(MozSmsMessage)
+DOMCI_CLASS(MozMmsAttachment)
 DOMCI_CLASS(MozMmsMessage)
 DOMCI_CLASS(MozSmsFilter)
 DOMCI_CLASS(MozSmsSegmentInfo)

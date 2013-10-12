@@ -6,6 +6,7 @@
 #ifndef mozilla_dom_mobilemessage_MmsMessage_h
 #define mozilla_dom_mobilemessage_MmsMessage_h
 
+#include "nsIDOMMozMmsAttachment.h"
 #include "nsIDOMMozMmsMessage.h"
 #include "nsString.h"
 #include "mozilla/dom/mobilemessage/Types.h"
@@ -37,7 +38,7 @@ public:
              bool aRead,
              const nsAString& aSubject,
              const nsAString& aSmil,
-             const nsTArray<idl::MmsAttachment>& aAttachments,
+             const nsTArray<nsCOMPtr<nsIDOMMozMmsAttachment> >& aAttachments,
              uint64_t aExpiryDate);
 
   MmsMessage(const mobilemessage::MmsMessageData& aData);
@@ -74,7 +75,7 @@ private:
   bool mRead;
   nsString mSubject;
   nsString mSmil;
-  nsTArray<idl::MmsAttachment> mAttachments;
+  nsTArray<nsCOMPtr<nsIDOMMozMmsAttachment> > mAttachments;
   uint64_t mExpiryDate;
 };
 

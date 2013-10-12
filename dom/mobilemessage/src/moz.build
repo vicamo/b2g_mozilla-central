@@ -55,6 +55,7 @@ CPP_SOURCES += [
     'ipc/SmsChild.cpp',
     'ipc/SmsIPCService.cpp',
     'ipc/SmsParent.cpp',
+    'MmsAttachment.cpp',
     'MmsMessage.cpp',
     'MobileMessageCallback.cpp',
     'MobileMessageCursorCallback.cpp',
