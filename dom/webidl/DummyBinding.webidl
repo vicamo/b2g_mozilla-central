@@ -20,7 +20,6 @@ interface DummyInterface : EventTarget {
   void funcDNSLookupDict(optional DNSLookupDict arg);
   void funcConnStatusDict(optional ConnStatusDict arg);
   void frameRequestCallback(FrameRequestCallback arg);
-  void MmsParameters(optional MmsParameters arg);
   void AsyncScrollEventDetail(optional AsyncScrollEventDetail arg);
   void OpenWindowEventDetail(optional OpenWindowEventDetail arg);
   void DOMWindowResizeEventDetail(optional DOMWindowResizeEventDetail arg);

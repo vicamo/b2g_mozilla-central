@@ -4,8 +4,6 @@
 
 #include "nsISupports.idl"
 
-interface nsIDOMMozSmsMessage;
-interface nsIDOMMozSmsSegmentInfo;
 interface nsIMobileMessageCallback;
 
 %{C++

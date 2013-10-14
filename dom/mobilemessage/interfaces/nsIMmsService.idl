@@ -4,7 +4,6 @@
 
 #include "nsISupports.idl"
 interface nsIMobileMessageCallback;
-interface nsIDOMBlob;
 
 %{C++
 #define MMS_SERVICE_CID { 0x06d9124b, 0x80e0, 0x40ed, \

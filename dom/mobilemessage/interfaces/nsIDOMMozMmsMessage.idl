@@ -4,7 +4,9 @@
 
 #include "nsISupports.idl"
 
-[scriptable, builtinclass, uuid(2e5e1c16-b7af-11e2-af04-8f4b1610a600)]
+interface nsIDOMDOMStringList;
+
+[scriptable, builtinclass, uuid(39bb7d76-d44b-457d-a00e-d87653a65587)]
 interface nsIDOMMozMmsMessage : nsISupports
 {
   /**
@@ -21,13 +23,11 @@ interface nsIDOMMozMmsMessage : nsISupports
    */
   readonly attribute DOMString delivery;
 
-  [implicit_jscontext]
-  readonly attribute jsval     deliveryStatus; // DOMString[]
+  readonly attribute nsIDOMDOMStringList deliveryStatus;
 
   readonly attribute DOMString sender;
 
-  [implicit_jscontext]
-  readonly attribute jsval     receivers;      // DOMString[]
+  readonly attribute nsIDOMDOMStringList receivers;
 
   [implicit_jscontext]
   readonly attribute jsval     timestamp;      // Date object
