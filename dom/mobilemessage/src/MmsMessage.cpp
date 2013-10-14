@@ -33,18 +33,18 @@ NS_INTERFACE_MAP_END
 NS_IMPL_ADDREF(MmsMessage)
 NS_IMPL_RELEASE(MmsMessage)
 
-MmsMessage::MmsMessage(int32_t                         aId,
-                       const uint64_t                  aThreadId,
-                       DeliveryState                   aDelivery,
+MmsMessage::MmsMessage(int32_t aId,
+                       const uint64_t aThreadId,
+                       DeliveryState aDelivery,
                        const nsTArray<DeliveryStatus>& aDeliveryStatus,
-                       const nsAString&                aSender,
-                       const nsTArray<nsString>&       aReceivers,
-                       uint64_t                        aTimestamp,
-                       bool                            aRead,
-                       const nsAString&                aSubject,
-                       const nsAString&                aSmil,
-                       const nsTArray<MmsAttachment>&  aAttachments,
-                       uint64_t                        aExpiryDate)
+                       const nsAString& aSender,
+                       const nsTArray<nsString>& aReceivers,
+                       uint64_t aTimestamp,
+                       bool aRead,
+                       const nsAString& aSubject,
+                       const nsAString& aSmil,
+                       const nsTArray<MmsAttachment>& aAttachments,
+                       uint64_t aExpiryDate)
   : mId(aId),
     mThreadId(aThreadId),
     mDelivery(aDelivery),
@@ -125,19 +125,19 @@ convertTimeToInt(JSContext* aCx, const JS::Value& aTime, uint64_t& aReturn)
 }
 
 /* static */ nsresult
-MmsMessage::Create(int32_t               aId,
-                   const uint64_t        aThreadId,
-                   const nsAString&      aDelivery,
-                   const JS::Value&      aDeliveryStatus,
-                   const nsAString&      aSender,
-                   const JS::Value&      aReceivers,
-                   const JS::Value&      aTimestamp,
-                   bool                  aRead,
-                   const nsAString&      aSubject,
-                   const nsAString&      aSmil,
-                   const JS::Value&      aAttachments,
-                   const JS::Value&      aExpiryDate,
-                   JSContext*            aCx,
+MmsMessage::Create(int32_t aId,
+                   const uint64_t aThreadId,
+                   const nsAString& aDelivery,
+                   const JS::Value& aDeliveryStatus,
+                   const nsAString& aSender,
+                   const JS::Value& aReceivers,
+                   const JS::Value& aTimestamp,
+                   bool aRead,
+                   const nsAString& aSubject,
+                   const nsAString& aSmil,
+                   const JS::Value& aAttachments,
+                   const JS::Value& aExpiryDate,
+                   JSContext* aCx,
                    nsIDOMMozMmsMessage** aMessage)
 {
   *aMessage = nullptr;
