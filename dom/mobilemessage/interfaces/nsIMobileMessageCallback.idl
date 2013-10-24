@@ -5,15 +5,6 @@
 #include "nsISupports.idl"
 #include "nsIDOMSmsSegmentInfo.idl"
 
-dictionary SmsThreadListItem
-{
-  unsigned long long id;
-  DOMString senderOrReceiver;
-  unsigned long long timestamp;
-  DOMString body;
-  unsigned long long unreadCount;
-};
-
 [scriptable, uuid(5f82f826-1956-11e3-a2bb-9b043b33de27)]
 interface nsIMobileMessageCallback : nsISupports
 {
