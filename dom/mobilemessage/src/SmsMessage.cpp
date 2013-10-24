@@ -33,7 +33,7 @@ SmsMessage::SmsMessage(int32_t aId,
                        const nsString& aReceiver,
                        const nsString& aBody,
                        MessageClass aMessageClass,
-                       uint64_t aTimestamp,
+                       double aTimestamp,
                        bool aRead)
   : mData(aId, aThreadId, aDelivery, aDeliveryStatus, aSender, aReceiver, aBody,
           aMessageClass, aTimestamp, aRead)
@@ -120,11 +120,7 @@ SmsMessage::Create(int32_t aId,
     if (!aTimestamp.isNumber()) {
       return NS_ERROR_INVALID_ARG;
     }
-    double number = aTimestamp.toNumber();
-    if (static_cast<uint64_t>(number) != number) {
-      return NS_ERROR_INVALID_ARG;
-    }
-    data.timestamp() = static_cast<uint64_t>(number);
+    data.timestamp() = aTimestamp.toNumber();
   }
 
   nsCOMPtr<nsIDOMMozSmsMessage> message = new SmsMessage(data);

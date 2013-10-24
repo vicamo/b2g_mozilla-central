@@ -35,12 +35,12 @@ MmsMessage::MmsMessage(int32_t aId,
                        const nsTArray<DeliveryStatus>& aDeliveryStatus,
                        const nsAString& aSender,
                        const nsTArray<nsString>& aReceivers,
-                       uint64_t aTimestamp,
+                       double aTimestamp,
                        bool aRead,
                        const nsAString& aSubject,
                        const nsAString& aSmil,
                        const nsTArray<nsCOMPtr<nsIDOMMozMmsAttachment> >& aAttachments,
-                       uint64_t aExpiryDate)
+                       double aExpiryDate)
   : mId(aId),
     mThreadId(aThreadId),
     mDelivery(aDelivery),
@@ -89,7 +89,9 @@ MmsMessage::MmsMessage(const mobilemessage::MmsMessageData& aData)
  * @return NS_OK if the convertion succeeds.
  */
 static nsresult
-convertTimeToInt(JSContext* aCx, const JS::Value& aTime, uint64_t& aReturn)
+convertTimeToDouble(JSContext* aCx,
+                    const JS::Value& aTime,
+                    double& aReturn)
 {
   if (aTime.isObject()) {
     JS::Rooted<JSObject*> timestampObj(aCx, &aTime.toObject());
@@ -101,11 +103,7 @@ convertTimeToInt(JSContext* aCx, const JS::Value& aTime, uint64_t& aReturn)
     if (!aTime.isNumber()) {
       return NS_ERROR_INVALID_ARG;
     }
-    double number = aTime.toNumber();
-    if (static_cast<uint64_t>(number) != number) {
-      return NS_ERROR_INVALID_ARG;
-    }
-    aReturn = static_cast<uint64_t>(number);
+    aReturn = aTime.toNumber();
   }
   return NS_OK;
 }
@@ -212,8 +210,8 @@ MmsMessage::Create(int32_t aId,
   }
 
   // Set |timestamp|.
-  uint64_t timestamp;
-  nsresult rv = convertTimeToInt(aCx, aTimestamp, timestamp);
+  double timestamp;
+  nsresult rv = convertTimeToDouble(aCx, aTimestamp, timestamp);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Set |attachments|.
@@ -243,8 +241,8 @@ MmsMessage::Create(int32_t aId,
   }
 
   // Set |expiryDate|.
-  uint64_t expiryDate;
-  rv = convertTimeToInt(aCx, aExpiryDate, expiryDate);
+  double expiryDate;
+  rv = convertTimeToDouble(aCx, aExpiryDate, expiryDate);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIDOMMozMmsMessage> message = new MmsMessage(aId,

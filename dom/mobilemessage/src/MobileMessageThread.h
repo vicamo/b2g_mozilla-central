@@ -25,7 +25,7 @@ public:
 
   MobileMessageThread(const uint64_t aId,
                       const nsTArray<nsString>& aParticipants,
-                      const uint64_t aTimestamp,
+                      const double aTimestamp,
                       const nsString& aBody,
                       const uint64_t aUnreadCount,
                       mobilemessage::MessageType aLastMessageType);

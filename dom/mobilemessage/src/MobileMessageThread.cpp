@@ -86,11 +86,7 @@ MobileMessageThread::Create(const uint64_t aId,
     if (!aTimestamp.isNumber()) {
       return NS_ERROR_INVALID_ARG;
     }
-    double number = aTimestamp.toNumber();
-    if (static_cast<uint64_t>(number) != number) {
-      return NS_ERROR_INVALID_ARG;
-    }
-    data.timestamp() = static_cast<uint64_t>(number);
+    data.timestamp() = aTimestamp.toNumber();
   }
 
   // Set |aLastMessageType|.
@@ -113,7 +109,7 @@ MobileMessageThread::Create(const uint64_t aId,
 
 MobileMessageThread::MobileMessageThread(const uint64_t aId,
                                          const nsTArray<nsString>& aParticipants,
-                                         const uint64_t aTimestamp,
+                                         const double aTimestamp,
                                          const nsString& aBody,
                                          const uint64_t aUnreadCount,
                                          MessageType aLastMessageType)

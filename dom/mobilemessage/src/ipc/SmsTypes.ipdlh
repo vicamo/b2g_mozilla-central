@@ -34,7 +34,7 @@ struct SmsMessageData
   nsString       receiver;
   nsString       body;
   MessageClass   messageClass;
-  uint64_t       timestamp; // ms since epoch.
+  double         timestamp; // ms since epoch.
   bool           read;
 };
 
@@ -53,12 +53,12 @@ struct MmsMessageData
   DeliveryStatus[]    deliveryStatus;
   nsString            sender;
   nsString[]          receivers;
-  uint64_t            timestamp;
+  double              timestamp;
   bool                read;
   nsString            subject;
   nsString            smil;
   MmsAttachmentData[] attachments;
-  uint64_t            expiryDate;
+  double              expiryDate;
 };
 
 union MobileMessageData
@@ -69,8 +69,8 @@ union MobileMessageData
 
 struct SmsFilterData
 {
-  uint64_t      startDate;
-  uint64_t      endDate;
+  double        startDate;
+  double        endDate;
   nsString[]    numbers;
   DeliveryState delivery;
   ReadState     read;
@@ -81,7 +81,7 @@ struct ThreadData
 {
   uint64_t id;
   nsString[] participants;
-  uint64_t timestamp;
+  double   timestamp;
   nsString body;
   uint64_t unreadCount;
   MessageType lastMessageType;

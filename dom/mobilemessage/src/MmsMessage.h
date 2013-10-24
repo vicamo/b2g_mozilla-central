@@ -34,12 +34,12 @@ public:
              const nsTArray<mobilemessage::DeliveryStatus>& aDeliveryStatus,
              const nsAString& aSender,
              const nsTArray<nsString>& aReceivers,
-             uint64_t aTimestamp,
+             double aTimestamp,
              bool aRead,
              const nsAString& aSubject,
              const nsAString& aSmil,
              const nsTArray<nsCOMPtr<nsIDOMMozMmsAttachment> >& aAttachments,
-             uint64_t aExpiryDate);
+             double aExpiryDate);
 
   MmsMessage(const mobilemessage::MmsMessageData& aData);
 
@@ -71,12 +71,12 @@ private:
   nsTArray<mobilemessage::DeliveryStatus> mDeliveryStatus;
   nsString mSender;
   nsTArray<nsString> mReceivers;
-  uint64_t mTimestamp;
+  double mTimestamp;
   bool mRead;
   nsString mSubject;
   nsString mSmil;
   nsTArray<nsCOMPtr<nsIDOMMozMmsAttachment> > mAttachments;
-  uint64_t mExpiryDate;
+  double mExpiryDate;
 };
 
 } // namespace dom

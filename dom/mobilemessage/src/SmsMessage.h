@@ -29,7 +29,7 @@ public:
              const nsString& aReceiver,
              const nsString& aBody,
              mobilemessage::MessageClass aMessageClass,
-             uint64_t aTimestamp,
+             double aTimestamp,
              bool aRead);
   SmsMessage(const mobilemessage::SmsMessageData& aData);
 
