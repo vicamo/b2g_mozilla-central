@@ -5,11 +5,30 @@
 
 #include "mozilla/dom/telephony/TelephonyChild.h"
 
+#include "mozilla/dom/ContentChild.h"
+
 USING_TELEPHONY_NAMESPACE
 
 /*******************************************************************************
  * TelephonyChild
  ******************************************************************************/
+
+PTelephonyChild* TelephonyChild::sSingleton = nullptr;
+bool TelephonyChild::sActorDestroyed = false;
+
+PTelephonyChild*
+TelephonyChild::GetSingleton(nsITelephonyListener* aListener)
+{
+  MOZ_ASSERT(NS_IsMainThread());
+
+  if (!sSingleton && !sActorDestroyed) {
+    // Deallocated in ContentChild::DeallocPTelephonyChild().
+    sSingleton = new TelephonyChild(aListener);
+    ContentChild::GetSingleton()->SendPTelephonyConstructor(sSingleton);
+  }
+
+  return sSingleton;
+}
 
 TelephonyChild::TelephonyChild(nsITelephonyListener* aListener)
   : mListener(aListener)
@@ -21,6 +40,8 @@ void
 TelephonyChild::ActorDestroy(ActorDestroyReason aWhy)
 {
   mListener = nullptr;
+  sSingleton = nullptr;
+  sActorDestroyed = true;
 }
 
 PTelephonyRequestChild*

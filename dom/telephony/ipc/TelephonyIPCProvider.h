@@ -13,8 +13,6 @@
 
 BEGIN_TELEPHONY_NAMESPACE
 
-class PTelephonyChild;
-
 class TelephonyIPCProvider MOZ_FINAL : public nsITelephonyProvider
                                      , public nsITelephonyListener
                                      , public nsIObserver
@@ -32,7 +30,6 @@ protected:
 
 private:
   nsTArray<nsCOMPtr<nsITelephonyListener> > mListeners;
-  PTelephonyChild* mPTelephonyChild;
   uint32_t mDefaultServiceId;
 };
 

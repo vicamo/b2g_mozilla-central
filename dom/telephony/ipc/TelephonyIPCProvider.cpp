@@ -5,7 +5,6 @@
 
 #include "ipc/TelephonyIPCProvider.h"
 
-#include "mozilla/dom/ContentChild.h"
 #include "mozilla/dom/telephony/TelephonyChild.h"
 #include "mozilla/Preferences.h"
 
@@ -43,18 +42,15 @@ NS_IMPL_ISUPPORTS3(TelephonyIPCProvider,
 
 TelephonyIPCProvider::TelephonyIPCProvider()
 {
-  // Deallocated in ContentChild::DeallocPTelephonyChild().
-  mPTelephonyChild = new TelephonyChild(this);
-  ContentChild::GetSingleton()->SendPTelephonyConstructor(mPTelephonyChild);
-
   Preferences::AddStrongObservers(this, kObservedPrefs);
   mDefaultServiceId = getDefaultServiceId();
 }
 
 TelephonyIPCProvider::~TelephonyIPCProvider()
 {
-  mPTelephonyChild->Send__delete__(mPTelephonyChild);
-  mPTelephonyChild = nullptr;
+  // TelephonyChild is holding a strong reference of this object.  By the time
+  // ~TelephonyIPCProvider is invoked, TelephonyChild must had dropped the
+  // strong reference, so we have nothing to do here.
 }
 
 /*
@@ -92,13 +88,15 @@ TelephonyIPCProvider::GetDefaultServiceId(uint32_t* aServiceId)
 NS_IMETHODIMP
 TelephonyIPCProvider::RegisterListener(nsITelephonyListener *aListener)
 {
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
   MOZ_ASSERT(!mListeners.Contains(aListener));
 
   // nsTArray doesn't fail.
   mListeners.AppendElement(aListener);
 
   if (mListeners.Length() == 1) {
-    mPTelephonyChild->SendRegisterListener();
+    child->SendRegisterListener();
   }
   return NS_OK;
 }
@@ -106,13 +104,15 @@ TelephonyIPCProvider::RegisterListener(nsITelephonyListener *aListener)
 NS_IMETHODIMP
 TelephonyIPCProvider::UnregisterListener(nsITelephonyListener *aListener)
 {
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
   MOZ_ASSERT(mListeners.Contains(aListener));
 
   // We always have the element here, so it can't fail.
   mListeners.RemoveElement(aListener);
 
   if (!mListeners.Length()) {
-    mPTelephonyChild->SendUnregisterListener();
+    child->SendUnregisterListener();
   }
   return NS_OK;
 }
@@ -120,10 +120,13 @@ TelephonyIPCProvider::UnregisterListener(nsITelephonyListener *aListener)
 NS_IMETHODIMP
 TelephonyIPCProvider::EnumerateCalls(nsITelephonyListener *aListener)
 {
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
   // Life time of newly allocated TelephonyRequestChild instance is managed by
   // IPDL itself.
   TelephonyRequestChild* actor = new TelephonyRequestChild(aListener);
-  mPTelephonyChild->SendPTelephonyRequestConstructor(actor);
+  child->SendPTelephonyRequestConstructor(actor);
   return NS_OK;
 }
 
@@ -131,112 +134,160 @@ NS_IMETHODIMP
 TelephonyIPCProvider::Dial(uint32_t aClientId, const nsAString& aNumber,
                            bool aIsEmergency)
 {
-  mPTelephonyChild->SendDialCall(aClientId, nsString(aNumber), aIsEmergency);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendDialCall(aClientId, nsString(aNumber), aIsEmergency);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::HangUp(uint32_t aClientId, uint32_t aCallIndex)
 {
-  mPTelephonyChild->SendHangUpCall(aClientId, aCallIndex);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendHangUpCall(aClientId, aCallIndex);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::AnswerCall(uint32_t aClientId, uint32_t aCallIndex)
 {
-  mPTelephonyChild->SendAnswerCall(aClientId, aCallIndex);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendAnswerCall(aClientId, aCallIndex);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::RejectCall(uint32_t aClientId, uint32_t aCallIndex)
 {
-  mPTelephonyChild->SendRejectCall(aClientId, aCallIndex);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendRejectCall(aClientId, aCallIndex);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::HoldCall(uint32_t aClientId, uint32_t aCallIndex)
 {
-  mPTelephonyChild->SendHoldCall(aClientId, aCallIndex);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendHoldCall(aClientId, aCallIndex);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::ResumeCall(uint32_t aClientId, uint32_t aCallIndex)
 {
-  mPTelephonyChild->SendResumeCall(aClientId, aCallIndex);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendResumeCall(aClientId, aCallIndex);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::ConferenceCall(uint32_t aClientId)
 {
-  mPTelephonyChild->SendConferenceCall(aClientId);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendConferenceCall(aClientId);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::SeparateCall(uint32_t aClientId, uint32_t aCallIndex)
 {
-  mPTelephonyChild->SendSeparateCall(aClientId, aCallIndex);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendSeparateCall(aClientId, aCallIndex);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::HoldConference(uint32_t aClientId)
 {
-  mPTelephonyChild->SendHoldConference(aClientId);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendHoldConference(aClientId);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::ResumeConference(uint32_t aClientId)
 {
-  mPTelephonyChild->SendResumeConference(aClientId);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendResumeConference(aClientId);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::StartTone(uint32_t aClientId, const nsAString& aDtmfChar)
 {
-  mPTelephonyChild->SendStartTone(aClientId, nsString(aDtmfChar));
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendStartTone(aClientId, nsString(aDtmfChar));
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::StopTone(uint32_t aClientId)
 {
-  mPTelephonyChild->SendStopTone(aClientId);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendStopTone(aClientId);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::GetMicrophoneMuted(bool* aMuted)
 {
-  mPTelephonyChild->SendGetMicrophoneMuted(aMuted);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendGetMicrophoneMuted(aMuted);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::SetMicrophoneMuted(bool aMuted)
 {
-  mPTelephonyChild->SendSetMicrophoneMuted(aMuted);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendSetMicrophoneMuted(aMuted);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::GetSpeakerEnabled(bool* aEnabled)
 {
-  mPTelephonyChild->SendGetSpeakerEnabled(aEnabled);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendGetSpeakerEnabled(aEnabled);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 TelephonyIPCProvider::SetSpeakerEnabled(bool aEnabled)
 {
-  mPTelephonyChild->SendSetSpeakerEnabled(aEnabled);
+  PTelephonyChild* child = TelephonyChild::GetSingleton(this);
+  NS_ENSURE_TRUE(child, NS_ERROR_FAILURE);
+
+  child->SendSetSpeakerEnabled(aEnabled);
   return NS_OK;
 }
 
