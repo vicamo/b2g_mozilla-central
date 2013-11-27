@@ -93,6 +93,8 @@ const DELIVERY_STATUS_REJECTED       = "rejected";
 const DELIVERY_STATUS_MANUAL         = "manual";
 const DELIVERY_STATUS_NOT_APPLICABLE = "not-applicable";
 
+const NETWORK_CONNECT_STATUS_CONNECTED =
+  Ci.nsINetworkConnStatusCallback.NETWORK_CONNECT_STATUS_CONNECTED;
 const PREF_SEND_RETRY_COUNT =
   Services.prefs.getIntPref("dom.mms.sendRetryCount");
 
@@ -136,6 +138,10 @@ XPCOMUtils.defineLazyServiceGetter(this, "gMobileMessageService",
                                    "@mozilla.org/mobilemessage/mobilemessageservice;1",
                                    "nsIMobileMessageService");
 
+XPCOMUtils.defineLazyServiceGetter(this, "gNetworkManager",
+                                   "@mozilla.org/network/manager;1",
+                                   "nsINetworkManager");
+
 XPCOMUtils.defineLazyServiceGetter(this, "gSystemMessenger",
                                    "@mozilla.org/system-message-internal;1",
                                    "nsISystemMessagesInternal");
@@ -162,6 +168,8 @@ MmsConnection.prototype = {
   mmsc:     "",
   mmsProxy: "",
   mmsPort:  -1,
+
+  networkConnection: null,
 
   setApnSetting: function setApnSetting(network) {
     this.mmsc = network.mmsc;
@@ -226,14 +234,13 @@ MmsConnection.prototype = {
    */
   onDisconnectTimerTimeout: function onDisconnectTimerTimeout() {
     if (DEBUG) debug("onDisconnectTimerTimeout: deactivate the MMS data call.");
-    if (this.connected) {
-      this.radioInterface.deactivateDataCallByType("mms");
+    if (this.networkConnection != null) {
+      this.networkConnection.release();
+      this.networkConnection = null;
     }
   },
 
   init: function init() {
-    Services.obs.addObserver(this, kNetworkInterfaceStateChangedTopic,
-                             false);
     Services.obs.addObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID, false);
     this.settings.forEach(function(name) {
       Services.prefs.addObserver(name, this, false);
@@ -329,7 +336,8 @@ MmsConnection.prototype = {
 
     // If the MMS network is not yet connected, buffer the
     // MMS request and try to setup the MMS network first.
-    if (!this.connected) {
+    if (this.networkConnection == null ||
+        this.networkConnection.status != NETWORK_CONNECT_STATUS_CONNECTED) {
       this.pendingCallbacks.push(callback);
 
       let errorStatus;
@@ -346,7 +354,6 @@ MmsConnection.prototype = {
       }
 
       if (DEBUG) debug("acquire: buffer the MMS request and setup the MMS data call.");
-      this.radioInterface.setupDataCallByType("mms");
 
       // Set a timer to clear the buffered MMS requests if the
       // MMS network fails to be connected within a time period.
@@ -354,9 +361,28 @@ MmsConnection.prototype = {
         initWithCallback(this.flushPendingCallbacks.bind(this, _HTTP_STATUS_ACQUIRE_TIMEOUT),
                          TIME_TO_BUFFER_MMS_REQUESTS,
                          Ci.nsITimer.TYPE_ONE_SHOT);
+      gNetworkManager.acquireConnection({
+          serviceId: this.serviceId,
+          networkType: Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE_MMS
+        },
+        function notifyConnectResult(conn) {
+          debug("notifyConnectResult: " + JSON.stringify(conn));
+          this.networkConnection = conn;
+
+          switch (conn.status) {
+            case NETWORK_CONNECT_STATUS_CONNECTED:
+              this.setApnSetting(conn.network);
+              if (DEBUG) {
+                debug("Got the MMS network connected! Resend the buffered " +
+                      "MMS requests: number: " + this.pendingCallbacks.length);
+              }
+              this.flushPendingCallbacks(_HTTP_STATUS_ACQUIRE_CONNECTION_SUCCESS);
+              break;
+          }
+        }.bind(this)
+      );
       return false;
     }
-
     callback(true, _HTTP_STATUS_ACQUIRE_CONNECTION_SUCCESS);
     return true;
   },
@@ -386,7 +412,6 @@ MmsConnection.prototype = {
 
   shutdown: function shutdown() {
     Services.obs.removeObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID);
-    Services.obs.removeObserver(this, kNetworkInterfaceStateChangedTopic);
 
     this.connectTimer.cancel();
     this.flushPendingCallbacks(_HTTP_STATUS_RADIO_DISABLED);
@@ -398,45 +423,6 @@ MmsConnection.prototype = {
 
   observe: function observe(subject, topic, data) {
     switch (topic) {
-      case kNetworkInterfaceStateChangedTopic: {
-        // The network for MMS connection must be nsIRilNetworkInterface.
-        if (!(subject instanceof Ci.nsIRilNetworkInterface)) {
-          return;
-        }
-
-        // Check if the network state change belongs to this service.
-        let network = subject.QueryInterface(Ci.nsIRilNetworkInterface);
-        if (network.serviceId != this.serviceId) {
-          return;
-        }
-
-        // We only need to capture the state change of MMS network. Using
-        // |network.state| isn't reliable due to the possibilty of shared APN.
-        let connected =
-          this.radioInterface.getDataCallStateByType("mms") ==
-            Ci.nsINetworkInterface.NETWORK_STATE_CONNECTED;
-
-        // Return if the MMS network state doesn't change, where the network
-        // state change can come from other non-MMS networks.
-        if (connected == this.connected) {
-          return;
-        }
-
-        this.connected = connected;
-        if (!this.connected) {
-          return;
-        }
-
-        // Set up the MMS APN setting based on the connected MMS network,
-        // which is going to be used for the HTTP requests later.
-        this.setApnSetting(network);
-
-        if (DEBUG) debug("Got the MMS network connected! Resend the buffered " +
-                         "MMS requests: number: " + this.pendingCallbacks.length);
-        this.connectTimer.cancel();
-        this.flushPendingCallbacks(_HTTP_STATUS_ACQUIRE_CONNECTION_SUCCESS)
-        break;
-      }
       case NS_PREFBRANCH_PREFCHANGE_TOPIC_ID: {
         if (data == kPrefRilRadioDisabled) {
           try {
