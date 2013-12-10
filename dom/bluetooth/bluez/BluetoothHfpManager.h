@@ -9,9 +9,7 @@
 
 #include "BluetoothCommon.h"
 #include "BluetoothProfileManagerBase.h"
-#ifdef MOZ_B2G_RIL
 #include "BluetoothRilListener.h"
-#endif
 #include "BluetoothSocketObserver.h"
 #include "mozilla/ipc/UnixSocket.h"
 #include "mozilla/Hal.h"
@@ -21,7 +19,6 @@ BEGIN_BLUETOOTH_NAMESPACE
 class BluetoothReplyRunnable;
 class BluetoothSocket;
 
-#ifdef MOZ_B2G_RIL
 class Call;
 
 /**
@@ -71,7 +68,6 @@ public:
   nsString mNumber;
   int mType;
 };
-#endif // MOZ_B2G_RIL
 
 class BluetoothHfpManager : public BluetoothSocketObserver
                           , public BluetoothProfileManagerBase
@@ -115,7 +111,6 @@ public:
   bool ListenSco();
   bool IsScoConnected();
 
-#ifdef MOZ_B2G_RIL
   /**
    * @param aSend A boolean indicates whether we need to notify headset or not
    */
@@ -130,22 +125,17 @@ public:
   void AnswerWaitingCall();
   void IgnoreWaitingCall();
   void ToggleCalls();
-#endif
 
 private:
   class CloseScoTask;
   class GetVolumeTask;
-#ifdef MOZ_B2G_RIL
   class RespondToBLDNTask;
   class SendRingIndicatorTask;
-#endif
 
   friend class CloseScoTask;
   friend class GetVolumeTask;
-#ifdef MOZ_B2G_RIL
   friend class RespondToBLDNTask;
   friend class SendRingIndicatorTask;
-#endif
   friend class BluetoothHfpManagerObserver;
 
   BluetoothHfpManager();
@@ -155,58 +145,44 @@ private:
   bool Init();
   void Notify(const hal::BatteryInformation& aBatteryInfo);
   void Reset();
-#ifdef MOZ_B2G_RIL
   void ResetCallArray();
   uint32_t FindFirstCall(uint16_t aState);
   uint32_t GetNumberOfCalls(uint16_t aState);
   PhoneType GetPhoneType(const nsAString& aType);
-#endif
 
   void NotifyConnectionStatusChanged(const nsAString& aType);
   void NotifyDialer(const nsAString& aCommand);
 
-#ifdef MOZ_B2G_RIL
   void SendCCWA(const nsAString& aNumber, int aType);
   bool SendCLCC(const Call& aCall, int aIndex);
-#endif
   bool SendCommand(const char* aCommand, uint32_t aValue = 0);
   bool SendLine(const char* aMessage);
-#ifdef MOZ_B2G_RIL
   void UpdateCIND(uint8_t aType, uint8_t aValue, bool aSend = true);
-#endif
   void OnScoConnectSuccess();
   void OnScoConnectError();
   void OnScoDisconnect();
 
   int mCurrentVgs;
   int mCurrentVgm;
-#ifdef MOZ_B2G_RIL
   bool mBSIR;
   bool mCCWA;
   bool mCLIP;
-#endif
   bool mCMEE;
   bool mCMER;
   bool mConnectScoRequest;
   bool mSlcConnected;
   bool mHspConnected;
-#ifdef MOZ_B2G_RIL
   bool mFirstCKPD;
   int mNetworkSelectionMode;
   PhoneType mPhoneType;
-#endif
   bool mReceiveVgsFlag;
-#ifdef MOZ_B2G_RIL
   bool mDialingRequestProcessed;
-#endif
   nsString mDeviceAddress;
-#ifdef MOZ_B2G_RIL
   nsString mMsisdn;
   nsString mOperatorName;
 
   nsTArray<Call> mCurrentCallArray;
   nsAutoPtr<BluetoothRilListener> mListener;
-#endif
   nsRefPtr<BluetoothProfileController> mController;
   nsRefPtr<BluetoothReplyRunnable> mScoRunnable;
 
@@ -224,10 +200,8 @@ private:
   nsRefPtr<BluetoothSocket> mScoSocket;
   mozilla::ipc::SocketConnectionStatus mScoSocketStatus;
 
-#ifdef MOZ_B2G_RIL
   // CDMA-specific variable
   Call mCdmaSecondCall;
-#endif
 };
 
 END_BLUETOOTH_NAMESPACE
