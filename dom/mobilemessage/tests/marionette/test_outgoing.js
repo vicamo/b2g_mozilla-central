@@ -2,17 +2,9 @@
  * http://creativecommons.org/publicdomain/zero/1.0/ */
 
 MARIONETTE_TIMEOUT = 60000;
+MARIONETTE_HEAD_JS = 'head.js';
 
-SpecialPowers.setBoolPref("dom.sms.enabled", true);
-SpecialPowers.setBoolPref("dom.sms.strict7BitEncoding", false);
-SpecialPowers.setBoolPref("dom.sms.requestStatusReport", true);
-SpecialPowers.addPermission("sms", true, document);
-
-const SENDER = "15555215554"; // the emulator's number
-
-let manager = window.navigator.mozMobileMessage;
-ok(manager instanceof MozMobileMessageManager,
-   "manager is instance of " + manager.constructor);
+const SENDER = EMULATOR_PHONENUM(0);
 
 const SHORT_BODY = "Hello SMS world!";
 const LONG_BODY = "Let me not to the marriage of true minds\n"
@@ -56,7 +48,9 @@ function checkMessage(message, delivery, body) {
   }
 }
 
-function doSendMessageAndCheckSuccess(receivers, body, callback) {
+function doSendMessageAndCheckSuccess(receivers, body) {
+  let deferred = Promise.defer();
+
   let options = {};
   let now = Date.now();
 
@@ -74,7 +68,7 @@ function doSendMessageAndCheckSuccess(receivers, body, callback) {
     manager.removeEventListener("sent", onSmsSent);
 
     log("Done!");
-    window.setTimeout(callback, 0);
+    deferred.resolve();
   }
 
   function checkSentMessage(message, mark) {
@@ -173,31 +167,28 @@ function doSendMessageAndCheckSuccess(receivers, body, callback) {
        "request is instanceof " + request.constructor);
     request.addEventListener("success", onRequestSuccess);
   }
+
+  return deferred.promise;
 }
 
 function testSendMessage() {
   log("Testing sending message to one receiver:");
-  doSendMessageAndCheckSuccess("1", SHORT_BODY, testSendMultipartMessage);
+  return doSendMessageAndCheckSuccess("1", SHORT_BODY);
 }
 
 function testSendMultipartMessage() {
   log("Testing sending message to one receiver:");
-  doSendMessageAndCheckSuccess("1", LONG_BODY,
-                               testSendMessageToMultipleRecipients);
+  return doSendMessageAndCheckSuccess("1", LONG_BODY);
 }
 
 function testSendMessageToMultipleRecipients() {
   log("Testing sending message to multiple receivers:");
   // TODO: bug 788928 - add test cases for ondelivered event.
-  doSendMessageAndCheckSuccess(["1", "2"], SHORT_BODY, cleanUp);
+  return doSendMessageAndCheckSuccess(["1", "2"], SHORT_BODY);
 }
 
-function cleanUp() {
-  SpecialPowers.removePermission("sms", document);
-  SpecialPowers.clearUserPref("dom.sms.enabled");
-  SpecialPowers.clearUserPref("dom.sms.strict7BitEncoding");
-  SpecialPowers.clearUserPref("dom.sms.requestStatusReport");
-  finish();
-}
-
-testSendMessage();
+startTestCommon(function testCaseMain() {
+  return testSendMessage()
+    .then(testSendMultipartMessage)
+    .then(testSendMessageToMultipleRecipients);
+});

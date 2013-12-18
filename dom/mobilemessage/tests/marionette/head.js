@@ -5,6 +5,24 @@ const {Cc: Cc, Ci: Ci, Cr: Cr, Cu: Cu} = SpecialPowers;
 
 let Promise = Cu.import("resource://gre/modules/Promise.jsm").Promise;
 
+const EMULATOR_PHONENUM = (n) => "155552" + (n + 1) + "5554";
+
+function pushPermissions(permissions) {
+  let deferred = Promise.defer();
+  SpecialPowers.pushPermissions(permissions, function() {
+    deferred.resolve();
+  });
+  return deferred.promise;
+}
+
+function pushPrefEnv(prefs) {
+  let deferred = Promise.defer();
+  SpecialPowers.pushPrefEnv(prefs, function() {
+    deferred.resolve();
+  });
+  return deferred.promise;
+}
+
 /**
  * Push required permissions and test if |navigator.mozMobileMessage| exists.
  * Resolve if it does, reject otherwise.
@@ -18,31 +36,37 @@ let Promise = Cu.import("resource://gre/modules/Promise.jsm").Promise;
  */
 let manager;
 function ensureMobileMessage() {
-  let deferred = Promise.defer();
-
   let permissions = [{
-    "type": "sms",
-    "allow": 1,
-    "context": document,
+    type: "sms",
+    allow: Ci.nsIPermissionManager.ALLOW_ACTION,
+    context: document,
   }];
-  SpecialPowers.pushPermissions(permissions, function() {
-    ok(true, "permissions pushed: " + JSON.stringify(permissions));
+  let perfs = {
+    set: [
+      ['dom.sms.enabled', true],
+    ],
+    clear: [ // Reset back to Gecko default.
+      ['dom.sms.strict7BitEncoding'],
+      ['dom.sms.requestStatusReport'],
+    ]
+  };
 
-    manager = window.navigator.mozMobileMessage;
-    if (manager) {
-      log("navigator.mozMobileMessage is instance of " + manager.constructor);
-    } else {
-      log("navigator.mozMobileMessage is undefined.");
-    }
+  return pushPermissions(permissions)
+    .then(() => pushPrefEnv(perfs))
+    .then(function() {
+      manager = window.navigator.mozMobileMessage;
+      if (manager) {
+        log("navigator.mozMobileMessage is instance of " + manager.constructor);
+      } else {
+        log("navigator.mozMobileMessage is undefined.");
+      }
 
-    if (manager instanceof MozMobileMessageManager) {
-      deferred.resolve(manager);
-    } else {
-      deferred.reject();
-    }
-  });
-
-  return deferred.promise;
+      if (manager instanceof MozMobileMessageManager) {
+        deferred.resolve(manager);
+      } else {
+        deferred.reject();
+      }
+    });
 }
 
 /**
@@ -442,10 +466,12 @@ function newUUID() {
 function cleanUp() {
   waitFor(function() {
     SpecialPowers.flushPermissions(function() {
-      // Use ok here so that we have at least one test run.
-      ok(true, "permissions flushed");
+      SpecialPowers.flushPrefEnv(function() {
+        // Use ok here so that we have at least one test run.
+        ok(true, "permissions/prefs flushed");
 
-      finish();
+        finish();
+      });
     });
   }, function() {
     return pendingEmulatorCmdCount === 0;
