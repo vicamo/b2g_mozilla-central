@@ -763,6 +763,7 @@ class BaseMarionetteTestRunner(object):
         filepath = os.path.abspath(test)
 
         if os.path.isdir(filepath):
+            print 'add_test: dir %s, oop=%s' % (filepath, testarg_oop)
             for root, dirs, files in os.walk(filepath):
                 for filename in files:
                     if ((filename.startswith('test_') or filename.startswith('browser_')) and
@@ -787,6 +788,7 @@ class BaseMarionetteTestRunner(object):
 
         file_ext = os.path.splitext(os.path.split(filepath)[-1])[-1]
         if file_ext == '.ini':
+            print 'add_test: manifest %s, oop=%s' % (filepath, testarg_oop)
             manifest = TestManifest()
             manifest.read(filepath)
 
@@ -853,6 +855,7 @@ class BaseMarionetteTestRunner(object):
             # in argument list.  We have no manifest information here so we just
             # respect the "--type=[+-]oop" argument here.
             oop = file_ext == '.js' and testarg_oop == 'true'
+        print 'add_test: append %s, oop=%s' % (filepath, oop)
         self.tests.append({'filepath': filepath, 'expected': expected, 'oop': oop})
 
     def run_test_set(self, tests):
