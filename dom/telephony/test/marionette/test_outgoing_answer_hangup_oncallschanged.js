@@ -48,7 +48,12 @@ function dial() {
 function checkCallList() {
   emulator.run("gsm list", function(result) {
     log("Call list is now: " + result);
-    if ((result[0] == "outbound to  " + number + " : unknown") && (result[1] == "OK")) {
+    // See external/qemu/android/console.c, function call_state_to_string.
+    // For A_CALL_DIALING, its state is shown as "unknown"; for A_CALL_ALERTING,
+    // it's "ringing".
+    if (result[1] == "OK" &&
+        result[0].startsWith("outbound to  " + number + " : ") &&
+        (result[0].endsWith("unknown") || result[0].endsWith("ringing"))) {
       answer();
     } else {
       window.setTimeout(checkCallList, 100);
