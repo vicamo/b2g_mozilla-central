@@ -531,6 +531,7 @@ class BaseMarionetteTestRunner(object):
         self.shuffle = shuffle
         self.sdcard = sdcard
         self.mixin_run_tests = []
+        self.tests = []
 
         if testvars:
             if not os.path.exists(testvars):
@@ -706,16 +707,15 @@ class BaseMarionetteTestRunner(object):
 
     def run_tests(self, tests):
         self.reset_test_stats()
+        for test in tests:
+            self.add_test(test)
         starttime = datetime.utcnow()
         counter = self.repeat
         while counter >=0:
             round = self.repeat - counter
             if round > 0:
                 self.logger.info('\nREPEAT %d\n-------' % round)
-            if self.shuffle:
-                random.shuffle(tests)
-            for test in tests:
-                self.run_test(test)
+            self.run_all_tests()
             counter -= 1
         self.logger.info('\nSUMMARY\n-------')
         self.logger.info('passed: %d' % self.passed)
@@ -750,7 +750,7 @@ class BaseMarionetteTestRunner(object):
         for run_tests in self.mixin_run_tests:
             run_tests(tests)
 
-    def run_test(self, test, expected='pass'):
+    def add_test(self, test, expected='pass', oop=None):
         if not self.httpd:
             print "starting httpd"
             self.start_httpd()
@@ -759,6 +759,17 @@ class BaseMarionetteTestRunner(object):
             self.start_marionette()
             if self.emulator:
                 self.marionette.emulator.wait_for_homescreen(self.marionette)
+
+        filepath = os.path.abspath(test)
+
+        if os.path.isdir(filepath):
+            for root, dirs, files in os.walk(filepath):
+                for filename in files:
+                    if ((filename.startswith('test_') or filename.startswith('browser_')) and
+                        (filename.endswith('.py') or filename.endswith('.js'))):
+                        filepath = os.path.join(root, filename)
+                        self.add_test(filepath)
+            return
 
         testargs = {}
         if self.type is not None:
@@ -770,30 +781,11 @@ class BaseMarionetteTestRunner(object):
                     testargs.update({ atype[1:]: 'false' })
                 else:
                     testargs.update({ atype: 'true' })
-        oop = testargs.get('oop', False)
-        if isinstance(oop, basestring):
-            oop = False if oop == 'false' else 'true'
 
-        filepath = os.path.abspath(test)
+        # testarg_oop = either None, 'true' or 'false'.
+        testarg_oop = testargs.get('oop')
 
-        if os.path.isdir(filepath):
-            for root, dirs, files in os.walk(filepath):
-                if self.shuffle:
-                    random.shuffle(files)
-                for filename in files:
-                    if ((filename.startswith('test_') or filename.startswith('browser_')) and
-                        (filename.endswith('.py') or filename.endswith('.js'))):
-                        filepath = os.path.join(root, filename)
-                        self.run_test(filepath)
-                        if self.marionette.check_for_crash():
-                            return
-            return
-
-        mod_name,file_ext = os.path.splitext(os.path.split(filepath)[-1])
-
-        testloader = unittest.TestLoader()
-        suite = unittest.TestSuite()
-
+        file_ext = os.path.splitext(os.path.split(filepath)[-1])[-1]
         if file_ext == '.ini':
             manifest = TestManifest()
             manifest.read(filepath)
@@ -812,50 +804,107 @@ class BaseMarionetteTestRunner(object):
                                   self.appName))
                 self.todo += 1
 
+            # Don't filter tests with "oop" flag because manifest parser can't
+            # handle it well.
+            if testarg_oop is not None:
+                del testargs['oop']
+
             target_tests = manifest.get(tests=manifest_tests, **testargs)
-            if self.shuffle:
-                random.shuffle(target_tests)
             for i in target_tests:
                 if not os.path.exists(i["path"]):
                     raise IOError("test file: %s does not exist" % i["path"])
-                self.run_test(i["path"], i["expected"])
-                if self.marionette.check_for_crash():
-                    return
+
+                # manifest_oop is either 'false', 'true' or 'both'.  Anything
+                # else implies 'false'.
+                manifest_oop = i.get('oop', 'false')
+
+                # We only add an oop test when following conditions are met:
+                # 1) It's written by javascript because we have only
+                #    MarionetteJSTestCase that supports oop mode.
+                # 2) we're running with "--type=+oop" or no "--type=-oop", which
+                #    follows testarg_oop is either None or 'true' and must not
+                #    be 'false'.
+                # 3) When no "--type=[+-]oop" is applied, all active tests are
+                #    included in target_tests, so we must filter out those
+                #    really capable of running in oop mode. Besides, oop tests
+                #    must be explicitly specified for backward compatibility. So
+                #    test manifest_oop equals to either 'both' or 'true'.
+                file_ext = os.path.splitext(os.path.split(i['path'])[-1])[-1]
+                if (file_ext == '.js' and
+                    testarg_oop != 'false' and
+                    (manifest_oop == 'both' or manifest_oop == 'true')):
+                    self.add_test(i["path"], i["expected"], True)
+
+                # We only add an in-process test when following conditions are
+                # met:
+                # 1) we're running with "--type=-oop" or no "--type=+oop", which
+                #    follows testarg_oop is either None or 'false' and must not
+                #    be 'true'.
+                # 2) When no "--type=[+-]oop" is applied, all active tests are
+                #    included in target_tests, so we must filter out those
+                #    really capable of running in in-process mode.
+                if (testarg_oop != 'true' and
+                    (manifest_oop == 'both' or manifest_oop != 'true')):
+                    self.add_test(i["path"], i["expected"], False)
             return
 
-            self.logger.info('TEST-START %s' % os.path.basename(test))
+        if oop is None:
+            # This test is added by directory enumeration or directly specified
+            # in argument list.  We have no manifest information here so we just
+            # respect the "--type=[+-]oop" argument here.
+            oop = file_ext == '.js' and testarg_oop == 'true'
+        self.tests.append({'filepath': filepath, 'expected': expected, 'oop': oop})
 
-        self.test_kwargs['expected'] = expected
-        self.test_kwargs['oop'] = oop
-        for handler in self.test_handlers:
-            if handler.match(os.path.basename(test)):
-                handler.add_tests_to_suite(mod_name,
-                                           filepath,
-                                           suite,
-                                           testloader,
-                                           self.marionette,
-                                           self.testvars,
-                                           **self.test_kwargs)
+    def run_test_set(self, tests):
+        if self.shuffle:
+            random.shuffle(tests)
+
+        testloader = unittest.TestLoader()
+        for test in tests:
+            suite = unittest.TestSuite()
+            self.logger.info('TEST-START %s' % os.path.basename(test['filepath']))
+            self.test_kwargs['expected'] = test['expected']
+            self.test_kwargs['oop'] = test['oop']
+            mod_name = os.path.splitext(os.path.split(test['filepath'])[-1])[0]
+            for handler in self.test_handlers:
+                if handler.match(os.path.basename(test['filepath'])):
+                    handler.add_tests_to_suite(mod_name,
+                                               test['filepath'],
+                                               suite,
+                                               testloader,
+                                               self.marionette,
+                                               self.testvars,
+                                               **self.test_kwargs)
+                    break
+
+            if suite.countTestCases():
+                runner = self.textrunnerclass(verbosity=3,
+                                              marionette=self.marionette)
+                results = runner.run(suite)
+                self.results.append(results)
+
+                self.failed += len(results.failures) + len(results.errors)
+                if hasattr(results, 'skipped'):
+                    self.todo += len(results.skipped)
+                self.passed += results.passed
+                for failure in results.failures + results.errors:
+                    self.failures.append((results.getInfo(failure), failure.output, 'TEST-UNEXPECTED-FAIL'))
+                if hasattr(results, 'unexpectedSuccesses'):
+                    self.failed += len(results.unexpectedSuccesses)
+                    for failure in results.unexpectedSuccesses:
+                        self.failures.append((results.getInfo(failure), 'TEST-UNEXPECTED-PASS'))
+                if hasattr(results, 'expectedFailures'):
+                    self.passed += len(results.expectedFailures)
+
+            if self.marionette.check_for_crash():
                 break
 
-        if suite.countTestCases():
-            runner = self.textrunnerclass(verbosity=3,
-                                          marionette=self.marionette)
-            results = runner.run(suite)
-            self.results.append(results)
+    def run_all_tests(self):
+        oop_tests = [x for x in self.tests if x.get('oop')]
+        self.run_test_set(oop_tests)
 
-            self.failed += len(results.failures) + len(results.errors)
-            if hasattr(results, 'skipped'):
-                self.todo += len(results.skipped)
-            self.passed += results.passed
-            for failure in results.failures + results.errors:
-                self.failures.append((results.getInfo(failure), failure.output, 'TEST-UNEXPECTED-FAIL'))
-            if hasattr(results, 'unexpectedSuccesses'):
-                self.failed += len(results.unexpectedSuccesses)
-                for failure in results.unexpectedSuccesses:
-                    self.failures.append((results.getInfo(failure), 'TEST-UNEXPECTED-PASS'))
-            if hasattr(results, 'expectedFailures'):
-                self.passed += len(results.expectedFailures)
+        in_process_tests = [x for x in self.tests if not x.get('oop')]
+        self.run_test_set(in_process_tests)
 
     def cleanup(self):
         if self.httpd:
