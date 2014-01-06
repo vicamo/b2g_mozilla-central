@@ -12,6 +12,17 @@ let inText = "Incoming SMS message. Mozilla Firefox OS!";
 let remoteNumber = "5559997777";
 let inSmsId = 0;
 
+let pendingEmulatorCmdCount = 0;
+function sendSmsToEmulator(from, text) {
+  ++pendingEmulatorCmdCount;
+
+  let cmd = "sms send " + from + " " + text;
+  runEmulatorCmd(cmd, function(result) {
+    --pendingEmulatorCmdCount;
+    is(result[0], "OK", "emulator output");
+  });
+}
+
 function verifyInitialState() {
   log("Verifying initial state.");
   ok(manager instanceof MozMobileMessageManager,
@@ -34,9 +45,7 @@ function simulateIncomingSms() {
     getNonExistentMsg();
   };
   // Simulate incoming sms sent from remoteNumber to our emulator
-  runEmulatorCmd("sms send " + remoteNumber + " " + inText, function(result) {
-    is(result[0], "OK", "emulator output");
-  });
+  sendSmsToEmulator(remoteNumber, inText);
 }
 
 function getNonExistentMsg() {
@@ -110,6 +119,11 @@ function deleteMsg() {
 }
 
 function cleanUp() {
+  if (pendingEmulatorCmdCount) {
+    window.setTimeout(cleanUp, 100);
+    return;
+  }
+
   manager.onreceived = null;
   SpecialPowers.removePermission("sms", document);
   SpecialPowers.setBoolPref("dom.sms.enabled", false);
