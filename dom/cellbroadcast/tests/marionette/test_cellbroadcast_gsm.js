@@ -1,7 +1,7 @@
 /* Any copyright is dedicated to the Public Domain.
  * http://creativecommons.org/publicdomain/zero/1.0/ */
 
-MARIONETTE_TIMEOUT = 30000;
+MARIONETTE_TIMEOUT = 120000;
 
 const PDU_DCS_CODING_GROUP_BITS          = 0xF0;
 const PDU_DCS_MSG_CODING_7BITS_ALPHABET  = 0x00;
