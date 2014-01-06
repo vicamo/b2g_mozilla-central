@@ -3,7 +3,70 @@
 
 const {Cc: Cc, Ci: Ci, Cr: Cr, Cu: Cu} = SpecialPowers;
 
+const SETTINGS_KEY_STRICT_7BIT_ENCODING_ENABLED
+  = "ril.sms.strict7BitEncoding.enabled";
+const SETTINGS_KEY_REQUEST_STATUS_REPORT
+  = "ril.sms.requestStatusReport.enabled";
+
 let Promise = Cu.import("resource://gre/modules/Promise.jsm").Promise;
+
+/* Get mozSettings value specified by @aKey.
+ *
+ * Resolve if that mozSettings value is retrieved successfully, reject
+ * otherwise.
+ *
+ * Forfill params:
+ *   The corresponding mozSettings value of the key.
+ * Reject params: (none)
+ *
+ * @param aKey
+ *        A string.
+ *
+ * @return A deferred promise.
+ */
+function getSettings(aKey) {
+  let deferred = Promise.defer();
+
+  let request = navigator.mozSettings.createLock().get(aKey);
+  request.addEventListener("success", function(aEvent) {
+    ok(true, "getSettings(" + aKey + ")");
+    deferred.resolve(aEvent.target.result[aKey]);
+  });
+  request.addEventListener("error", function() {
+    ok(false, "getSettings(" + aKey + ")");
+    deferred.reject();
+  });
+
+  return deferred.promise;
+}
+
+/* Set mozSettings values.
+ *
+ * Resolve if that mozSettings value is set successfully, reject otherwise.
+ *
+ * Forfill params: (none)
+ * Reject params: (none)
+ *
+ * @param aSettings
+ *        An object of format |{key1: value1, key2: value2, ...}|.
+ *
+ * @return A deferred promise.
+ */
+function setSettings(aSettings) {
+  let deferred = Promise.defer();
+
+  let request = navigator.mozSettings.createLock().set(aSettings);
+  request.addEventListener("success", function() {
+    ok(true, "setSettings(" + JSON.stringify(aSettings) + ")");
+    deferred.resolve();
+  });
+  request.addEventListener("error", function() {
+    ok(false, "setSettings(" + JSON.stringify(aSettings) + ")");
+    deferred.reject();
+  });
+
+  return deferred.promise;
+}
 
 /* Push required permissions and test if |navigator.mozMobileMessage| exists.
  * Resolve if it does, reject otherwise.
@@ -42,6 +105,29 @@ function ensureMobileMessage() {
   });
 
   return deferred.promise;
+}
+
+let _origSettingsStack = [];
+function pushSmsSettings(aSettings) {
+  let origSettings = {};
+  _origSettingsStack.push(origSettings);
+
+  let promiseValues = [];
+  for (let key in aSettings) {
+    let k = key;
+    promiseValues.push(getSettings(k).then((x) => { origSettings[k] = x; }));
+  }
+
+  return Promise.all(promiseValues).then(() => setSettings(aSettings));
+}
+
+function popSmsSettings() {
+  let origSettings = _origSettingsStack.pop();
+  if (!origSettings) {
+    throw "pop Settings from an empty stack.";
+  }
+
+  return setSettings(origSettings);
 }
 
 /* Send a SMS message to a single receiver.  Resolve if it succeeds, reject
@@ -265,6 +351,28 @@ function deleteMessages(aMessages) {
  */
 function deleteAllMessages() {
   return getAllMessages().then(deleteMessages);
+}
+
+/* Get segment info for text.
+ *
+ * Fulfill params:
+ *   result -- A MozSmsSegmentInfo instance.
+ *
+ * Reject params:
+ *   event -- a DOMEvent.
+ *
+ * @return A deferred promise.
+ */
+function getSegmentInfoForText(aText) {
+  let deferred = Promise.defer();
+
+  let request = manager.getSegmentInfoForText(aText);
+  request.onsuccess = function(event) {
+    deferred.resolve(event.target.result);
+  };
+  request.onerror = deferred.reject.bind(deferred);
+
+  return deferred.promise;
 }
 
 let pendingEmulatorCmdCount = 0;
