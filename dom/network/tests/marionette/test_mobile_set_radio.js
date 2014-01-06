@@ -18,6 +18,10 @@ let connection = window.navigator.mozMobileConnections[0];
 ok(connection instanceof MozMobileConnection,
    "connection is instanceof " + connection.constructor);
 
+let iccManager = window.navigator.mozIccManager;
+ok(iccManager instanceof MozIccManager,
+   "iccManager is instanceof " + iccManager.constructor);
+
 function setSetting(key, value) {
   let deferred = Promise.defer();
 
@@ -131,6 +135,18 @@ function setRadioEnabled(enabled, transientState, finalState) {
   return deferred.promise;
 }
 
+function waitSimCardReady() {
+  let deferred = Promise.defer();
+
+  waitFor(function() {
+    deferred.resolve();
+  }, function() {
+    return iccManager.iccIds > 0;
+  });
+
+  return deferred.promise;
+}
+
 function testSwitchRadio() {
   log("= testSwitchRadio =");
   return waitRadioState("enabled")
@@ -147,7 +163,9 @@ function testDisableRadioWhenDataConnected() {
       // Data should be disconnected.
       is(connection.data.connected, false);
     })
-    .then(setRadioEnabled.bind(null, true, "enabling", "enabled"));
+    .then(() => setSetting(DATA_KEY, false))
+    .then(setRadioEnabled.bind(null, true, "enabling", "enabled"))
+    .then(waitSimCardReady);
 }
 
 function cleanUp() {
