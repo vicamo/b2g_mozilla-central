@@ -161,6 +161,7 @@ SpecialPowersObserverAPI.prototype = {
    * This will get requests from our API in the window and process them in chrome for it
    **/
   _receiveMessageAPI: function(aMessage) {
+    dump("SpecialPowersObserverAPI._receiveMessageAPI: name => " + aMessage.name + ", json => " + JSON.stringify(aMessage.json));
     switch(aMessage.name) {
       case "SPPrefService":
         var prefs = Services.prefs;
@@ -247,8 +248,11 @@ SpecialPowersObserverAPI.prototype = {
             break;
           case "has":
             let hasPerm = Services.perms.testPermissionFromPrincipal(principal, msg.type);
-            if (hasPerm == Ci.nsIPermissionManager.ALLOW_ACTION) 
+            if (hasPerm == Ci.nsIPermissionManager.ALLOW_ACTION) {
+              dump("SpecialPowersObserverAPI._receiveMessageAPI: true");
               return true;
+            }
+            dump("SpecialPowersObserverAPI._receiveMessageAPI: false");
             return false;
             break;
           case "test":

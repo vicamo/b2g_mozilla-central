@@ -131,6 +131,7 @@ FrameManager.prototype = {
     aFrame.messageManager = Cu.getWeakReference(mm);
     remoteFrames.push(aFrame);
     this.currentRemoteFrame = aFrame;
+    logger.info("frame-manager switchToFrame done");
   },
 
   /*

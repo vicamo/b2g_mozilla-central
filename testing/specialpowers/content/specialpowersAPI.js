@@ -655,6 +655,7 @@ SpecialPowersAPI.prototype = {
         if (permission.remove == true)
           todo.op = 'remove';
 
+        dump("pushPermissions: todo => " + JSON.stringify(todo));
         pendingPermissions.push(todo);
 
         /* Push original permissions value or clear into cleanup array */
@@ -678,14 +679,17 @@ SpecialPowersAPI.prototype = {
       // event loop.
       function delayedCallback() {
         function delayAgain() {
+          dump("pushPermissions: delayedAgain");
           content.window.setTimeout(callback, 0);
         }
+        dump("pushPermissions: delayedCallback");
         content.window.setTimeout(delayAgain, 0);
       }
       this._permissionsUndoStack.push(cleanupPermissions);
       this._pendingPermissions.push([pendingPermissions, delayedCallback]);
       this._applyPermissions();
     } else {
+      dump("pushPermissions: nothing pending");
       content.window.setTimeout(callback, 0);
     }
   },
@@ -724,6 +728,7 @@ SpecialPowersAPI.prototype = {
     observe: function (aSubject, aTopic, aData)
     {
       if (aTopic == "perm-changed") {
+        dump("_permissionObserver.observe: got");
         var permission = aSubject.QueryInterface(Ci.nsIPermission);
         if (permission.type == this._lastPermission.type) {
           var os = Components.classes["@mozilla.org/observer-service;1"]
@@ -742,9 +747,11 @@ SpecialPowersAPI.prototype = {
   */
   _applyPermissions: function() {
     if (this._applyingPermissions || this._pendingPermissions.length <= 0) {
+        dump("_applyPermissions: empty");
       return;
     }
 
+    dump("pushPermissions: begin");
     /* Set lock and get prefs from the _pendingPrefs queue */
     this._applyingPermissions = true;
     var transaction = this._pendingPermissions.shift();
@@ -768,6 +775,7 @@ SpecialPowersAPI.prototype = {
       var perm = pendingActions[idx];
       this._sendSyncMessage('SPPermissionManager', perm)[0];
     }
+    dump("pushPermissions: end");
   },
 
   /*
@@ -1611,8 +1619,11 @@ SpecialPowersAPI.prototype = {
       'appId': appId,
       'isInBrowserElement': isInBrowserElement
     };
+    dump("hasPermission: msg => " + JSON.stringify(msg));
 
-    return this._sendSyncMessage('SPPermissionManager', msg)[0];
+    var result = this._sendSyncMessage('SPPermissionManager', msg)[0];
+    dump("hasPermission: result = " + result);
+    return result;
   },
   testPermission: function (type, value, arg) {
    let [url, appId, isInBrowserElement] = this._getInfoFromPermissionArg(arg);

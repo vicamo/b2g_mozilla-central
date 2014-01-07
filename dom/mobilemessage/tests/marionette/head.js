@@ -5,6 +5,33 @@ const {Cc: Cc, Ci: Ci, Cr: Cr, Cu: Cu} = SpecialPowers;
 
 let Promise = Cu.import("resource://gre/modules/Promise.jsm").Promise;
 
+/* Push permissions only when we don't already have it.
+ *
+ * Fulfill params: (none)
+ * Reject params: (none)
+ *
+ * @return A deferred promise.
+ */
+function pushPermissions(aPermissions) {
+  let deferred = Promise.defer();
+
+  let todo = [];
+  for (let perm of aPermissions) {
+    if (!SpecialPowers.hasPermission(perm.type, document)) {
+      todo.push(perm);
+    }
+  }
+
+  let resolve = deferred.resolve.bind(deferred);
+  if (todo.length) {
+    SpecialPowers.pushPermissions(todo, resolve);
+  } else {
+    window.setTimeout(0, resolve);
+  }
+
+  return deferred.promise;
+}
+
 /* Push required permissions and test if |navigator.mozMobileMessage| exists.
  * Resolve if it does, reject otherwise.
  *
@@ -17,31 +44,22 @@ let Promise = Cu.import("resource://gre/modules/Promise.jsm").Promise;
  */
 let manager;
 function ensureMobileMessage() {
-  let deferred = Promise.defer();
-
+  ok(true, "ensureMobileMessage");
   let permissions = [{
     "type": "sms",
     "allow": 1,
     "context": document,
   }];
-  SpecialPowers.pushPermissions(permissions, function() {
+  return pushPermissions(permissions).then(function() {
     ok(true, "permissions pushed: " + JSON.stringify(permissions));
 
     manager = window.navigator.mozMobileMessage;
-    if (manager) {
-      log("navigator.mozMobileMessage is instance of " + manager.constructor);
-    } else {
-      log("navigator.mozMobileMessage is undefined.");
-    }
+    ok(manager instanceof MozMobileMessageManager,
+       "navigator.mozMobileMessage is instance of " +
+       (manager != null ? manager.constructor : "null"));
 
-    if (manager instanceof MozMobileMessageManager) {
-      deferred.resolve(manager);
-    } else {
-      deferred.reject();
-    }
+    return manager;
   });
-
-  return deferred.promise;
 }
 
 /* Send a SMS message to a single receiver.  Resolve if it succeeds, reject
