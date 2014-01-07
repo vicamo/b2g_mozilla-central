@@ -80,11 +80,12 @@ function setSettings(aSettings) {
  */
 let manager;
 function ensureMobileMessage() {
+  ok(true, "ensureMobileMessage");
   let deferred = Promise.defer();
 
   let permissions = [{
     "type": "sms",
-    "allow": 1,
+    "allow": true,
     "context": document,
   }];
   SpecialPowers.pushPermissions(permissions, function() {
@@ -201,6 +202,7 @@ function sendMmsWithFailure(aMmsParameters) {
  * @return A deferred promise.
  */
 function getMessages(aFilter, aReverse) {
+  ok(true, "getMessages");
   let deferred = Promise.defer();
 
   if (!aFilter) {
@@ -233,6 +235,7 @@ function getMessages(aFilter, aReverse) {
  * @return A deferred promise.
  */
 function getAllMessages() {
+  ok(true, "getAllMessages");
   return getMessages(null, false);
 }
 
@@ -350,6 +353,7 @@ function deleteMessages(aMessages) {
  * @return A deferred promise.
  */
 function deleteAllMessages() {
+  ok(true, "deleteAllMessages");
   return getAllMessages().then(deleteMessages);
 }
 
@@ -542,6 +546,7 @@ function cleanUp() {
 }
 
 function startTestBase(aTestCaseMain) {
+  ok(true, "startTestBase");
   Promise.resolve()
          .then(aTestCaseMain)
          .then(cleanUp, function() {
@@ -551,7 +556,9 @@ function startTestBase(aTestCaseMain) {
 }
 
 function startTestCommon(aTestCaseMain) {
+  ok(true, "startTestCommon");
   startTestBase(function() {
+    ok(true, "startTestCommon - 1");
     return ensureMobileMessage()
       .then(deleteAllMessages)
       .then(aTestCaseMain)

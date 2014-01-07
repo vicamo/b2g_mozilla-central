@@ -40,6 +40,7 @@ function test(text, strict7BitEncoding, expected) {
 }
 
 startTestCommon(function testCaseMain() {
+  ok(true, "testCaseMain");
   let setting = {};
   currentStrict7BitEncoding = false;
   setting[SETTINGS_KEY_STRICT_7BIT_ENCODING_ENABLED] = currentStrict7BitEncoding;
