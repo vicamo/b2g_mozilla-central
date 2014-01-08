@@ -17,20 +17,42 @@ ifr.onload = function() {
 };
 document.body.appendChild(ifr);
 
-let emulatorCmdPendingCount = 0;
-function setEmulatorVoiceState(state) {
-  emulatorCmdPendingCount++;
-  runEmulatorCmd("gsm voice " + state, function (result) {
-    emulatorCmdPendingCount--;
-    is(result[0], "OK");
+let pendingEmulatorCmdCount = 0;
+function runEmulatorCmdSafe(cmd, callback) {
+  ++pendingEmulatorCmdCount;
+
+  runEmulatorCmd(cmd, function (result) {
+    --pendingEmulatorCmdCount;
+
+    is(result[result.length - 1], "OK", "Emulator response");
+    if (callback) {
+      callback(result);
+    }
   });
 }
 
+function setEmulatorVoiceState(state) {
+  runEmulatorCmdSafe("gsm voice " + state);
+}
+
 function setEmulatorGsmLocation(lac, cid) {
-  emulatorCmdPendingCount++;
-  runEmulatorCmd("gsm location " + lac + " " + cid, function (result) {
-    emulatorCmdPendingCount--;
-    is(result[0], "OK");
+  runEmulatorCmdSafe("gsm location " + lac + " " + cid);
+}
+
+function getEmulatorGsmLocation(callback) {
+  runEmulatorCmdSafe("gsm location", function(result) {
+    /* > gsm location
+     * lac: -1
+     * ci: -1
+     * OK
+     */
+    // Initial LAC/CID. Android emulator initializes both value to 0xffff/0xfffffff.
+    let lac = parseInt(result[0].substr(5), 10);
+    lac = lac >= 0 ? lac : 0x10000 + lac;
+    let cid = parseInt(result[1].substr(4), 10);
+    cid = cid >= 0 ? cid : 0x10000000 + cid;
+
+    callback(lac, cid);
   });
 }
 
@@ -52,20 +74,29 @@ function testCellLocation() {
   // hardare/ril/reference-ril/at_tok.c, function at_tok_nexthexint().
   ok(cell, "location available");
 
-  // Initial LAC/CID. Android emulator initializes both value to 0xffff/0xffffffff.
-  is(cell.gsmLocationAreaCode, 65535);
-  is(cell.gsmCellId, 268435455);
-  is(cell.cdmaBaseStationId, -1);
-  is(cell.cdmaBaseStationLatitude, -2147483648);
-  is(cell.cdmaBaseStationLongitude, -2147483648);
-  is(cell.cdmaSystemId, -1);
-  is(cell.cdmaNetworkId, -1);
+  getEmulatorGsmLocation(function(lac, cid) {
+    is(cell.gsmLocationAreaCode, lac);
+    is(cell.gsmCellId, cid);
+    is(cell.cdmaBaseStationId, -1);
+    is(cell.cdmaBaseStationLatitude, -2147483648);
+    is(cell.cdmaBaseStationLongitude, -2147483648);
+    is(cell.cdmaSystemId, -1);
+    is(cell.cdmaNetworkId, -1);
+
+    testSetCellLocation();
+  });
+}
+
+function testSetCellLocation() {
+  let cell = connection.voice.cell;
+  let lac = 1 + Math.floor(Math.random() * 100);
+  let cid = 1 + Math.floor(Math.random() * 100);
 
   connection.addEventListener("voicechange", function onvoicechange() {
     connection.removeEventListener("voicechange", onvoicechange);
 
-    is(cell.gsmLocationAreaCode, 100);
-    is(cell.gsmCellId, 100);
+    is(cell.gsmLocationAreaCode, lac);
+    is(cell.gsmCellId, cid);
     is(cell.cdmaBaseStationId, -1);
     is(cell.cdmaBaseStationLatitude, -2147483648);
     is(cell.cdmaBaseStationLongitude, -2147483648);
@@ -75,7 +106,7 @@ function testCellLocation() {
     testSignalStrength();
   });
 
-  setEmulatorGsmLocation(100, 100);
+  setEmulatorGsmLocation(lac, cid);
 }
 
 function testSignalStrength() {
@@ -179,7 +210,7 @@ function testHome() {
 }
 
 function cleanUp() {
-  if (emulatorCmdPendingCount > 0) {
+  if (pendingEmulatorCmdCount > 0) {
     setTimeout(cleanUp, 100);
     return;
   }
