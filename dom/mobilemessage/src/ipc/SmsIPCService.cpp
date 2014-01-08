@@ -111,6 +111,7 @@ SmsIPCService::SmsIPCService()
   Preferences::AddStrongObservers(this, kObservedPrefs);
   mMmsDefaultServiceId = getDefaultServiceId(kPrefMmsDefaultServiceId);
   mSmsDefaultServiceId = getDefaultServiceId(kPrefSmsDefaultServiceId);
+  GetSmsChild(); // Create SmsParent/Child.
 }
 
 /*

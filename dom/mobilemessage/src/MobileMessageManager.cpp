@@ -72,6 +72,10 @@ MobileMessageManager::Init(nsPIDOMWindow *aWindow)
 {
   BindToOwner(aWindow);
 
+  // Create MmsService if it is not already exists.
+  // If we are in content process, this will register observer on chrome side.
+  nsCOMPtr<nsIMmsService> mmsService = do_GetService(MMS_SERVICE_CONTRACTID);
+
   nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
   // GetObserverService() can return null is some situations like shutdown.
   if (!obs) {
