@@ -677,6 +677,7 @@ function testConferenceThreeAndRemoveOne() {
     .then(() => remoteHangUpCalls([outCall, inCall, inCall2]));
 }
 
+/* ##################################################################################################### */
 function testConferenceThreeAndHangupOne() {
   log('= testConferenceThreeAndHangupOne =');
 
@@ -695,8 +696,10 @@ function testConferenceThreeAndHangupOne() {
       [outCall, inCall, inCall2] = calls;
     })
     .then(() => hangUpCallInConference(outCall, [], [inCall, inCall2]))
+    .then(() => ok(true, "==================== BEGIN ===================="))
     .then(() => checkAll(conference, [], 'connected', [inCall, inCall2],
                          [inInfo.active, inInfo2.active]))
+    .then(() => ok(true, "==================== END ===================="))
     .then(() => remoteHangUpCalls([inCall, inCall2]));
 }
 
