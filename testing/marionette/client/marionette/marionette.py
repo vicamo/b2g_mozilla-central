@@ -574,6 +574,7 @@ class Marionette(object):
         if kwargs:
             message['parameters'] = kwargs
 
+        print 'marionette._send_message BEGIN'
         try:
             response = self.client.send(message)
         except socket.timeout:
@@ -587,9 +588,16 @@ class Marionette(object):
         while response.get("emulator_cmd"):
             response = self._handle_emulator_cmd(response)
 
+        print 'marionette._send_message END'
         if (response_key == 'ok' and response.get('ok') ==  True) or response_key in response:
             return response[response_key]
         else:
+            if response_key != 'ok':
+                print 'response_key is not ok'
+            elif response.get('ok') != True:
+                print 'response.get(\'ok\') is not True'
+            elif not (response_key in response):
+                print 'response_key not in response'
             self._handle_error(response)
 
     def _handle_emulator_cmd(self, response):

@@ -293,6 +293,7 @@ function sendResponse(value, command_id) {
  * Send ack back to server
  */
 function sendOk(command_id) {
+  dump("MARIONETTE sendOk from marionette-listener");
   sendToServer("Marionette:ok", {}, command_id);
 }
 

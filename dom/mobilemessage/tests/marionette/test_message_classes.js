@@ -170,8 +170,11 @@ function test_message_class_2() {
   ];
 
   function do_test_dcs(dcsIndex) {
+    ok(true, "do_test_dcs(allDCSs[" + dcsIndex + "] => " + allDCSs[dcsIndex] + ")");
     function do_test_pid(pidIndex) {
+      ok(true, "do_test_pid(allPIDs[" + pidIndex + "] => " + allPIDs[pidIndex] + ")");
       function onReceived(event) {
+        ok(true, "onReceived at dcsIndex = " + dcsIndex + ", pidIndex = " + pidIndex);
         if (pidIndex == 0) {
           // Make sure we can correctly receive the message
           checkMessage(event.message, null, null, "class-2");

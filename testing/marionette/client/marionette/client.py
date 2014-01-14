@@ -50,6 +50,7 @@ class MarionetteClient(object):
         if length != '':
             response = response[sep + 1:]
             response += self._recv_n_bytes(int(length) + 1 + len(length) - 10)
+	    print 'client.receive: %s' % response
             return json.loads(response)
         else:
             raise InvalidResponseException("Could not successfully complete "
@@ -86,6 +87,7 @@ class MarionetteClient(object):
         if 'to' not in msg:
             msg['to'] = self.actor
         data = json.dumps(msg)
+	print 'client.send: %s' % data
         data = '%s:%s' % (len(data), data)
 
         for packet in [data[i:i + self.max_packet_length] for i in

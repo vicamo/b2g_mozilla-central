@@ -152,6 +152,7 @@ MarionetteServerConnection.prototype = {
    */
   onPacket: function MSC_onPacket(aPacket) {
     // Dispatch the request
+    logger.debug("Dispatching the request: " + JSON.stringify(aPacket));
     if (this.requestTypes && this.requestTypes[aPacket.name]) {
       try {
         this.requestTypes[aPacket.name].bind(this)(aPacket);
@@ -314,7 +315,13 @@ MarionetteServerConnection.prototype = {
    *        Used to distinguish the asynchronous responses.
    */
   sendOk: function MDA_sendOk(command_id) {
+    dump("MARIONETTE sendOk from marionette-server");
     this.sendToClient({from:this.actorID, ok: true}, command_id);
+    try {
+      throw new Error("sendOk");
+    } catch(e) {
+      dump(e.stack);
+    }
   },
 
   /**
