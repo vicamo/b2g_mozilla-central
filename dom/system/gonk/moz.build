@@ -75,6 +75,7 @@ EXTRA_JS_MODULES += [
 if CONFIG['MOZ_B2G_RIL']:
     XPIDL_SOURCES += [
         'nsIRadioInterfaceLayer.idl',
+        'ril/nsIModemManager.idl',
     ]
     EXTRA_COMPONENTS += [
         'RadioInterfaceLayer.js',
@@ -84,6 +85,11 @@ if CONFIG['MOZ_B2G_RIL']:
     EXTRA_JS_MODULES += [
         'ril_consts.js',
         'ril_worker.js',
+    ]
+    SOURCES += [
+        'ril/Modem.cpp',
+        'ril/ModemManager.cpp',
+        'ril/ModemWorker.cpp',
     ]
 
 if CONFIG['MOZ_NFC']:

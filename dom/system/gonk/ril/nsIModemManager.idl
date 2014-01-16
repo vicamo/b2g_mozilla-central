@@ -1,0 +1,25 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "nsISupports.idl"
+
+[scriptable, uuid(d79db240-2428-4243-8f37-26854d12805e)]
+interface nsIModem : nsISupports
+{
+};
+
+[scriptable, uuid(622389b0-0278-4f67-8029-4c3b3e31df14)]
+interface nsIModemArray : nsISupports
+{
+    readonly attribute unsigned long length;
+
+    nsIModem item(in unsigned long index);
+};
+
+[scriptable, uuid(4901f44e-0667-421a-9ac3-b6b6a3d9ce61)]
+interface nsIModemManager : nsISupports
+{
+    /* Methods */
+    nsIModemArray getModems();
+};
