@@ -30,6 +30,7 @@ include protocol PSpeechSynthesis;
 include protocol PStorage;
 include protocol PTelephony;
 include protocol PTestShell;
+include protocol PVoicemail;
 include protocol PJavaScript;
 include protocol PRemoteSpellcheckEngine;
 include DOMTypes;
@@ -333,6 +334,7 @@ intr protocol PContent
     manages PStorage;
     manages PTelephony;
     manages PTestShell;
+    manages PVoicemail;
     manages PJavaScript;
     manages PRemoteSpellcheckEngine;
 
@@ -530,6 +532,8 @@ parent:
     PStorage();
 
     PTelephony();
+
+    PVoicemail();
 
     PBluetooth();
 
