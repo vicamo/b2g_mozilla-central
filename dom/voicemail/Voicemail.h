@@ -34,17 +34,19 @@ class Voicemail MOZ_FINAL : public DOMEventTargetHelper,
    */
   class Listener;
 
-  virtual
-  ~Voicemail();
-
 public:
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_NSIVOICEMAILLISTENER
 
-  NS_REALLY_FORWARD_NSIDOMEVENTTARGET(DOMEventTargetHelper)
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(Voicemail,
+                                           DOMEventTargetHelper)
 
-  Voicemail(nsPIDOMWindow* aWindow,
-            nsIVoicemailService* aService);
+  static already_AddRefed<Voicemail>
+  Create(nsPIDOMWindow* aOwner,
+         ErrorResult& aRv);
+
+  void
+  Shutdown();
 
   nsPIDOMWindow*
   GetParentObject() const
@@ -57,7 +59,7 @@ public:
 
   already_AddRefed<VoicemailStatus>
   GetStatus(const Optional<uint32_t>& aServiceId,
-            ErrorResult& aRv) const;
+            ErrorResult& aRv);
 
   void
   GetNumber(const Optional<uint32_t>& aServiceId,
@@ -72,22 +74,27 @@ public:
   IMPL_EVENT_HANDLER(statuschanged)
 
 private:
+  Voicemail(nsPIDOMWindow* aWindow,
+            nsIVoicemailService* aService);
+
+  // MOZ_FINAL suppresses -Werror,-Wdelete-non-virtual-dtor
+  ~Voicemail();
+
+private:
   nsCOMPtr<nsIVoicemailService> mService;
   nsRefPtr<Listener> mListener;
+  nsAutoTArray<nsRefPtr<VoicemailStatus>, 1> mStatuses;
 
-  bool
-  IsValidServiceId(uint32_t aServiceId) const;
+  already_AddRefed<nsIVoicemail>
+  GetItemByServiceId(const Optional<uint32_t>& aOptionalServiceId,
+                     uint32_t& aActualServiceId) const;
 
-  bool
-  PassedOrDefaultServiceId(const Optional<uint32_t>& aServiceId,
-                           uint32_t& aResult) const;
+  already_AddRefed<VoicemailStatus>
+  GetOrCreateStatus(uint32_t aServiceId,
+                    nsIVoicemail* aVoicemail);
 };
 
 } // namespace dom
 } // namespace mozilla
-
-nsresult
-NS_NewVoicemail(nsPIDOMWindow* aWindow,
-                mozilla::dom::Voicemail** aVoicemail);
 
 #endif // mozilla_dom_voicemail_voicemail_h__
