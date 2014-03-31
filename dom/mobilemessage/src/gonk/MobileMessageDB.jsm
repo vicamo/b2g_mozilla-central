@@ -1072,10 +1072,10 @@ MobileMessageDB.prototype = {
                 threadParticipants = messageRecord.receivers;
               }
             }
-            self.findThreadRecordByParticipants(threadStore, participantStore,
-                                                threadParticipants, true,
-                                                function(threadRecord,
-                                                          participantIds) {
+            self.findThreadRecordByAddresses(threadStore, participantStore,
+                                             threadParticipants, true,
+                                             function(threadRecord,
+                                                      participantIds) {
               if (!participantIds) {
                 debug("participantIds is empty!");
                 return;
@@ -1688,18 +1688,18 @@ MobileMessageDB.prototype = {
     }) (0, []);
   },
 
-  findThreadRecordByParticipants: function(aThreadStore, aParticipantStore,
-                                           aAddresses, aCreateParticipants,
-                                           aCallback) {
+  findThreadRecordByAddresses: function(aThreadStore, aParticipantStore,
+                                        aAddresses, aCreateParticipants,
+                                        aCallback) {
     if (DEBUG) {
-      debug("findThreadRecordByParticipants(" + JSON.stringify(aAddresses)
+      debug("findThreadRecordByAddresses(" + JSON.stringify(aAddresses)
             + ", " + aCreateParticipants + ")");
     }
     this.findParticipantIdsByAddresses(aParticipantStore, aAddresses,
                                        aCreateParticipants, false,
                                        function(participantIds) {
       if (!participantIds) {
-        if (DEBUG) debug("findThreadRecordByParticipants: returning null");
+        if (DEBUG) debug("findThreadRecordByAddresses: returning null");
         aCallback(null, null);
         return;
       }
@@ -1708,7 +1708,7 @@ MobileMessageDB.prototype = {
       request.onsuccess = function(event) {
         let threadRecord = event.target.result;
         if (DEBUG) {
-          debug("findThreadRecordByParticipants: return "
+          debug("findThreadRecordByAddresses: return "
                 + JSON.stringify(threadRecord));
         }
         aCallback(threadRecord, participantIds);
@@ -1850,9 +1850,9 @@ MobileMessageDB.prototype = {
   realSaveRecord: function(aTransaction, aMessageStore, aParticipantStore,
                            aThreadStore, aMessageRecord, aAddresses) {
     let self = this;
-    this.findThreadRecordByParticipants(aThreadStore, aParticipantStore,
-                                        aAddresses, true,
-                                        function(threadRecord, participantIds) {
+    this.findThreadRecordByAddresses(aThreadStore, aParticipantStore,
+                                     aAddresses, true,
+                                     function(threadRecord, participantIds) {
       if (!participantIds) {
         aTransaction.abort();
         return;
