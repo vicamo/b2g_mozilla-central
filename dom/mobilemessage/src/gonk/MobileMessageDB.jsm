@@ -22,8 +22,8 @@ const RIL_GETTHREADSCURSOR_CID =
 const DEBUG = false;
 const DISABLE_MMS_GROUPING_FOR_RECEIVING = true;
 
+const DB_VERSION = 23;
 
-const DB_VERSION = 22;
 const MESSAGE_STORE_NAME = "sms";
 const THREAD_STORE_NAME = "thread";
 const PARTICIPANT_STORE_NAME = "participant";
@@ -245,6 +245,10 @@ MobileMessageDB.prototype = {
             self.upgradeSchema21(db, event.target.transaction, next);
             break;
           case 22:
+            if (DEBUG) debug("Upgrade to version 23. Add type information to receivers and to");
+            self.upgradeSchema22(event.target.transaction, next);
+            break;
+          case 23:
             // This will need to be moved for each new version
             if (DEBUG) debug("Upgrade finished.");
             break;
@@ -1408,6 +1412,132 @@ MobileMessageDB.prototype = {
     next();
   },
 
+  /**
+   * Change receivers format to address and type.
+   */
+  upgradeSchema22: function(transaction, next) {
+    // Since bug 871433 (DB_VERSION 11), we normalize addresses before really
+    // diving into participant store in findParticipantRecordByPlmnAddress.
+    // This also follows that all addresses stored in participant store are
+    // normalized phone numbers, althought they might not be phone numbers.
+    // So addresses in participant store are not reliable.
+    //
+    // |participantAddresses| in a thread record are reliable, but several
+    // distinct threads can be wrongly mapped into one.  For example, an IPv4
+    // address "55.252.255.54" was normalized as US phone number "5525225554".
+    // So beginning with thread store is not really a good idea.
+
+    let participantStore = transaction.objectStore(PARTICIPANT_STORE_NAME);
+    let threadStore = transaction.objectStore(THREAD_STORE_NAME);
+    let messageStore = transaction.objectStore(MESSAGE_STORE_NAME);
+
+    participantStore.clear();
+    threadStore.clear();
+
+    let self = this;
+    let messageReq = messageStore.openCursor();
+    messageReq.onsuccess = function(event) {
+      let messageCursor = event.target.result;
+      if (!messageCursor) {
+        next();
+        return;
+      }
+
+      let messageRecord = messageCursor.value;
+
+      // Rebuild thread participants list.
+      let threadParticipants;
+      if (messageRecord.type == "sms") {
+        let address;
+        if (messageRecord.delivery == DELIVERY_RECEIVED) {
+          address = messageRecord.sender;
+        } else {
+          address = messageRecord.receiver;
+        }
+        threadParticipants = [{
+          address: address,
+          type: MMS.Address.resolveType(address)
+        }];
+      } else { // MMS
+        if ((messageRecord.delivery == DELIVERY_RECEIVED) ||
+            (messageRecord.delivery == DELIVERY_NOT_DOWNLOADED)) {
+          // DISABLE_MMS_GROUPING_FOR_RECEIVING is set to true at the time, so
+          // we consider only |messageRecord.sender|.
+          threadParticipants = [{
+            address: messageRecord.sender,
+            type: MMS.Address.resolveType(messageRecord.sender)
+          }];
+        } else {
+          threadParticipants = messageRecord.headers.to;
+        }
+      }
+
+      // Basically copied from |realSaveRecord|, but we don't have to worry
+      // about |updateThreadByMessageChange| because we've cleared thread store.
+      self.findThreadRecordByTypedAddresses(threadStore, participantStore,
+                                            threadParticipants, true,
+                                            function(aThreadRecord,
+                                                     aParticipantIds) {
+        // Setup participantIdsIndex.
+        messageRecord.participantIdsIndex =
+          aParticipantIds.map(function(aParticipantId) {
+            return [aParticipantId, messageRecord.timestamp];
+          });
+
+        let threadExists = aThreadRecord ? true : false;
+        if (!threadExists) {
+          aThreadRecord = {
+            participantIds: aParticipantIds,
+            participantAddresses: threadParticipants.map(function(typedAddress) {
+              return typedAddress.address;
+            }),
+            unreadCount: 0,
+            lastTimestamp: -1
+          };
+        }
+
+        let needsUpdate = false;
+        if (aThreadRecord.lastTimestamp <= messageRecord.timestamp) {
+          let lastMessageSubject;
+          if (messageRecord.type == "mms") {
+            lastMessageSubject = messageRecord.headers.subject;
+          }
+          aThreadRecord.lastMessageSubject = lastMessageSubject || null;
+          aThreadRecord.lastTimestamp = messageRecord.timestamp;
+          aThreadRecord.body = messageRecord.body;
+          aThreadRecord.lastMessageId = messageRecord.id;
+          aThreadRecord.lastMessageType = messageRecord.type;
+          needsUpdate = true;
+        }
+
+        if (!messageRecord.read) {
+          aThreadRecord.unreadCount++;
+          needsUpdate = true;
+        }
+
+        let updateMessageRecordThreadId = function(aThreadId) {
+          // Setup threadId & threadIdIndex.
+          messageRecord.threadId = aThreadId;
+          messageRecord.threadIdIndex = [aThreadId, messageRecord.timestamp];
+          messageCursor.update(messageRecord);
+          messageCursor.continue();
+        };
+
+        if (threadExists) {
+          if (needsUpdate) {
+            threadStore.put(aThreadRecord);
+          }
+          updateMessageRecordThreadId(aThreadRecord.id);
+        } else {
+          threadStore.add(aThreadRecord).onsuccess = function(event) {
+            let threadId = event.target.result;
+            updateMessageRecordThreadId(threadId);
+          };
+        }
+      }); // End of self.findThreadRecordByTypedAddresses
+    }; // End of messageStore.openCursor().onsuccess
+  },
+
   matchParsedPhoneNumbers: function(addr1, parsedAddr1, addr2, parsedAddr2) {
     if ((parsedAddr1.internationalNumber &&
          parsedAddr1.internationalNumber === parsedAddr2.internationalNumber) ||
@@ -1645,6 +1775,44 @@ MobileMessageDB.prototype = {
     }).bind(this);
   },
 
+  findParticipantRecordByOtherAddress: function(aParticipantStore, aAddress,
+                                                aCreate, aCallback) {
+    if (DEBUG) {
+      debug("findParticipantRecordByOtherAddress(" +
+            JSON.stringify(aAddress) + ", " + aCreate + ")");
+    }
+
+    // Go full match.
+    let request = aParticipantStore.index("addresses").get(aAddress);
+    request.onsuccess = (function(event) {
+      let participantRecord = event.target.result;
+      if (participantRecord) {
+        aCallback(participantRecord);
+        return;
+      }
+      if (aCreate) {
+        this.createParticipantRecord(aParticipantStore, [aAddress], aCallback);
+        return;
+      }
+      aCallback(null);
+    }).bind(this);
+  },
+
+  findParticipantRecordByTypedAddress: function(aParticipantStore,
+                                                aTypedAddress, aCreate,
+                                                aCallback) {
+    if (aTypedAddress.type == "PLMN") {
+      this.findParticipantRecordByPlmnAddress(aParticipantStore,
+                                              aTypedAddress.address, aCreate,
+                                              aCallback);
+    } else {
+      this.findParticipantRecordByOtherAddress(aParticipantStore,
+                                               aTypedAddress.address, aCreate,
+                                               aCallback);
+    }
+  },
+
+  // For upgradeSchema13 usage.
   findParticipantIdsByAddresses: function(aParticipantStore, aAddresses,
                                           aCreate, aSkipNonexistent, aCallback) {
     if (DEBUG) {
@@ -1688,6 +1856,56 @@ MobileMessageDB.prototype = {
     }) (0, []);
   },
 
+  findParticipantIdsByTypedAddresses: function(aParticipantStore,
+                                               aTypedAddresses, aCreate,
+                                               aSkipNonexistent, aCallback) {
+    if (DEBUG) {
+      debug("findParticipantIdsByTypedAddresses(" +
+            JSON.stringify(aTypedAddresses) + ", " +
+            aCreate + ", " + aSkipNonexistent + ")");
+    }
+
+    if (!aTypedAddresses || !aTypedAddresses.length) {
+      if (DEBUG) debug("findParticipantIdsByTypedAddresses: returning null");
+      aCallback(null);
+      return;
+    }
+
+    let self = this;
+    (function findParticipantId(index, result) {
+      if (index >= aTypedAddresses.length) {
+        // Sort numerically.
+        result.sort(function(a, b) {
+          return a - b;
+        });
+        if (DEBUG) {
+          debug("findParticipantIdsByTypedAddresses: returning " + result);
+        }
+        aCallback(result);
+        return;
+      }
+
+      self.findParticipantRecordByTypedAddress(aParticipantStore,
+                                               aTypedAddresses[index++],
+                                               aCreate,
+                                               function(participantRecord) {
+        if (!participantRecord) {
+          if (!aSkipNonexistent) {
+            if (DEBUG) {
+              debug("findParticipantIdsByTypedAddresses: returning null");
+            }
+            aCallback(null);
+            return;
+          }
+        } else if (result.indexOf(participantRecord.id) < 0) {
+          result.push(participantRecord.id);
+        }
+        findParticipantId(index, result);
+      });
+    }) (0, []);
+  },
+
+  // For upgradeSchema13 usage.
   findThreadRecordByAddresses: function(aThreadStore, aParticipantStore,
                                         aAddresses, aCreateParticipants,
                                         aCallback) {
@@ -1710,6 +1928,34 @@ MobileMessageDB.prototype = {
         if (DEBUG) {
           debug("findThreadRecordByAddresses: return "
                 + JSON.stringify(threadRecord));
+        }
+        aCallback(threadRecord, participantIds);
+      };
+    });
+  },
+
+  findThreadRecordByTypedAddresses: function(aThreadStore, aParticipantStore,
+                                             aTypedAddresses,
+                                             aCreateParticipants, aCallback) {
+    if (DEBUG) {
+      debug("findThreadRecordByTypedAddresses(" +
+          JSON.stringify(aTypedAddresses) + ", " + aCreateParticipants + ")");
+    }
+    this.findParticipantIdsByTypedAddresses(aParticipantStore, aTypedAddresses,
+                                            aCreateParticipants, false,
+                                            function(participantIds) {
+      if (!participantIds) {
+        if (DEBUG) debug("findThreadRecordByTypedAddresses: returning null");
+        aCallback(null, null);
+        return;
+      }
+      // Find record from thread store.
+      let request = aThreadStore.index("participantIds").get(participantIds);
+      request.onsuccess = function(event) {
+        let threadRecord = event.target.result;
+        if (DEBUG) {
+          debug("findThreadRecordByTypedAddresses: return " +
+                JSON.stringify(threadRecord));
         }
         aCallback(threadRecord, participantIds);
       };
@@ -1746,7 +1992,7 @@ MobileMessageDB.prototype = {
     }, aStoreNames);
   },
 
-  saveRecord: function(aMessageRecord, aAddresses, aCallback) {
+  saveRecord: function(aMessageRecord, aThreadParticipants, aCallback) {
     if (DEBUG) debug("Going to store " + JSON.stringify(aMessageRecord));
 
     let self = this;
@@ -1780,13 +2026,14 @@ MobileMessageDB.prototype = {
       let participantStore = stores[1];
       let threadStore = stores[2];
       self.replaceShortMessageOnSave(txn, messageStore, participantStore,
-                                     threadStore, aMessageRecord, aAddresses);
+                                     threadStore, aMessageRecord,
+                                     aThreadParticipants);
     }, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME]);
   },
 
   replaceShortMessageOnSave: function(aTransaction, aMessageStore,
                                       aParticipantStore, aThreadStore,
-                                      aMessageRecord, aAddresses) {
+                                      aMessageRecord, aThreadParticipants) {
     let isReplaceTypePid = (aMessageRecord.pid) &&
                            ((aMessageRecord.pid >= RIL.PDU_PID_REPLACE_SHORT_MESSAGE_TYPE_1 &&
                              aMessageRecord.pid <= RIL.PDU_PID_REPLACE_SHORT_MESSAGE_TYPE_7) ||
@@ -1796,7 +2043,7 @@ MobileMessageDB.prototype = {
         aMessageRecord.delivery != DELIVERY_RECEIVED ||
         !isReplaceTypePid) {
       this.realSaveRecord(aTransaction, aMessageStore, aParticipantStore,
-                          aThreadStore, aMessageRecord, aAddresses);
+                          aThreadStore, aMessageRecord, aThreadParticipants);
       return;
     }
 
@@ -1809,12 +2056,16 @@ MobileMessageDB.prototype = {
     //   shall store the message in the normal way. ... it is recommended
     //   that the SC address should not be checked by the MS."
     let self = this;
-    this.findParticipantRecordByPlmnAddress(aParticipantStore,
-                                            aMessageRecord.sender, false,
-                                            function(participantRecord) {
+    let typedSender = {
+      address: aMessageRecord.sender,
+      type: MMS.Address.resolveType(aMessageRecord.sender)
+    };
+    this.findParticipantRecordByTypedAddress(aParticipantStore, typedSender,
+                                             false,
+                                             function(participantRecord) {
       if (!participantRecord) {
         self.realSaveRecord(aTransaction, aMessageStore, aParticipantStore,
-                            aThreadStore, aMessageRecord, aAddresses);
+                            aThreadStore, aMessageRecord, aThreadParticipants);
         return;
       }
 
@@ -1825,7 +2076,7 @@ MobileMessageDB.prototype = {
         let cursor = event.target.result;
         if (!cursor) {
           self.realSaveRecord(aTransaction, aMessageStore, aParticipantStore,
-                              aThreadStore, aMessageRecord, aAddresses);
+                              aThreadStore, aMessageRecord, aThreadParticipants);
           return;
         }
 
@@ -1842,17 +2093,18 @@ MobileMessageDB.prototype = {
         // Match! Now replace that found message record with current one.
         aMessageRecord.id = foundMessageRecord.id;
         self.realSaveRecord(aTransaction, aMessageStore, aParticipantStore,
-                            aThreadStore, aMessageRecord, aAddresses);
+                            aThreadStore, aMessageRecord, aThreadParticipants);
       };
     });
   },
 
   realSaveRecord: function(aTransaction, aMessageStore, aParticipantStore,
-                           aThreadStore, aMessageRecord, aAddresses) {
+                           aThreadStore, aMessageRecord, aThreadParticipants) {
     let self = this;
-    this.findThreadRecordByAddresses(aThreadStore, aParticipantStore,
-                                     aAddresses, true,
-                                     function(threadRecord, participantIds) {
+    this.findThreadRecordByTypedAddresses(aThreadStore, aParticipantStore,
+                                          aThreadParticipants, true,
+                                          function(threadRecord,
+                                                   participantIds) {
       if (!participantIds) {
         aTransaction.abort();
         return;
@@ -1934,7 +2186,9 @@ MobileMessageDB.prototype = {
 
       threadRecord = {
         participantIds: participantIds,
-        participantAddresses: aAddresses,
+        participantAddresses: aThreadParticipants.map(function(typedAddress) {
+          return typedAddress.address;
+        }),
         lastMessageId: aMessageRecord.id,
         lastTimestamp: timestamp,
         lastMessageSubject: lastMessageSubject || null,
@@ -2131,7 +2385,13 @@ MobileMessageDB.prototype = {
       if (DEBUG) debug("Error! Cannot strip out user's own phone number!");
     }
 
-    threadParticipants = threadParticipants.concat(slicedReceivers);
+    threadParticipants =
+      threadParticipants.concat(slicedReceivers).map(function(aAddress) {
+        return {
+          address: aAddress,
+          type: MMS.Address.resolveType(aAddress)
+        };
+      });
   },
 
   updateThreadByMessageChange: function(messageStore, threadStore, threadId,
@@ -2211,13 +2471,19 @@ MobileMessageDB.prototype = {
       if (aMessage.headers.from) {
         aMessage.sender = aMessage.headers.from.address;
       } else {
-        aMessage.sender = "anonymous";
+        aMessage.sender = "";
       }
 
-      threadParticipants = [aMessage.sender];
+      threadParticipants = [{
+        address: aMessage.sender,
+        type: MMS.Address.resolveType(aMessage.sender)
+      }];
       this.fillReceivedMmsThreadParticipants(aMessage, threadParticipants);
     } else { // SMS
-      threadParticipants = [aMessage.sender];
+      threadParticipants = [{
+        address: aMessage.sender,
+        type: MMS.Address.resolveType(aMessage.sender)
+      }];
     }
 
     let timestamp = aMessage.timestamp;
@@ -2288,16 +2554,7 @@ MobileMessageDB.prototype = {
         aMessage.deliveryTimestamp = 0;
       }
     } else if (aMessage.type == "mms") {
-      let receivers = aMessage.receivers
-      if (!Array.isArray(receivers)) {
-        if (DEBUG) {
-          debug("Need receivers for MMS. Fail to save the sending message.");
-        }
-        if (aCallback) {
-          aCallback.notify(Cr.NS_ERROR_FAILURE, null);
-        }
-        return;
-      }
+      let receivers = aMessage.receivers;
       let readStatus = aMessage.headers["x-mms-read-report"]
                      ? MMS.DOM_READ_STATUS_PENDING
                      : MMS.DOM_READ_STATUS_NOT_APPLICABLE;
@@ -2326,13 +2583,16 @@ MobileMessageDB.prototype = {
     // |sentTimestamp| is not available when the message is still sedning.
     aMessage.sentTimestamp = 0;
 
-    let addresses;
+    let threadParticipants;
     if (aMessage.type == "sms") {
-      addresses = [aMessage.receiver];
+      threadParticipants = [{
+        address: aMessage.receiver,
+        type :MMS.Address.resolveType(aMessage.receiver)
+      }];
     } else if (aMessage.type == "mms") {
-      addresses = aMessage.receivers;
+      threadParticipants = aMessage.headers.to;
     }
-    this.saveRecord(aMessage, addresses, aCallback);
+    this.saveRecord(aMessage, threadParticipants, aCallback);
   },
 
   setMessageDeliveryByMessageId: function(messageId, receiver, delivery,
@@ -3015,9 +3275,15 @@ let FilterSearcherHelper = {
       }
 
       let participantStore = txn.objectStore(PARTICIPANT_STORE_NAME);
-      mmdb.findParticipantIdsByAddresses(participantStore, filter.numbers,
-                                         false, true,
-                                         (function(participantIds) {
+      let typedAddresses = filter.numbers.map(function(number) {
+        return {
+          address: number,
+          type: MMS.Address.resolveType(number)
+        };
+      });
+      mmdb.findParticipantIdsByTypedAddresses(participantStore, typedAddresses,
+                                              false, true,
+                                              (function(participantIds) {
         if (!participantIds || !participantIds.length) {
           // Oops! No such participant at all.
 
