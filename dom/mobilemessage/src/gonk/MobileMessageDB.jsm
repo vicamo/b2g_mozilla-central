@@ -1928,37 +1928,6 @@ MobileMessageDB.prototype = {
     });
   },
 
-  newTxnWithCallback: function(aCallback, aFunc, aStoreNames) {
-    let self = this;
-    this.newTxn(READ_WRITE, aStoreNames,
-                function(aError, aTransaction, aStores) {
-      let notifyResult = function(aRv, aMessageRecord) {
-        if (!aCallback) {
-          return;
-        }
-        let domMessage =
-          aMessageRecord && self.createDomMessageFromRecord(aMessageRecord);
-        aCallback.notify(aRv, domMessage);
-      };
-
-      if (aError) {
-        notifyResult(aError, null);
-        return;
-      }
-
-      let capture = {};
-      aTransaction.oncomplete = function(event) {
-        notifyResult(Cr.NS_OK, capture.messageRecord);
-      };
-      aTransaction.onabort = function(event) {
-        // TODO bug 832140 check event.target.errorCode
-        notifyResult(Cr.NS_ERROR_FAILURE, null);
-      };
-
-      aFunc(capture, aStores);
-    });
-  },
-
   saveRecord: function(aMessageRecord, aThreadParticipants, aRilCallback) {
     if (DEBUG) debug("Going to store " + JSON.stringify(aMessageRecord));
 
@@ -2202,7 +2171,7 @@ MobileMessageDB.prototype = {
   },
 
   updateMessageDeliveryById: function(id, type, receiver, delivery,
-                                      deliveryStatus, envelopeId, callback) {
+                                      deliveryStatus, envelopeId, aRilCallback) {
     if (DEBUG) {
       debug("Setting message's delivery by " + type + " = "+ id
             + " receiver: " + receiver
@@ -2211,8 +2180,10 @@ MobileMessageDB.prototype = {
             + " envelopeId: " + envelopeId);
     }
 
+    let messageRecord;
     let self = this;
-    this.newTxnWithCallback(callback, function(aCapture, aMessageStore) {
+    this.newTxn(READ_WRITE, [MESSAGE_STORE_NAME],
+                function(aTransaction, aMessageStore) {
       let getRequest;
       if (type === "messageId") {
         getRequest = aMessageStore.get(id);
@@ -2221,10 +2192,10 @@ MobileMessageDB.prototype = {
       }
 
       getRequest.onsuccess = function onsuccess(event) {
-        let messageRecord = event.target.result;
+        messageRecord = event.target.result;
         if (!messageRecord) {
           if (DEBUG) debug("type = " + id + " is not found");
-          throw Cr.NS_ERROR_FAILURE;
+          return;
         }
 
         let isRecordUpdated = false;
@@ -2286,7 +2257,6 @@ MobileMessageDB.prototype = {
           }
         }
 
-        aCapture.messageRecord = messageRecord;
         if (!isRecordUpdated) {
           if (DEBUG) {
             debug("The values of delivery, deliveryStatus and envelopeId " +
@@ -2300,7 +2270,15 @@ MobileMessageDB.prototype = {
         }
         aMessageStore.put(messageRecord);
       };
-    }, [MESSAGE_STORE_NAME]);
+    }, function() {
+      if (!messageRecord) {
+        aRilCallback.notify("NotFoundError", null);
+      } else {
+        aRilCallback.notify(null, self.createDomMessageFromRecord(messageRecord));
+      }
+    }, function(aErrorName) {
+      aRilCallback.notify(aErrorName, null);
+    });
   },
 
   fillReceivedMmsThreadParticipants: function(aMessage, threadParticipants) {
@@ -2549,37 +2527,37 @@ MobileMessageDB.prototype = {
   },
 
   setMessageDeliveryByMessageId: function(messageId, receiver, delivery,
-                                          deliveryStatus, envelopeId, callback) {
+                                          deliveryStatus, envelopeId, aRilCallback) {
     this.updateMessageDeliveryById(messageId, "messageId",
                                    receiver, delivery, deliveryStatus,
-                                   envelopeId, callback);
+                                   envelopeId, aRilCallback);
 
   },
 
   setMessageDeliveryStatusByEnvelopeId: function(aEnvelopeId, aReceiver,
-                                                 aDeliveryStatus, aCallback) {
+                                                 aDeliveryStatus, aRilCallback) {
     this.updateMessageDeliveryById(aEnvelopeId, "envelopeId", aReceiver, null,
-                                   aDeliveryStatus, null, aCallback);
+                                   aDeliveryStatus, null, aRilCallback);
   },
 
   setMessageReadStatusByEnvelopeId: function(aEnvelopeId, aReceiver,
-                                             aReadStatus, aCallback) {
+                                             aReadStatus, aRilCallback) {
     if (DEBUG) {
       debug("Setting message's read status by envelopeId = " + aEnvelopeId +
             ", receiver: " + aReceiver + ", readStatus: " + aReadStatus);
     }
 
+    let messageRecord;
     let self = this;
-    this.newTxnWithCallback(aCallback, function(aCapture, aMessageStore) {
+    this.newTxn(READ_WRITE, [MESSAGE_STORE_NAME],
+                function(aTransaction, aMessageStore) {
       let getRequest = aMessageStore.index("envelopeId").get(aEnvelopeId);
       getRequest.onsuccess = function onsuccess(event) {
-        let messageRecord = event.target.result;
+        messageRecord = event.target.result;
         if (!messageRecord) {
           if (DEBUG) debug("envelopeId '" + aEnvelopeId + "' not found");
-          throw Cr.NS_ERROR_FAILURE;
+          return;
         }
-
-        aCapture.messageRecord = messageRecord;
 
         let isRecordUpdated = false;
         self.forEachMatchedMmsDeliveryInfo(messageRecord.deliveryInfo,
@@ -2609,7 +2587,15 @@ MobileMessageDB.prototype = {
         }
         aMessageStore.put(messageRecord);
       };
-    }, [MESSAGE_STORE_NAME]);
+    }, function() {
+      if (!messageRecord) {
+        aRilCallback.notify("NotFoundError", null);
+      } else {
+        aRilCallback.notify(null, self.createDomMessageFromRecord(messageRecord));
+      }
+    }, function(aErrorName) {
+      aRilCallback.notify(aErrorName, null);
+    });
   },
 
   getMessageRecordByTransactionId: function(aTransactionId, aRilRecordCallback) {
