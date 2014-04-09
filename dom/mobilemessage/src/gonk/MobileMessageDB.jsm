@@ -285,9 +285,6 @@ MobileMessageDB.prototype = {
    *        Names of the stores to open.
    */
   newTxn: function(txn_type, callback, storeNames) {
-    if (!storeNames) {
-      storeNames = [MESSAGE_STORE_NAME];
-    }
     if (DEBUG) debug("Opening transaction for object stores: " + storeNames);
     let self = this;
     this.ensureDB(function(error, db) {
@@ -313,16 +310,14 @@ MobileMessageDB.prototype = {
           debug("Error occurred during transaction: " + event.target.errorCode);
         };
       }
+      if (DEBUG) debug("Retrieving object store " + storeNames);
       let stores;
       if (storeNames.length == 1) {
-        if (DEBUG) debug("Retrieving object store " + storeNames[0]);
         stores = txn.objectStore(storeNames[0]);
       } else {
-        stores = [];
-        for each (let storeName in storeNames) {
-          if (DEBUG) debug("Retrieving object store " + storeName);
-          stores.push(txn.objectStore(storeName));
-        }
+        stores = storeNames.map(function(storeName) {
+          return txn.objectStore(storeName);
+        });
       }
       callback(null, txn, stores);
     });
@@ -380,7 +375,7 @@ MobileMessageDB.prototype = {
                 event.target.errorCode);
         }
       };
-    });
+    }, [MESSAGE_STORE_NAME]);
   },
 
   close: function() {
@@ -466,7 +461,7 @@ MobileMessageDB.prototype = {
         messageCursor.update(messageRecord);
         messageCursor.continue();
       };
-    });
+    }, [MESSAGE_STORE_NAME]);
   },
 
   /**
@@ -2347,7 +2342,7 @@ MobileMessageDB.prototype = {
         }
         aMessageStore.put(messageRecord);
       };
-    });
+    }, [MESSAGE_STORE_NAME]);
   },
 
   fillReceivedMmsThreadParticipants: function(aMessage, threadParticipants) {
@@ -2656,7 +2651,7 @@ MobileMessageDB.prototype = {
         }
         aMessageStore.put(messageRecord);
       };
-    });
+    }, [MESSAGE_STORE_NAME]);
   },
 
   getMessageRecordByTransactionId: function(aTransactionId, aCallback) {
@@ -2691,7 +2686,7 @@ MobileMessageDB.prototype = {
         }
         aCallback.notify(Cr.NS_ERROR_FAILURE, null, null);
       };
-    });
+    }, [MESSAGE_STORE_NAME]);
   },
 
   getMessageRecordById: function(aMessageId, aCallback) {
@@ -2738,7 +2733,7 @@ MobileMessageDB.prototype = {
         }
         aCallback.notify(Cr.NS_ERROR_FAILURE, null, null);
       };
-    });
+    }, [MESSAGE_STORE_NAME]);
   },
 
   translateCrErrorToMessageCallbackError: function(aCrError) {
