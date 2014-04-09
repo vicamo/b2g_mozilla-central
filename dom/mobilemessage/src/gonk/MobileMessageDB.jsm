@@ -105,24 +105,22 @@ MobileMessageDB.prototype = {
    * Prepare the database. This may include opening the database and upgrading
    * it to the latest schema version.
    *
-   * @param callback
-   *        Function that takes an error and db argument. It is called when
-   *        the database is ready to use or if an error occurs while preparing
-   *        the database.
-   *
-   * @return (via callback) a database ready for use.
+   * @param aSuccessCb
+   *        Success callback to call.
+   * @param aFailureCb
+   *        Error callback to call when an error is encountered.
    */
-  ensureDB: function(callback) {
+  ensureDB: function(aSuccessCb, aFailureCb) {
     if (this.db) {
       if (DEBUG) debug("ensureDB: already have a database, returning early.");
-      callback(null, this.db);
+      aSuccessCb && aSuccessCb();
       return;
     }
 
     let self = this;
     function gotDB(db) {
       self.db = db;
-      callback(null, db);
+      aSuccessCb && aSuccessCb();
     }
 
     let request = indexedDB.open(this.dbName, this.dbVersion);
@@ -253,9 +251,8 @@ MobileMessageDB.prototype = {
             self.upgradeSchema22(event.target.transaction, next);
             break;
           default:
-            event.target.transaction.abort();
             if (DEBUG) debug("unexpected db version: " + event.oldVersion);
-            callback(Cr.NS_ERROR_FAILURE, null);
+            event.target.transaction.abort();
             break;
         }
       }
@@ -263,13 +260,8 @@ MobileMessageDB.prototype = {
       update(currentVersion);
     };
     request.onerror = function(event) {
-      //TODO look at event.target.Code and change error constant accordingly
       if (DEBUG) debug("Error opening database!");
-      callback(Cr.NS_ERROR_FAILURE, null);
-    };
-    request.onblocked = function(event) {
-      if (DEBUG) debug("Opening database request is blocked.");
-      callback(Cr.NS_ERROR_FAILURE, null);
+      aFailureCb && aFailureCb(Cr.NS_ERROR_FAILURE);
     };
   },
 
@@ -285,20 +277,15 @@ MobileMessageDB.prototype = {
    *        be invoked with the transaction and opened object stores.
    */
   newTxn: function(txn_type, storeNames, callback) {
+    if (txn_type === READ_WRITE && this.isDiskFull && this.isDiskFull()) {
+      callback(Cr.NS_ERROR_FILE_NO_DEVICE_SPACE);
+      return;
+    }
+
     if (DEBUG) debug("Opening transaction for object stores: " + storeNames);
     let self = this;
-    this.ensureDB(function(error, db) {
-      if (!error &&
-          txn_type === READ_WRITE &&
-          self.isDiskFull && self.isDiskFull()) {
-        error = Cr.NS_ERROR_FILE_NO_DEVICE_SPACE;
-      }
-      if (error) {
-        if (DEBUG) debug("Could not open database: " + error);
-        callback(error);
-        return;
-      }
-      let txn = db.transaction(storeNames, txn_type);
+    this.ensureDB(function() {
+      let txn = self.db.transaction(storeNames, txn_type);
       if (DEBUG) debug("Started transaction " + txn + " of type " + txn_type);
       if (DEBUG) {
         txn.oncomplete = function oncomplete(event) {
@@ -320,6 +307,10 @@ MobileMessageDB.prototype = {
         });
       }
       callback(null, txn, stores);
+    }, function(error) {
+      if (DEBUG) debug("Could not open database: " + error);
+      callback(error);
+      return;
     });
   },
 
