@@ -8,6 +8,7 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/IndexedDBHelper.jsm");
 Cu.import("resource://gre/modules/PhoneNumberUtils.jsm");
 Cu.importGlobalProperties(["indexedDB"]);
 
@@ -81,13 +82,7 @@ XPCOMUtils.defineLazyGetter(this, "MMS", function() {
  */
 this.MobileMessageDB = function() {};
 MobileMessageDB.prototype = {
-  dbName: null,
-  dbVersion: null,
-
-  /**
-   * Cache the DB here.
-   */
-  db: null,
+  __proto__: IndexedDBHelper.prototype,
 
   /**
    * Last sms/mms object store key value in the database.
@@ -341,8 +336,7 @@ MobileMessageDB.prototype = {
    *        initialized with success or the error object otherwise.
    */
   init: function(aDbName, aDbVersion, aCallback) {
-    this.dbName = aDbName;
-    this.dbVersion = aDbVersion || DB_VERSION;
+    this.initDBHelper(aDbName, aDbVersion || DB_VERSION);
 
     let self = this;
     this.newTxn(READ_ONLY, function(error, txn, messageStore){
@@ -381,16 +375,6 @@ MobileMessageDB.prototype = {
         }
       };
     });
-  },
-
-  close: function() {
-    if (!this.db) {
-      return;
-    }
-
-    this.db.close();
-    this.db = null;
-    this.lastMessageId = 0;
   },
 
   /**
