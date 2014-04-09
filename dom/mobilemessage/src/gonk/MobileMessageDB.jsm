@@ -2891,28 +2891,15 @@ MobileMessageDB.prototype = {
 
   markMessageRead: function(messageId, value, aSendReadReport, aRequest) {
     if (DEBUG) debug("Setting message " + messageId + " read to " + value);
+    let messageRecord, readReportMessageId, readReportTo;
     let self = this;
     this.newTxn(READ_WRITE, [MESSAGE_STORE_NAME, THREAD_STORE_NAME],
-                function(error, txn, stores) {
-      if (error) {
-        if (DEBUG) debug(error);
-        aRequest.notifyMarkMessageReadFailed(
-          self.translateCrErrorToMessageCallbackError(error));
-        return;
-      }
-
-      txn.onerror = function onerror(event) {
-        if (DEBUG) debug("Caught error on transaction ", event.target.errorCode);
-        aRequest.notifyMarkMessageReadFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-      };
-
+                function(txn, stores) {
       let messageStore = stores[0];
       let threadStore = stores[1];
       messageStore.get(messageId).onsuccess = function onsuccess(event) {
-        let messageRecord = event.target.result;
+        messageRecord = event.target.result;
         if (!messageRecord) {
-          if (DEBUG) debug("Message ID " + messageId + " not found");
-          aRequest.notifyMarkMessageReadFailed(Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR);
           return;
         }
 
@@ -2921,7 +2908,7 @@ MobileMessageDB.prototype = {
             debug("Retrieve message ID (" + messageId + ") is " +
                   "different from the one we got");
           }
-          aRequest.notifyMarkMessageReadFailed(Ci.nsIMobileMessageCallback.UNKNOWN_ERROR);
+          txn.abort();
           return;
         }
 
@@ -2929,13 +2916,11 @@ MobileMessageDB.prototype = {
         // value, we just notify successfully.
         if (messageRecord.read == value) {
           if (DEBUG) debug("The value of messageRecord.read is already " + value);
-          aRequest.notifyMessageMarkedRead(messageRecord.read);
           return;
         }
 
         messageRecord.read = value ? FILTER_READ_READ : FILTER_READ_UNREAD;
         messageRecord.readIndex = [messageRecord.read, messageRecord.timestamp];
-        let readReportMessageId, readReportTo;
         if (aSendReadReport &&
             messageRecord.type == "mms" &&
             messageRecord.delivery == DELIVERY_RECEIVED &&
@@ -2968,17 +2953,26 @@ MobileMessageDB.prototype = {
                      threadRecord.unreadCount - 1) +
                      " -> " + threadRecord.unreadCount);
             }
-            threadStore.put(threadRecord).onsuccess = function(event) {
-              if(readReportMessageId && readReportTo) {
-                gMMSService.sendReadReport(readReportMessageId,
-                                           readReportTo,
-                                           messageRecord.iccId);
-              }
-              aRequest.notifyMessageMarkedRead(messageRecord.read);
-            };
+            threadStore.put(threadRecord);
           };
         };
       };
+    }, function() {
+      if (!messageRecord) {
+        aRequest.notifyMarkMessageReadFailed(
+          Ci.nsIMobileMessageCallback.NOT_FOUND_ERROR);
+        return;
+      }
+
+      if (readReportMessageId && readReportTo) {
+        gMMSService.sendReadReport(readReportMessageId, readReportTo,
+                                   messageRecord.iccId);
+      }
+
+      aRequest.notifyMessageMarkedRead(messageRecord.read);
+    }, function(aErrorName) {
+      aRequest.notifyMarkMessageReadFailed(
+        self.translateCrErrorToMessageCallbackError(aErrorName));
     });
   },
 
