@@ -2628,51 +2628,38 @@ MobileMessageDB.prototype = {
     });
   },
 
-  getMessageRecordById: function(aMessageId, aCallback) {
+  getMessageRecordById: function(aMessageId, aRilRecordCallback) {
     if (DEBUG) debug("Retrieving message with ID " + aMessageId);
     let self = this;
-    this.newTxn(READ_ONLY, [MESSAGE_STORE_NAME],
-                function(error, txn, messageStore) {
-      if (error) {
-        if (DEBUG) debug(error);
-        aCallback.notify(error, null, null);
+    this.newTxn(READ_ONLY, [MESSAGE_STORE_NAME], function(txn, messageStore) {
+      messageStore.mozGetAll(aMessageId);
+    }, function(aResult) {
+      if (aResult.length > 1) {
+        if (DEBUG) debug("Got too many results for id " + aMessageId);
+        aRilRecordCallback.notify("UnknownError", null, null);
         return;
       }
-      let request = messageStore.mozGetAll(aMessageId);
 
-      txn.oncomplete = function oncomplete() {
-        if (DEBUG) debug("Transaction " + txn + " completed.");
-        if (request.result.length > 1) {
-          if (DEBUG) debug("Got too many results for id " + aMessageId);
-          aCallback.notify(Cr.NS_ERROR_UNEXPECTED, null, null);
-          return;
-        }
-        let messageRecord = request.result[0];
-        if (!messageRecord) {
-          if (DEBUG) debug("Message ID " + aMessageId + " not found");
-          aCallback.notify(Cr.NS_ERROR_FILE_NOT_FOUND, null, null);
-          return;
-        }
-        if (messageRecord.id != aMessageId) {
-          if (DEBUG) {
-            debug("Requested message ID (" + aMessageId + ") is " +
-                  "different from the one we got");
-          }
-          aCallback.notify(Cr.NS_ERROR_UNEXPECTED, null, null);
-          return;
-        }
-        let domMessage = self.createDomMessageFromRecord(messageRecord);
-        aCallback.notify(Cr.NS_OK, messageRecord, domMessage);
-      };
+      let messageRecord = aResult[0];
+      if (!messageRecord) {
+        if (DEBUG) debug("Message ID " + aMessageId + " not found");
+        aRilRecordCallback.notify("NotFoundError", null, null);
+        return;
+      }
 
-      txn.onerror = function onerror(event) {
+      if (messageRecord.id != aMessageId) {
         if (DEBUG) {
-          if (event.target) {
-            debug("Caught error on transaction", event.target.errorCode);
-          }
+          debug("Requested message ID (" + aMessageId + ") is " +
+                "different from the one we got");
         }
-        aCallback.notify(Cr.NS_ERROR_FAILURE, null, null);
-      };
+        aRilRecordCallback.notify("UnknownError", null, null);
+        return;
+      }
+
+      let domMessage = self.createDomMessageFromRecord(messageRecord);
+      aRilRecordCallback.notify(null, messageRecord, domMessage);
+    }, function(aErrorName) {
+      aRilRecordCallback.notify(aErrorName, null, null);
     });
   },
 
