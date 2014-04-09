@@ -2678,53 +2678,10 @@ MobileMessageDB.prototype = {
     }
   },
 
-  saveSmsSegment: function(aSmsSegment, aCallback) {
+  saveSmsSegment: function(aSmsSegment, aRilConcatenationCallback) {
     let completeMessage = null;
     this.newTxn(READ_WRITE, [SMS_SEGMENT_STORE_NAME],
-                function(error, txn, segmentStore) {
-      if (error) {
-        if (DEBUG) debug(error);
-        aCallback.notify(error, null);
-        return;
-      }
-
-      txn.oncomplete = function oncomplete(event) {
-        if (DEBUG) debug("Transaction " + txn + " completed.");
-        if (completeMessage) {
-          // Rebuild full body
-          if (completeMessage.encoding == RIL.PDU_DCS_MSG_CODING_8BITS_ALPHABET) {
-            // Uint8Array doesn't have `concat`, so
-            // we have to merge all segements by hand.
-            let fullDataLen = 0;
-            for (let i = 1; i <= completeMessage.segmentMaxSeq; i++) {
-              fullDataLen += completeMessage.segments[i].length;
-            }
-
-            completeMessage.fullData = new Uint8Array(fullDataLen);
-            for (let d = 0, i = 1; i <= completeMessage.segmentMaxSeq; i++) {
-              let data = completeMessage.segments[i];
-              for (let j = 0; j < data.length; j++) {
-                completeMessage.fullData[d++] = data[j];
-              }
-            }
-          } else {
-            completeMessage.fullBody = completeMessage.segments.join("");
-          }
-
-          // Remove handy fields after completing the concatenation.
-          delete completeMessage.id;
-          delete completeMessage.hash;
-          delete completeMessage.receivedSegments;
-          delete completeMessage.segments;
-        }
-        aCallback.notify(Cr.NS_OK, completeMessage);
-      };
-
-      txn.onabort = function onerror(event) {
-        if (DEBUG) debug("Caught error on transaction", event.target.errorCode);
-        aCallback.notify(Cr.NS_ERROR_FAILURE, null, null);
-      };
-
+                function(txn, segmentStore) {
       aSmsSegment.hash = aSmsSegment.sender + ":" +
                          aSmsSegment.segmentRef + ":" +
                          aSmsSegment.segmentMaxSeq + ":" +
@@ -2798,6 +2755,41 @@ MobileMessageDB.prototype = {
         // Delete Record in DB
         segmentStore.delete(segmentRecord.id);
       };
+    }, function() {
+      if (!completeMessage) {
+        aRilConcatenationCallback.notify(null, null);
+        return;
+      }
+
+      // Rebuild full body
+      if (completeMessage.encoding == RIL.PDU_DCS_MSG_CODING_8BITS_ALPHABET) {
+        // Uint8Array doesn't have `concat`, so
+        // we have to merge all segements by hand.
+        let fullDataLen = 0;
+        for (let i = 1; i <= completeMessage.segmentMaxSeq; i++) {
+          fullDataLen += completeMessage.segments[i].length;
+        }
+
+        completeMessage.fullData = new Uint8Array(fullDataLen);
+        for (let d = 0, i = 1; i <= completeMessage.segmentMaxSeq; i++) {
+          let data = completeMessage.segments[i];
+          for (let j = 0; j < data.length; j++) {
+            completeMessage.fullData[d++] = data[j];
+          }
+        }
+      } else {
+        completeMessage.fullBody = completeMessage.segments.join("");
+      }
+
+      // Remove handy fields after completing the concatenation.
+      delete completeMessage.id;
+      delete completeMessage.hash;
+      delete completeMessage.receivedSegments;
+      delete completeMessage.segments;
+
+      aRilConcatenationCallback.notify(null, completeMessage);
+    }, function(aErrorName) {
+      aRilConcatenationCallback.notify(aErrorName, null, null);
     });
   },
 
