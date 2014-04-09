@@ -2612,39 +2612,19 @@ MobileMessageDB.prototype = {
     }, [MESSAGE_STORE_NAME]);
   },
 
-  getMessageRecordByTransactionId: function(aTransactionId, aCallback) {
+  getMessageRecordByTransactionId: function(aTransactionId, aRilRecordCallback) {
     if (DEBUG) debug("Retrieving message with transaction ID " + aTransactionId);
     let self = this;
-    this.newTxn(READ_ONLY, [MESSAGE_STORE_NAME],
-                function(error, txn, messageStore) {
-      if (error) {
-        if (DEBUG) debug(error);
-        aCallback.notify(error, null, null);
-        return;
+    this.newTxn(READ_ONLY, [MESSAGE_STORE_NAME], function(txn, messageStore) {
+      messageStore.index("transactionId").get(aTransactionId);
+    }, function(aResult) {
+      if (!aResult) {
+        aRilRecordCallback.notify("NotFoundError", null, null);
+      } else {
+        aRilRecordCallback.notify(null, aResult, null);
       }
-      let request = messageStore.index("transactionId").get(aTransactionId);
-
-      txn.oncomplete = function oncomplete(event) {
-        if (DEBUG) debug("Transaction " + txn + " completed.");
-        let messageRecord = request.result;
-        if (!messageRecord) {
-          if (DEBUG) debug("Transaction ID " + aTransactionId + " not found");
-          aCallback.notify(Cr.NS_ERROR_FILE_NOT_FOUND, null, null);
-          return;
-        }
-        // In this case, we don't need a dom message. Just pass null to the
-        // third argument.
-        aCallback.notify(Cr.NS_OK, messageRecord, null);
-      };
-
-      txn.onerror = function onerror(event) {
-        if (DEBUG) {
-          if (event.target) {
-            debug("Caught error on transaction", event.target.errorCode);
-          }
-        }
-        aCallback.notify(Cr.NS_ERROR_FAILURE, null, null);
-      };
+    }, function(aErrorName) {
+      aRilRecordCallback.notify(aErrorName, null, null);
     });
   },
 
