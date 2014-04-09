@@ -2818,26 +2818,9 @@ MobileMessageDB.prototype = {
     let deleted = [];
     let self = this;
     this.newTxn(READ_WRITE, [MESSAGE_STORE_NAME, THREAD_STORE_NAME],
-                function(error, txn, stores) {
-      if (error) {
-        if (DEBUG) debug("deleteMessage: failed to open transaction");
-        aRequest.notifyDeleteMessageFailed(
-          self.translateCrErrorToMessageCallbackError(error));
-        return;
-      }
-      txn.onerror = function onerror(event) {
-        if (DEBUG) debug("Caught error on transaction", event.target.errorCode);
-        //TODO look at event.target.errorCode, pick appropriate error constant
-        aRequest.notifyDeleteMessageFailed(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-      };
-
+                function(txn, stores) {
       const messageStore = stores[0];
       const threadStore = stores[1];
-
-      txn.oncomplete = function oncomplete(event) {
-        if (DEBUG) debug("Transaction " + txn + " completed.");
-        aRequest.notifyMessageDeleted(deleted, length);
-      };
 
       for (let i = 0; i < length; i++) {
         let messageId = messageIds[i];
@@ -2859,16 +2842,25 @@ MobileMessageDB.prototype = {
                                                messageRecord.threadId,
                                                messageId,
                                                messageRecord.read);
-
-              Services.obs.notifyObservers(null,
-                                           "mobile-message-deleted",
-                                           JSON.stringify({ id: messageId }));
             };
           } else if (DEBUG) {
             debug("Message id " + messageId + " does not exist");
           }
         }.bind(null, i);
       }
+    }, function() {
+      deleted.forEach(function(aDeleted, aIndex) {
+        if (aDeleted) {
+          let messageId = messageIds[aIndex];
+          Services.obs.notifyObservers(null, "mobile-message-deleted",
+                                       JSON.stringify({ id: messageId }));
+        }
+      });
+
+      aRequest.notifyMessageDeleted(deleted, length);
+    }, function(aErrorName) {
+      aRequest.notifyDeleteMessageFailed(
+        self.translateCrErrorToMessageCallbackError(aErrorName));
     });
   },
 
