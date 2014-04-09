@@ -261,7 +261,7 @@ MobileMessageDB.prototype = {
     };
     request.onerror = function(event) {
       if (DEBUG) debug("Error opening database!");
-      aFailureCb && aFailureCb(Cr.NS_ERROR_FAILURE);
+      aFailureCb && aFailureCb(event.target.error.name);
     };
   },
 
@@ -275,10 +275,15 @@ MobileMessageDB.prototype = {
    * @param callback
    *        Function to call when the transaction is available. It will
    *        be invoked with the transaction and opened object stores.
+   * @param successCb
+   *        Success callback to call on a successful transaction commit.
+   *        The result is stored in txn.result.
+   * @param failureCb
+   *        Error callback to call when an error is encountered.
    */
-  newTxn: function(txn_type, storeNames, callback) {
+  newTxn: function(txn_type, storeNames, callback, successCb, failureCb) {
     if (txn_type === READ_WRITE && this.isDiskFull && this.isDiskFull()) {
-      callback(Cr.NS_ERROR_FILE_NO_DEVICE_SPACE);
+      failureCb && failureCb("QuotaExceededError");
       return;
     }
 
@@ -287,16 +292,24 @@ MobileMessageDB.prototype = {
     this.ensureDB(function() {
       let txn = self.db.transaction(storeNames, txn_type);
       if (DEBUG) debug("Started transaction " + txn + " of type " + txn_type);
-      if (DEBUG) {
-        txn.oncomplete = function oncomplete(event) {
-          debug("Transaction " + txn + " completed.");
-        };
-        txn.onerror = function onerror(event) {
-          //TODO check event.target.errorCode and show an appropiate error
-          //     message according to it.
-          debug("Error occurred during transaction: " + event.target.errorCode);
-        };
-      }
+      txn.oncomplete = function oncomplete(event) {
+        if (DEBUG) debug("Transaction " + txn + " completed.");
+        successCb && successCb(event.target.result);
+      };
+      txn.onabort = function onabort(event) {
+        if (failureCb) {
+          if (event.target.error) {
+            if (DEBUG) {
+              debug("Error occurred during transaction: " +
+                    event.target.error.name);
+            }
+            failureCb(event.target.error.name);
+          } else {
+            if (DEBUG) debug("Error occurred during transaction: UnknownError");
+            failureCb("UnknownError");
+          }
+        }
+      };
       if (DEBUG) debug("Retrieving object store " + storeNames);
       let stores;
       if (storeNames.length == 1) {
@@ -306,12 +319,8 @@ MobileMessageDB.prototype = {
           return txn.objectStore(storeName);
         });
       }
-      callback(null, txn, stores);
-    }, function(error) {
-      if (DEBUG) debug("Could not open database: " + error);
-      callback(error);
-      return;
-    });
+      callback(txn, stores);
+    }, failureCb);
   },
 
   /**
