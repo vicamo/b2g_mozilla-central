@@ -33,7 +33,8 @@ function verify(aMmdb, aMessageId, aDelivery, aDeliveryStatus, aRv, aDomMessage)
   let deferred = Promise.defer();
 
   // Verify deliveryIndex, sentTimestamp and deliveryTimestamp
-  aMmdb.newTxn("readonly", function(aError, aTransaction, aMessageStore) {
+  aMmdb.newTxn("readonly", [MESSAGE_STORE_NAME],
+               function(aError, aTransaction, aMessageStore) {
     let messageRecord;
     aTransaction.oncomplete = function() {
       ok(true, "transaction complete");
@@ -58,7 +59,7 @@ function verify(aMmdb, aMessageId, aDelivery, aDeliveryStatus, aRv, aDomMessage)
       messageRecord = event.target.result;
       ok(true, "Got messageRecord " + messageRecord.id);
     };
-  }, [MESSAGE_STORE_NAME]);
+  });
 
   return deferred.promise;
 }

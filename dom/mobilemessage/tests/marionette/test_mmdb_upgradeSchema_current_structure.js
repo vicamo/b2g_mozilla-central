@@ -133,7 +133,8 @@ function verifyDatabase(aMmdb) {
   let deferred = Promise.defer();
 
   let expectedStoreNames = Object.keys(LAYOUT);
-  aMmdb.newTxn("readonly", function(aError, aTransaction, aObjectStores) {
+  aMmdb.newTxn("readonly", expectedStoreNames,
+               function(aError, aTransaction, aObjectStores) {
     if (!Array.isArray(aObjectStores)) {
       // When we have only one object store open, aObjectStores is an instance
       // of IDBObjectStore.  Push it to an array for convenience here.
@@ -159,7 +160,7 @@ function verifyDatabase(aMmdb) {
     is(slicedStoreNames.length, 0, "Extra object stores: " + slicedStoreNames);
 
     deferred.resolve(aMmdb);
-  }, expectedStoreNames);
+  });
 
   return deferred.promise;
 }

@@ -278,13 +278,13 @@ MobileMessageDB.prototype = {
    *
    * @param txn_type
    *        Type of transaction (e.g. READ_WRITE)
+   * @param storeNames
+   *        Names of the stores to open.
    * @param callback
    *        Function to call when the transaction is available. It will
    *        be invoked with the transaction and opened object stores.
-   * @param storeNames
-   *        Names of the stores to open.
    */
-  newTxn: function(txn_type, callback, storeNames) {
+  newTxn: function(txn_type, storeNames, callback) {
     if (DEBUG) debug("Opening transaction for object stores: " + storeNames);
     let self = this;
     this.ensureDB(function(error, db) {
@@ -340,7 +340,8 @@ MobileMessageDB.prototype = {
     this.dbVersion = aDbVersion || DB_VERSION;
 
     let self = this;
-    this.newTxn(READ_ONLY, function(error, txn, messageStore){
+    this.newTxn(READ_ONLY, [MESSAGE_STORE_NAME],
+                function(error, txn, messageStore){
       if (error) {
         if (aCallback) {
           aCallback(error);
@@ -375,7 +376,7 @@ MobileMessageDB.prototype = {
                 event.target.errorCode);
         }
       };
-    }, [MESSAGE_STORE_NAME]);
+    });
   },
 
   close: function() {
@@ -397,7 +398,8 @@ MobileMessageDB.prototype = {
       return;
     }
 
-    this.newTxn(READ_WRITE, function(error, txn, messageStore) {
+    this.newTxn(READ_WRITE, [MESSAGE_STORE_NAME],
+                function(error, txn, messageStore) {
       if (error) {
         return;
       }
@@ -461,7 +463,7 @@ MobileMessageDB.prototype = {
         messageCursor.update(messageRecord);
         messageCursor.continue();
       };
-    }, [MESSAGE_STORE_NAME]);
+    });
   },
 
   /**
@@ -1959,7 +1961,8 @@ MobileMessageDB.prototype = {
 
   newTxnWithCallback: function(aCallback, aFunc, aStoreNames) {
     let self = this;
-    this.newTxn(READ_WRITE, function(aError, aTransaction, aStores) {
+    this.newTxn(READ_WRITE, aStoreNames,
+                function(aError, aTransaction, aStores) {
       let notifyResult = function(aRv, aMessageRecord) {
         if (!aCallback) {
           return;
@@ -1984,14 +1987,16 @@ MobileMessageDB.prototype = {
       };
 
       aFunc(capture, aStores);
-    }, aStoreNames);
+    });
   },
 
   saveRecord: function(aMessageRecord, aThreadParticipants, aCallback) {
     if (DEBUG) debug("Going to store " + JSON.stringify(aMessageRecord));
 
     let self = this;
-    this.newTxn(READ_WRITE, function(error, txn, stores) {
+    this.newTxn(READ_WRITE,
+                [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME],
+                function(error, txn, stores) {
       let notifyResult = function(aRv, aMessageRecord) {
         if (!aCallback) {
           return;
@@ -2023,7 +2028,7 @@ MobileMessageDB.prototype = {
       self.replaceShortMessageOnSave(txn, messageStore, participantStore,
                                      threadStore, aMessageRecord,
                                      aThreadParticipants);
-    }, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME]);
+    });
   },
 
   replaceShortMessageOnSave: function(aTransaction, aMessageStore,
@@ -2657,7 +2662,8 @@ MobileMessageDB.prototype = {
   getMessageRecordByTransactionId: function(aTransactionId, aCallback) {
     if (DEBUG) debug("Retrieving message with transaction ID " + aTransactionId);
     let self = this;
-    this.newTxn(READ_ONLY, function(error, txn, messageStore) {
+    this.newTxn(READ_ONLY, [MESSAGE_STORE_NAME],
+                function(error, txn, messageStore) {
       if (error) {
         if (DEBUG) debug(error);
         aCallback.notify(error, null, null);
@@ -2686,13 +2692,14 @@ MobileMessageDB.prototype = {
         }
         aCallback.notify(Cr.NS_ERROR_FAILURE, null, null);
       };
-    }, [MESSAGE_STORE_NAME]);
+    });
   },
 
   getMessageRecordById: function(aMessageId, aCallback) {
     if (DEBUG) debug("Retrieving message with ID " + aMessageId);
     let self = this;
-    this.newTxn(READ_ONLY, function(error, txn, messageStore) {
+    this.newTxn(READ_ONLY, [MESSAGE_STORE_NAME],
+                function(error, txn, messageStore) {
       if (error) {
         if (DEBUG) debug(error);
         aCallback.notify(error, null, null);
@@ -2733,7 +2740,7 @@ MobileMessageDB.prototype = {
         }
         aCallback.notify(Cr.NS_ERROR_FAILURE, null, null);
       };
-    }, [MESSAGE_STORE_NAME]);
+    });
   },
 
   translateCrErrorToMessageCallbackError: function(aCrError) {
@@ -2753,7 +2760,8 @@ MobileMessageDB.prototype = {
 
   saveSmsSegment: function(aSmsSegment, aCallback) {
     let completeMessage = null;
-    this.newTxn(READ_WRITE, function(error, txn, segmentStore) {
+    this.newTxn(READ_WRITE, [SMS_SEGMENT_STORE_NAME],
+                function(error, txn, segmentStore) {
       if (error) {
         if (DEBUG) debug(error);
         aCallback.notify(error, null);
@@ -2870,7 +2878,7 @@ MobileMessageDB.prototype = {
         // Delete Record in DB
         segmentStore.delete(segmentRecord.id);
       };
-    }, [SMS_SEGMENT_STORE_NAME]);
+    });
   },
 
   /**
@@ -2897,7 +2905,8 @@ MobileMessageDB.prototype = {
     if (DEBUG) debug("deleteMessage: message ids " + JSON.stringify(messageIds));
     let deleted = [];
     let self = this;
-    this.newTxn(READ_WRITE, function(error, txn, stores) {
+    this.newTxn(READ_WRITE, [MESSAGE_STORE_NAME, THREAD_STORE_NAME],
+                function(error, txn, stores) {
       if (error) {
         if (DEBUG) debug("deleteMessage: failed to open transaction");
         aRequest.notifyDeleteMessageFailed(
@@ -2948,7 +2957,7 @@ MobileMessageDB.prototype = {
           }
         }.bind(null, i);
       }
-    }, [MESSAGE_STORE_NAME, THREAD_STORE_NAME]);
+    });
   },
 
   createMessageCursor: function(filter, reverse, callback) {
@@ -2966,11 +2975,12 @@ MobileMessageDB.prototype = {
     let cursor = new GetMessagesCursor(this, callback);
 
     let self = this;
-    self.newTxn(READ_ONLY, function(error, txn, stores) {
+    self.newTxn(READ_ONLY, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME],
+                function(error, txn, stores) {
       let collector = cursor.collector;
       let collect = collector.collect.bind(collector);
       FilterSearcherHelper.transact(self, txn, error, filter, reverse, collect);
-    }, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME]);
+    });
 
     return cursor;
   },
@@ -2978,7 +2988,8 @@ MobileMessageDB.prototype = {
   markMessageRead: function(messageId, value, aSendReadReport, aRequest) {
     if (DEBUG) debug("Setting message " + messageId + " read to " + value);
     let self = this;
-    this.newTxn(READ_WRITE, function(error, txn, stores) {
+    this.newTxn(READ_WRITE, [MESSAGE_STORE_NAME, THREAD_STORE_NAME],
+                function(error, txn, stores) {
       if (error) {
         if (DEBUG) debug(error);
         aRequest.notifyMarkMessageReadFailed(
@@ -3064,14 +3075,15 @@ MobileMessageDB.prototype = {
           };
         };
       };
-    }, [MESSAGE_STORE_NAME, THREAD_STORE_NAME]);
+    });
   },
 
   createThreadCursor: function(callback) {
     if (DEBUG) debug("Getting thread list");
 
     let cursor = new GetThreadsCursor(this, callback);
-    this.newTxn(READ_ONLY, function(error, txn, threadStore) {
+    this.newTxn(READ_ONLY, [THREAD_STORE_NAME],
+                function(error, txn, threadStore) {
       let collector = cursor.collector;
       if (error) {
         collector.collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
@@ -3092,7 +3104,7 @@ MobileMessageDB.prototype = {
           collector.collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
         }
       };
-    }, [THREAD_STORE_NAME]);
+    });
 
     return cursor;
   }
@@ -3658,13 +3670,14 @@ GetMessagesCursor.prototype = {
 
     // Or, we have to open another transaction ourselves.
     let self = this;
-    this.mmdb.newTxn(READ_ONLY, function(error, txn, messageStore) {
+    this.mmdb.newTxn(READ_ONLY, [MESSAGE_STORE_NAME],
+                     function(error, txn, messageStore) {
       if (error) {
         self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
         return;
       }
       self.getMessageTxn(messageStore, messageId);
-    }, [MESSAGE_STORE_NAME]);
+    });
   },
 
   // nsICursorContinueCallback
@@ -3739,13 +3752,14 @@ GetThreadsCursor.prototype = {
 
     // Or, we have to open another transaction ourselves.
     let self = this;
-    this.mmdb.newTxn(READ_ONLY, function(error, txn, threadStore) {
+    this.mmdb.newTxn(READ_ONLY, [THREAD_STORE_NAME],
+                     function(error, txn, threadStore) {
       if (error) {
         self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
         return;
       }
       self.getThreadTxn(threadStore, threadId);
-    }, [THREAD_STORE_NAME]);
+    });
   },
 
   // nsICursorContinueCallback

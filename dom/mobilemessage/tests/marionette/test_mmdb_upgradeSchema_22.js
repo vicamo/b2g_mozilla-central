@@ -45,7 +45,9 @@ let LEGACY = {
     if (DEBUG) debug("Going to store " + JSON.stringify(aMessageRecord));
 
     let self = this;
-    this.newTxn(READ_WRITE, function(error, txn, stores) {
+    this.newTxn(READ_WRITE,
+                [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME],
+                function(error, txn, stores) {
       let notifyResult = function(aRv, aMessageRecord) {
         if (!aCallback) {
           return;
@@ -77,7 +79,7 @@ let LEGACY = {
       LEGACY.replaceShortMessageOnSave.call(self, txn, messageStore,
                                             participantStore, threadStore,
                                             aMessageRecord, aAddresses);
-    }, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME]);
+    });
   },
 
   replaceShortMessageOnSave: function(aTransaction, aMessageStore,
