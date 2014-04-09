@@ -330,31 +330,15 @@ MobileMessageDB.prototype = {
    *        A string name for that database.
    * @param aDbVersion
    *        The version that mmdb should upgrade to. 0 for the lastest version.
-   * @param aCallback
-   *        A function when either the initialization transaction is completed
-   *        or any error occurs.  Should take only one argument -- null when
-   *        initialized with success or the error object otherwise.
+   * @param aSuccessCb
+   * @param aFailureCb
    */
-  init: function(aDbName, aDbVersion, aCallback) {
+  init: function(aDbName, aDbVersion, aSuccessCb, aFailureCb) {
     this.dbName = aDbName;
     this.dbVersion = aDbVersion || DB_VERSION;
 
     let self = this;
-    this.newTxn(READ_ONLY, [MESSAGE_STORE_NAME],
-                function(error, txn, messageStore){
-      if (error) {
-        if (aCallback) {
-          aCallback(error);
-        }
-        return;
-      }
-
-      if (aCallback) {
-        txn.oncomplete = function() {
-          aCallback(null);
-        };
-      }
-
+    this.newTxn(READ_ONLY, [MESSAGE_STORE_NAME], function(txn, messageStore){
       // In order to get the highest key value, we open a key cursor in reverse
       // order and get only the first pointed value.
       let request = messageStore.openCursor(null, PREV);
@@ -370,13 +354,7 @@ MobileMessageDB.prototype = {
         self.lastMessageId = cursor.key || 0;
         if (DEBUG) debug("Last assigned message ID was " + self.lastMessageId);
       };
-      request.onerror = function onerror(event) {
-        if (DEBUG) {
-          debug("Could not get the last key from mobile message database " +
-                event.target.errorCode);
-        }
-      };
-    });
+    }, aSuccessCb, aFailureCb);
   },
 
   close: function() {
@@ -393,17 +371,8 @@ MobileMessageDB.prototype = {
    * Sometimes user might reboot or remove battery while sending/receiving
    * message. This is function set the status of message records to error.
    */
-  updatePendingTransactionToError: function(aError) {
-    if (aError) {
-      return;
-    }
-
-    this.newTxn(READ_WRITE, [MESSAGE_STORE_NAME],
-                function(error, txn, messageStore) {
-      if (error) {
-        return;
-      }
-
+  updatePendingTransactionToError: function() {
+    this.newTxn(READ_WRITE, [MESSAGE_STORE_NAME], function(txn, messageStore) {
       let deliveryIndex = messageStore.index("delivery");
 
       // Set all 'delivery: sending' records to 'delivery: error' and 'deliveryStatus:

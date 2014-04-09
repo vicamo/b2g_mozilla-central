@@ -47,12 +47,10 @@ function newMobileMessageDB() {
 function initMobileMessageDB(aMmdb, aDbName, aDbVersion) {
   let deferred = Promise.defer();
 
-  aMmdb.init(aDbName, aDbVersion, function(aError) {
-    if (aError) {
-      deferred.reject(aMmdb);
-    } else {
-      deferred.resolve(aMmdb);
-    }
+  aMmdb.init(aDbName, aDbVersion, function() {
+    deferred.resolve(aMmdb);
+  }, function() {
+    deferred.reject(aMmdb);
   });
 
   return deferred.promise;
