@@ -41,44 +41,28 @@ const FILTER_READ_READ = 1;
 const DISABLE_MMS_GROUPING_FOR_RECEIVING = true;
 
 let LEGACY = {
-  saveRecord: function(aMessageRecord, aAddresses, aCallback) {
+  saveRecord: function(aMessageRecord, aAddresses, aRilCallback) {
     if (DEBUG) debug("Going to store " + JSON.stringify(aMessageRecord));
 
     let self = this;
     this.newTxn(READ_WRITE,
                 [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME],
-                function(error, txn, stores) {
-      let notifyResult = function(aRv, aMessageRecord) {
-        if (!aCallback) {
-          return;
-        }
-        let domMessage =
-          aMessageRecord && self.createDomMessageFromRecord(aMessageRecord);
-        aCallback.notify(aRv, domMessage);
-      };
-
-      if (error) {
-        notifyResult(error, null);
-        return;
-      }
-
-      txn.oncomplete = function oncomplete(event) {
-        if (aMessageRecord.id > self.lastMessageId) {
-          self.lastMessageId = aMessageRecord.id;
-        }
-        notifyResult(Cr.NS_OK, aMessageRecord);
-      };
-      txn.onabort = function onabort(event) {
-        // TODO bug 832140 check event.target.errorCode
-        notifyResult(Cr.NS_ERROR_FAILURE, null);
-      };
-
+                function(txn, stores) {
       let messageStore = stores[0];
       let participantStore = stores[1];
       let threadStore = stores[2];
       LEGACY.replaceShortMessageOnSave.call(self, txn, messageStore,
                                             participantStore, threadStore,
                                             aMessageRecord, aAddresses);
+    }, function() {
+      if (aMessageRecord.id > self.lastMessageId) {
+        self.lastMessageId = aMessageRecord.id;
+      }
+      if (aRilCallback) {
+        aRilCallback.notify(null, self.createDomMessageFromRecord(aMessageRecord));
+      }
+    }, function(aErrorName) {
+      aRilCallback && aRilCallback.notify(aErrorName, null);
     });
   },
 
@@ -289,7 +273,7 @@ let LEGACY = {
     threadParticipants = threadParticipants.concat(slicedReceivers);
   },
 
-  saveReceivedMessage: function(aMessage, aCallback) {
+  saveReceivedMessage: function(aMessage, aRilCallback) {
     if ((aMessage.type != "sms" && aMessage.type != "mms") ||
         (aMessage.type == "sms" && (aMessage.messageClass == undefined ||
                                     aMessage.sender == undefined)) ||
@@ -297,8 +281,8 @@ let LEGACY = {
                                     aMessage.deliveryStatus == undefined ||
                                     !Array.isArray(aMessage.receivers))) ||
         aMessage.timestamp == undefined) {
-      if (aCallback) {
-        aCallback.notify(Cr.NS_ERROR_FAILURE, null);
+      if (aRilCallback) {
+        aRilCallback.notify(Cr.NS_ERROR_FAILURE, null);
       }
       return;
     }
@@ -359,17 +343,17 @@ let LEGACY = {
     }
     aMessage.deliveryIndex = [aMessage.delivery, timestamp];
 
-    LEGACY.saveRecord.call(this, aMessage, threadParticipants, aCallback);
+    LEGACY.saveRecord.call(this, aMessage, threadParticipants, aRilCallback);
   },
 
-  saveSendingMessage: function(aMessage, aCallback) {
+  saveSendingMessage: function(aMessage, aRilCallback) {
     if ((aMessage.type != "sms" && aMessage.type != "mms") ||
         (aMessage.type == "sms" && aMessage.receiver == undefined) ||
         (aMessage.type == "mms" && !Array.isArray(aMessage.receivers)) ||
         aMessage.deliveryStatusRequested == undefined ||
         aMessage.timestamp == undefined) {
-      if (aCallback) {
-        aCallback.notify(Cr.NS_ERROR_FAILURE, null);
+      if (aRilCallback) {
+        aRilCallback.notify(Cr.NS_ERROR_FAILURE, null);
       }
       return;
     }
@@ -391,8 +375,8 @@ let LEGACY = {
         if (DEBUG) {
           debug("Need receivers for MMS. Fail to save the sending message.");
         }
-        if (aCallback) {
-          aCallback.notify(Cr.NS_ERROR_FAILURE, null);
+        if (aRilCallback) {
+          aRilCallback.notify(Cr.NS_ERROR_FAILURE, null);
         }
         return;
       }
@@ -430,7 +414,7 @@ let LEGACY = {
     } else if (aMessage.type == "mms") {
       addresses = aMessage.receivers;
     }
-    LEGACY.saveRecord.call(this, aMessage, addresses, aCallback);
+    LEGACY.saveRecord.call(this, aMessage, addresses, aRilCallback);
   },
 };
 

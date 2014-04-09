@@ -1959,44 +1959,28 @@ MobileMessageDB.prototype = {
     });
   },
 
-  saveRecord: function(aMessageRecord, aThreadParticipants, aCallback) {
+  saveRecord: function(aMessageRecord, aThreadParticipants, aRilCallback) {
     if (DEBUG) debug("Going to store " + JSON.stringify(aMessageRecord));
 
     let self = this;
     this.newTxn(READ_WRITE,
                 [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME, THREAD_STORE_NAME],
-                function(error, txn, stores) {
-      let notifyResult = function(aRv, aMessageRecord) {
-        if (!aCallback) {
-          return;
-        }
-        let domMessage =
-          aMessageRecord && self.createDomMessageFromRecord(aMessageRecord);
-        aCallback.notify(aRv, domMessage);
-      };
-
-      if (error) {
-        notifyResult(error, null);
-        return;
-      }
-
-      txn.oncomplete = function oncomplete(event) {
-        if (aMessageRecord.id > self.lastMessageId) {
-          self.lastMessageId = aMessageRecord.id;
-        }
-        notifyResult(Cr.NS_OK, aMessageRecord);
-      };
-      txn.onabort = function onabort(event) {
-        // TODO bug 832140 check event.target.errorCode
-        notifyResult(Cr.NS_ERROR_FAILURE, null);
-      };
-
+                function(txn, stores) {
       let messageStore = stores[0];
       let participantStore = stores[1];
       let threadStore = stores[2];
       self.replaceShortMessageOnSave(txn, messageStore, participantStore,
                                      threadStore, aMessageRecord,
                                      aThreadParticipants);
+    }, function() {
+      if (aMessageRecord.id > self.lastMessageId) {
+        self.lastMessageId = aMessageRecord.id;
+      }
+      if (aRilCallback) {
+        aRilCallback.notify(null, self.createDomMessageFromRecord(aMessageRecord));
+      }
+    }, function(aErrorName) {
+      aRilCallback && aRilCallback.notify(aErrorName, null);
     });
   },
 
@@ -2421,7 +2405,7 @@ MobileMessageDB.prototype = {
    * nsIRilMobileMessageDatabaseService API
    */
 
-  saveReceivedMessage: function(aMessage, aCallback) {
+  saveReceivedMessage: function(aMessage, aRilCallback) {
     if ((aMessage.type != "sms" && aMessage.type != "mms") ||
         (aMessage.type == "sms" && (aMessage.messageClass == undefined ||
                                     aMessage.sender == undefined)) ||
@@ -2429,8 +2413,8 @@ MobileMessageDB.prototype = {
                                     aMessage.deliveryStatus == undefined ||
                                     !Array.isArray(aMessage.receivers))) ||
         aMessage.timestamp == undefined) {
-      if (aCallback) {
-        aCallback.notify(Cr.NS_ERROR_FAILURE, null);
+      if (aRilCallback) {
+        aRilCallback.notify(Cr.NS_ERROR_FAILURE, null);
       }
       return;
     }
@@ -2496,17 +2480,17 @@ MobileMessageDB.prototype = {
     }
     aMessage.deliveryIndex = [aMessage.delivery, timestamp];
 
-    this.saveRecord(aMessage, threadParticipants, aCallback);
+    this.saveRecord(aMessage, threadParticipants, aRilCallback);
   },
 
-  saveSendingMessage: function(aMessage, aCallback) {
+  saveSendingMessage: function(aMessage, aRilCallback) {
     if ((aMessage.type != "sms" && aMessage.type != "mms") ||
         (aMessage.type == "sms" && aMessage.receiver == undefined) ||
         (aMessage.type == "mms" && !Array.isArray(aMessage.receivers)) ||
         aMessage.deliveryStatusRequested == undefined ||
         aMessage.timestamp == undefined) {
-      if (aCallback) {
-        aCallback.notify(Cr.NS_ERROR_FAILURE, null);
+      if (aRilCallback) {
+        aRilCallback.notify(Cr.NS_ERROR_FAILURE, null);
       }
       return;
     }
@@ -2561,7 +2545,7 @@ MobileMessageDB.prototype = {
     } else if (aMessage.type == "mms") {
       threadParticipants = aMessage.headers.to;
     }
-    this.saveRecord(aMessage, threadParticipants, aCallback);
+    this.saveRecord(aMessage, threadParticipants, aRilCallback);
   },
 
   setMessageDeliveryByMessageId: function(messageId, receiver, delivery,
