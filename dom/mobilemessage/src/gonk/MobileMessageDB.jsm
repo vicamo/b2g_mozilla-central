@@ -2850,7 +2850,7 @@ MobileMessageDB.prototype = {
     });
   },
 
-  createMessageCursor: function(filter, reverse, callback) {
+  createMessageCursor: function(filter, reverse, aCursorCallback) {
     if (DEBUG) {
       debug("Creating a message cursor. Filters:" +
             " startDate: " + filter.startDate +
@@ -2862,14 +2862,16 @@ MobileMessageDB.prototype = {
             " reverse: " + reverse);
     }
 
-    let cursor = new GetMessagesCursor(this, callback);
+    let cursor = new GetMessagesCursor(this, aCursorCallback);
+    let collector = cursor.collector;
+    let collect = collector.collect.bind(collector);
 
     let self = this;
     self.newTxn(READ_ONLY, [MESSAGE_STORE_NAME, PARTICIPANT_STORE_NAME],
-                function(error, txn, stores) {
-      let collector = cursor.collector;
-      let collect = collector.collect.bind(collector);
-      FilterSearcherHelper.transact(self, txn, error, filter, reverse, collect);
+                function(txn, stores) {
+      FilterSearcherHelper.transact(self, txn, filter, reverse, collect);
+    }, null, function(aErrorName) {
+      collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
     });
 
     return cursor;
@@ -2962,32 +2964,27 @@ MobileMessageDB.prototype = {
     });
   },
 
-  createThreadCursor: function(callback) {
+  createThreadCursor: function(aCursorCallback) {
     if (DEBUG) debug("Getting thread list");
 
-    let cursor = new GetThreadsCursor(this, callback);
-    this.newTxn(READ_ONLY, [THREAD_STORE_NAME],
-                function(error, txn, threadStore) {
-      let collector = cursor.collector;
-      if (error) {
-        collector.collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
-        return;
-      }
-      txn.onerror = function onerror(event) {
-        if (DEBUG) debug("Caught error on transaction ", event.target.errorCode);
-        collector.collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
-      };
+    let cursor = new GetThreadsCursor(this, aCursorCallback);
+    let collector = cursor.collector;
+    let collect = collector.collect.bind(collector);
+
+    this.newTxn(READ_ONLY, [THREAD_STORE_NAME], function(txn, threadStore) {
       let request = threadStore.index("lastTimestamp").openKeyCursor(null, PREV);
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor) {
-          if (collector.collect(txn, cursor.primaryKey, cursor.key)) {
+          if (collect(txn, cursor.primaryKey, cursor.key)) {
             cursor.continue();
           }
         } else {
-          collector.collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
+          collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
         }
       };
+    }, null, function(aErrorName) {
+      collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
     });
 
     return cursor;
@@ -3025,10 +3022,6 @@ let FilterSearcherHelper = {
         collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
       }
     };
-    request.onerror = function onerror(event) {
-      if (DEBUG && event) debug("IDBRequest error " + event.target.errorCode);
-      collect(txn, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
-    };
   },
 
   /**
@@ -3065,8 +3058,6 @@ let FilterSearcherHelper = {
    *        A MobileMessageDB.
    * @param txn
    *        Ongoing IDBTransaction context object.
-   * @param error
-   *        Previous error while creating the transaction.
    * @param filter
    *        A SmsFilter object.
    * @param reverse
@@ -3076,14 +3067,7 @@ let FilterSearcherHelper = {
    *        Result colletor function. It takes three parameters -- txn, message
    *        id, and message timestamp.
    */
-  transact: function(mmdb, txn, error, filter, reverse, collect) {
-    if (error) {
-      //TODO look at event.target.errorCode, pick appropriate error constant.
-      if (DEBUG) debug("IDBRequest error " + error.target.errorCode);
-      collect(txn, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
-      return;
-    }
-
+  transact: function(mmdb, txn, filter, reverse, collect) {
     let direction = reverse ? PREV : NEXT;
 
     // We support filtering by date range only (see `else` block below) or by
@@ -3497,9 +3481,9 @@ UnionResultsCollector.prototype = {
   }
 };
 
-function GetMessagesCursor(mmdb, callback) {
+function GetMessagesCursor(mmdb, aCursorCallback) {
   this.mmdb = mmdb;
-  this.callback = callback;
+  this.cursorCallback = aCursorCallback;
   this.collector = new ResultsCollector();
 
   this.handleContinue(); // Trigger first run.
@@ -3509,7 +3493,7 @@ GetMessagesCursor.prototype = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsICursorContinueCallback]),
 
   mmdb: null,
-  callback: null,
+  cursorCallback: null,
   collector: null,
 
   getMessageTxn: function(messageStore, messageId) {
@@ -3523,24 +3507,24 @@ GetMessagesCursor.prototype = {
       }
       let domMessage =
         self.mmdb.createDomMessageFromRecord(event.target.result);
-      self.callback.notifyCursorResult(domMessage);
+      self.cursorCallback.notifyCursorResult(domMessage);
     };
     getRequest.onerror = function onerror(event) {
       if (DEBUG) {
         debug("notifyCursorError - messageId: " + messageId);
       }
-      self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+      self.cursorCallback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
     };
   },
 
   notify: function(txn, messageId) {
     if (!messageId) {
-      this.callback.notifyCursorDone();
+      this.cursorCallback.notifyCursorDone();
       return;
     }
 
     if (messageId < 0) {
-      this.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+      this.cursorCallback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
       return;
     }
 
@@ -3557,7 +3541,7 @@ GetMessagesCursor.prototype = {
     this.mmdb.newTxn(READ_ONLY, [MESSAGE_STORE_NAME],
                      function(error, txn, messageStore) {
       if (error) {
-        self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+        self.cursorCallback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
         return;
       }
       self.getMessageTxn(messageStore, messageId);
@@ -3572,9 +3556,9 @@ GetMessagesCursor.prototype = {
   }
 };
 
-function GetThreadsCursor(mmdb, callback) {
+function GetThreadsCursor(mmdb, aCursorCallback) {
   this.mmdb = mmdb;
-  this.callback = callback;
+  this.cursorCallback = aCursorCallback;
   this.collector = new ResultsCollector();
 
   this.handleContinue(); // Trigger first run.
@@ -3584,7 +3568,7 @@ GetThreadsCursor.prototype = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsICursorContinueCallback]),
 
   mmdb: null,
-  callback: null,
+  cursorCallback: null,
   collector: null,
 
   getThreadTxn: function(threadStore, threadId) {
@@ -3605,24 +3589,24 @@ GetThreadsCursor.prototype = {
                                            threadRecord.body,
                                            threadRecord.unreadCount,
                                            threadRecord.lastMessageType);
-      self.callback.notifyCursorResult(thread);
+      self.cursorCallback.notifyCursorResult(thread);
     };
     getRequest.onerror = function onerror(event) {
       if (DEBUG) {
         debug("notifyCursorError - threadId: " + threadId);
       }
-      self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+      self.cursorCallback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
     };
   },
 
   notify: function(txn, threadId) {
     if (!threadId) {
-      this.callback.notifyCursorDone();
+      this.cursorCallback.notifyCursorDone();
       return;
     }
 
     if (threadId < 0) {
-      this.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+      this.cursorCallback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
       return;
     }
 
@@ -3639,7 +3623,7 @@ GetThreadsCursor.prototype = {
     this.mmdb.newTxn(READ_ONLY, [THREAD_STORE_NAME],
                      function(error, txn, threadStore) {
       if (error) {
-        self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+        self.cursorCallback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
         return;
       }
       self.getThreadTxn(threadStore, threadId);
