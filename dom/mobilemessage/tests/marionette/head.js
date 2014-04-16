@@ -107,8 +107,10 @@ function wrapDomRequestAsPromise(aRequest) {
  * Reject params:
  *   error -- a DOMError.
  *
- * @param aReceiver the address of the receiver.
- * @param aText the text body of the message.
+ * @param aReceiver
+ *        The address of the receiver.
+ * @param aText
+ *        The text body of the message.
  *
  * @return A deferred promise.
  */
@@ -163,9 +165,10 @@ function sendSmsWithFailure(aReceiver, aText) {
  *
  * Reject params: (none)
  *
- * @param aMmsParameters a MmsParameters instance.
- *
- * @param aSendParameters a MmsSendParameters instance.
+ * @param aMmsParameters
+ *        A MmsParameters instance.
+ * @param aSendParameters
+ *        A MmsSendParameters instance.
  *
  * @return A deferred promise.
  */
@@ -193,9 +196,11 @@ function sendMmsWithFailure(aMmsParameters, aSendParameters) {
  * Reject params:
  *   event -- a DOMEvent
  *
- * @param aFilter an optional MozSmsFilter instance.
- * @param aReverse a boolean value indicating whether the order of the messages
- *                 should be reversed.
+ * @param aFilter [optional]
+ *        A MozSmsFilter instance.
+ * @param aReverse
+ *        A boolean value indicating whether the order of the messages should be
+ *        reversed.
  *
  * @return A deferred promise.
  */
@@ -276,7 +281,8 @@ function getAllThreads() {
  *   event -- a DOMEvent if an error occurs in the retrieving process, or
  *            undefined if there's no such thread.
  *
- * @aThreadId a numeric value identifying the target thread.
+ * @param aThreadId
+ *        A numeric value identifying the target thread.
  *
  * @return A deferred promise.
  */
@@ -302,7 +308,8 @@ function getThreadById(aThreadId) {
  * Reject params:
  *   event -- a DOMEvent.
  *
- * @aMessageId an array of numeric values identifying the target messages.
+ * @param aMessageId
+ *        An array of numeric values identifying the target messages.
  *
  * @return An empty array if nothing to be deleted; otherwise, a deferred promise.
  */
@@ -327,7 +334,8 @@ function deleteMessagesById(aMessageIds) {
  * Reject params:
  *   event -- a DOMEvent.
  *
- * @aMessages an array of {Sms,Mms}Message instances.
+ * @param aMessages
+ *        An array of {Sms,Mms}Message instances.
  *
  * @return A deferred promise.
  */
@@ -367,6 +375,9 @@ let pendingEmulatorCmdCount = 0;
  * Reject params:
  *   result -- an array of emulator response lines.
  *
+ * @param aCommand
+ *        A string to send via emulator console.
+ *
  * @return A deferred promise.
  */
 function runEmulatorCmdSafe(aCommand) {
@@ -396,11 +407,42 @@ function runEmulatorCmdSafe(aCommand) {
  * Reject params:
  *   result -- an array of emulator response lines.
  *
+ * @param aFrom
+ *        A string for the sender phone number.
+ * @param aText
+ *        A string for the message body.
+ *
  * @return A deferred promise.
  */
 function sendTextSmsToEmulator(aFrom, aText) {
   let command = "sms send " + aFrom + " " + aText;
   return runEmulatorCmdSafe(command);
+}
+
+/**
+ * Send text SMS to emulator and wait.
+ *
+ * Fulfill params:
+ *   result -- an array of resolved Promise, where
+ *             result[0].message representing the received message.
+ *             result[1] represents the response of sent emulator command.
+ * Reject params:
+ *   result -- an array of emulator response lines.
+ *
+ * @param aFrom
+ *        A string for the sender phone number.
+ * @param aText
+ *        A string for the message body.
+ *
+ * @return A deferred promise.
+ */
+function sendTextSmsToEmulatorAndWait(aFrom, aText) {
+  let promises = [];
+
+  promises.push(waitForManagerEvent("received"));
+  promises.push(sendTextSmsToEmulator(aFrom, aText));
+
+  return Promise.all(promises);
 }
 
 /**
@@ -426,10 +468,10 @@ function sendRawSmsToEmulator(aPdu) {
  * Send multiple raw SMS TPDU to emulator and wait
  *
  * @param: aPdus
- *         A array of hex strings. Each represents a SMS T-PDU.
+ *         An array of hex strings. Each represents a SMS T-PDU.
  *
  * Fulfill params:
- *   result -- array of resolved Promise, where
+ *   result -- an array of resolved Promise, where
  *             result[0].message representing the received message.
  *             result[1-n] represents the response of sent emulator command.
  *
@@ -452,7 +494,8 @@ function sendMultipleRawSmsToEmulatorAndWait(aPdus) {
 /**
  * Create a new array of id attribute of input messages.
  *
- * @param aMessages an array of {Sms,Mms}Message instances.
+ * @param aMessages
+ *        An array of {Sms,Mms}Message instances.
  *
  * @return an array of numeric values.
  */
@@ -518,8 +561,9 @@ function startTestCommon(aTestCaseMain) {
 /**
  * Helper to run the test case only needed in Multi-SIM environment.
  *
- * @param  aTest
- *         A function which will be invoked w/o parameter.
+ * @param aTest
+ *        A function which will be invoked w/o parameter.
+ *
  * @return a Promise object.
  */
 function runIfMultiSIM(aTest) {
