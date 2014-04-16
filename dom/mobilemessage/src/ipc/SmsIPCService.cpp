@@ -15,9 +15,11 @@
 #include "mozilla/dom/MobileMessageManagerBinding.h"
 #include "mozilla/dom/MozMmsMessageBinding.h"
 #include "mozilla/dom/BindingUtils.h"
+#include "mozilla/ClearOnShutdown.h"
 #include "mozilla/Preferences.h"
 #include "nsString.h"
 
+using mozilla::StaticRefPtr;
 using namespace mozilla::dom;
 using namespace mozilla::dom::mobilemessage;
 
@@ -34,6 +36,8 @@ const char* kObservedPrefs[] = {
 
 // TODO: Bug 767082 - WebSMS: sSmsChild leaks at shutdown
 PSmsChild* gSmsChild;
+
+StaticRefPtr<SmsIPCService> gServiceSingleton;
 
 PSmsChild*
 GetSmsChild()
@@ -104,6 +108,21 @@ NS_IMPL_ISUPPORTS(SmsIPCService,
                   nsIMmsService,
                   nsIMobileMessageDatabaseService,
                   nsIObserver)
+
+/* static */already_AddRefed<SmsIPCService>
+SmsIPCService::GetSingleton()
+{
+  MOZ_ASSERT(NS_IsMainThread());
+  MOZ_ASSERT(!gServiceSingleton);
+
+  GetSmsChild();
+
+  gServiceSingleton = new SmsIPCService();
+  ClearOnShutdown(&gServiceSingleton);
+
+  nsRefPtr<SmsIPCService> service(gServiceSingleton.get());
+  return service.forget();
+}
 
 SmsIPCService::SmsIPCService()
 {

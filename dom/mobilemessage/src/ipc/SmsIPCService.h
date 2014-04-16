@@ -30,9 +30,12 @@ public:
   NS_DECL_NSIMOBILEMESSAGEDATABASESERVICE
   NS_DECL_NSIOBSERVER
 
-  SmsIPCService();
+  static already_AddRefed<SmsIPCService>
+  GetSingleton();
 
 private:
+  SmsIPCService();
+
   uint32_t mMmsDefaultServiceId;
   uint32_t mSmsDefaultServiceId;
 };

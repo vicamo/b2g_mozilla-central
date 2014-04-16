@@ -24,6 +24,7 @@
 #include "nsIWebContentHandlerRegistrar.h"
 #include "nsICookiePermission.h"
 #include "nsIScriptSecurityManager.h"
+#include "nsISmsService.h"
 #include "nsCharSeparatedTokenizer.h"
 #include "nsContentUtils.h"
 #include "nsUnicharUtils.h"
@@ -2148,12 +2149,6 @@ Navigator::HasWakeLockSupport(JSContext* /* unused*/, JSObject* /*unused */)
 bool
 Navigator::HasMobileMessageSupport(JSContext* /* unused */, JSObject* aGlobal)
 {
-  nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
-
-#ifndef MOZ_WEBSMS_BACKEND
-  return false;
-#endif
-
   // First of all, the general pref has to be turned on.
   bool enabled = false;
   Preferences::GetBool("dom.sms.enabled", &enabled);
@@ -2161,6 +2156,7 @@ Navigator::HasMobileMessageSupport(JSContext* /* unused */, JSObject* aGlobal)
     return false;
   }
 
+  nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
   NS_ENSURE_TRUE(win, false);
   NS_ENSURE_TRUE(win->GetDocShell(), false);
 
@@ -2168,7 +2164,8 @@ Navigator::HasMobileMessageSupport(JSContext* /* unused */, JSObject* aGlobal)
     return false;
   }
 
-  return true;
+  nsCOMPtr<nsISmsService> smsService = do_GetService(SMS_SERVICE_CONTRACTID);
+  return !!smsService;
 }
 
 /* static */

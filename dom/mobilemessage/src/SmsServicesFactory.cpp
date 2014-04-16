@@ -26,15 +26,22 @@ SmsServicesFactory::CreateSmsService()
 {
   nsCOMPtr<nsISmsService> smsService;
 
-  if (XRE_GetProcessType() == GeckoProcessType_Content) {
-    smsService = new SmsIPCService();
-  } else {
+#ifdef MOZ_WEBSMS_BACKEND
+  if (XRE_GetProcessType() != GeckoProcessType_Content) {
 #ifdef MOZ_WIDGET_ANDROID
+# define HAVE_SMS_SERVICE
     smsService = new SmsService();
 #elif defined(MOZ_WIDGET_GONK) && defined(MOZ_B2G_RIL)
+# define HAVE_SMS_SERVICE
     smsService = new SmsService();
 #endif
+  } else {
+#ifdef HAVE_SMS_SERVICE
+#undef HAVE_SMS_SERVICE
+    smsService = SmsIPCService::GetSingleton();
+#endif
   }
+#endif // MOZ_WEBSMS_BACKEND
 
   return smsService.forget();
 }
@@ -43,15 +50,23 @@ SmsServicesFactory::CreateSmsService()
 SmsServicesFactory::CreateMobileMessageDatabaseService()
 {
   nsCOMPtr<nsIMobileMessageDatabaseService> mobileMessageDBService;
-  if (XRE_GetProcessType() == GeckoProcessType_Content) {
-    mobileMessageDBService = new SmsIPCService();
-  } else {
+
+#ifdef MOZ_WEBSMS_BACKEND
+  if (XRE_GetProcessType() != GeckoProcessType_Content) {
 #ifdef MOZ_WIDGET_ANDROID
+# define HAVE_MMDB_SERVICE
     mobileMessageDBService = new MobileMessageDatabaseService();
 #elif defined(MOZ_WIDGET_GONK) && defined(MOZ_B2G_RIL)
+# define HAVE_MMDB_SERVICE
     mobileMessageDBService = do_GetService(RIL_MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID);
 #endif
+  } else {
+#ifdef HAVE_MMDB_SERVICE
+#undef HAVE_MMDB_SERVICE
+    mobileMessageDBService = SmsIPCService::GetSingleton();
+#endif
   }
+#endif // MOZ_WEBSMS_BACKEND
 
   return mobileMessageDBService.forget();
 }
@@ -61,13 +76,19 @@ SmsServicesFactory::CreateMmsService()
 {
   nsCOMPtr<nsIMmsService> mmsService;
 
-  if (XRE_GetProcessType() == GeckoProcessType_Content) {
-    mmsService = new SmsIPCService();
-  } else {
+#ifdef MOZ_WEBSMS_BACKEND
+  if (XRE_GetProcessType() != GeckoProcessType_Content) {
 #if defined(MOZ_WIDGET_GONK) && defined(MOZ_B2G_RIL)
+# define HAVE_MMS_SERVICE
     mmsService = do_CreateInstance(RIL_MMSSERVICE_CONTRACTID);
 #endif
+  } else {
+#ifdef HAVE_MMS_SERVICE
+#undef HAVE_MMS_SERVICE
+    mmsService = SmsIPCService::GetSingleton();
+#endif
   }
+#endif // MOZ_WEBSMS_BACKEND
 
   return mmsService.forget();
 }
