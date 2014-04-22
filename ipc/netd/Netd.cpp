@@ -22,7 +22,7 @@
 #define CHROMIUM_LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "Gonk", args)
 #define ICS_SYS_USB_RNDIS_MAC "/sys/class/android_usb/android0/f_rndis/ethaddr"
 #define INVALID_SOCKET -1
-#define MAX_RECONNECT_TIMES 10
+#define MAX_RECONNECT_TIMES 100
 
 namespace {
 
