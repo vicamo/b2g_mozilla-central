@@ -228,6 +228,9 @@ if test -n "$gonkdir" ; then
     i?86)
         ARCH_DIR=arch-x86
         ;;
+    mips*)
+        ARCH_DIR=arch-mips
+        ;;
     esac
 
     case "$ANDROID_VERSION" in
