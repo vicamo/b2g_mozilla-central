@@ -6477,7 +6477,7 @@ AC_SUBST(NSS_NO_LIBPKIX)
 dnl ========================================================
 dnl = Content process sandboxing
 dnl ========================================================
-if test -n "$gonkdir"; then
+if test -n "$gonkdir" -a "${CPU_ARCH}" != "mips"; then
     MOZ_CONTENT_SANDBOX=1
 fi
 
