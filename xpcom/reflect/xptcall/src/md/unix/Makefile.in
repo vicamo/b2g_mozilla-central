@@ -38,6 +38,9 @@ endif
 ifeq ($(OS_ARCH),Linux)
 ifneq (,$(findstring mips, $(OS_TEST)))
 ASFLAGS		+= -I$(DIST)/include
+ifeq ($(OS_TARGET),Android)
+ASFLAGS		+= $(CPPFLAGS)
+endif
 endif
 endif
 
