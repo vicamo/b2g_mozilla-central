@@ -915,22 +915,23 @@ RilObject.prototype = {
     Buf.sendParcel();
   },
 
-  /**
-   * Get IMSI.
-   *
-   * @param [optional] aid
-   *        AID value.
-   */
-  getIMSI: function(aid) {
+  getIMSI: function() {
     let Buf = this.context.Buf;
-    if (this.v5Legacy) {
-      Buf.simpleRequest(REQUEST_GET_IMSI);
-      return;
-    }
     Buf.newParcel(REQUEST_GET_IMSI);
-    Buf.writeInt32(1);
-    Buf.writeString(aid || this.aid);
-    Buf.sendParcel();
+    if (!this.v5Legacy) {
+      Buf.writeInt32(1);
+      Buf.writeString(this.aid);
+    }
+    Buf.sendParcel((function(length, rilRequestError, imsi) {
+      if (!imsi) {
+        return;
+      }
+
+      if (DEBUG) this.context.debug("IMSI: " + imsi);
+      this.iccInfoPrivate.imsi = imsi;
+
+      this.sendChromeMessage({ rilMessageType: "iccimsi", imsi: imsi });
+    }).bind(this));
   },
 
   /**
@@ -5427,19 +5428,8 @@ RilObject.prototype[REQUEST_DIAL] =
 };
 RilObject.prototype[REQUEST_DIAL_EMERGENCY_CALL] = RilObject.prototype[REQUEST_DIAL];
 RilObject.prototype[REQUEST_GET_IMSI] =
-  function REQUEST_GET_IMSI(length, rilRequestError, options) {
-  if (rilRequestError) {
-    return;
-  }
-
-  this.iccInfoPrivate.imsi = this.context.Buf.readString();
-  if (DEBUG) {
-    this.context.debug("IMSI: " + this.iccInfoPrivate.imsi);
-  }
-
-  options.rilMessageType = "iccimsi";
-  options.imsi = this.iccInfoPrivate.imsi;
-  this.sendChromeMessage(options);
+  function REQUEST_GET_IMSI(length, rilRequestError) {
+  return rilRequestError ? null : this.context.Buf.readString();
 };
 RilObject.prototype[REQUEST_HANGUP] =
   function REQUEST_HANGUP(length, rilRequestError, options) {
