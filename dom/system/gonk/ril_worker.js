@@ -122,7 +122,7 @@ BufObject.prototype = {
   processParcel: function() {
     let response_type = this.readInt32();
 
-    let request_type, error, options;
+    let request_type, error, callback, options;
     if (response_type == RESPONSE_TYPE_SOLICITED) {
       let token = this.readInt32();
       error = this.readInt32();
@@ -138,6 +138,7 @@ BufObject.prototype = {
 
       this.mTokenRequestMap.delete(token);
       request_type = options.rilRequestType;
+      callback = options.rilRequestCallback;
 
       if (DEBUG) {
         this.context.debug("Solicited response for request type " + request_type +
@@ -155,7 +156,8 @@ BufObject.prototype = {
       return;
     }
 
-    this.context.RIL.handleParcel(request_type, this.readAvailable, error, options);
+    this.context.RIL.handleParcel(request_type, this.readAvailable, error,
+                                  callback, options);
   },
 
   /**
@@ -163,12 +165,15 @@ BufObject.prototype = {
    *
    * @param type
    *        Integer specifying the request type.
-   * @param options [optional]
+   * @param options [optional][deprecated]
    *        Object containing information about the request, e.g. the
    *        original main thread message object that led to the RIL request.
    */
   newParcel: function(type, options) {
     if (DEBUG) this.context.debug("New outgoing parcel of type " + type);
+    if (options) {
+      this.context.debug("### WARNING!!! Argument 'options' to newParcel() has been deprecated ###");
+    }
 
     // We're going to leave room for the parcel size at the beginning.
     this.outgoingIndex = this.PARCEL_SIZE_SIZE;
@@ -183,12 +188,31 @@ BufObject.prototype = {
     this.mToken++;
   },
 
-  simpleRequest: function(type, options) {
+  /**
+   * Start a new simple parcel and send it out.
+   *
+   * @param type
+   *        Integer specifying the request type.
+   * @param options [optional][deprecated]
+   *        Object containing information about the request, e.g. the
+   *        original main thread message object that led to the RIL request.
+   * #param callback [optional]
+   *        A callback function that is supposed to be invoked after parcel
+   *        parser. Its arguments are 1) the length of the response, 2) error
+   *        code, 3) parsed result object. It's not supposed to return
+   *        anything.
+   */
+  simpleRequest: function(type, options, callback) {
     this.newParcel(type, options);
-    this.sendParcel();
+    this.sendParcel(callback);
   },
 
-  onSendParcel: function(parcel) {
+  onSendParcel: function(parcel, callback) {
+    if (callback) {
+      let options = this.mTokenRequestMap.get(this.mToken - 1);
+      options.rilRequestCallback = callback;
+    }
+
     postRILMessage(this.context.clientId, parcel);
   }
 };
@@ -5238,11 +5262,18 @@ RilObject.prototype = {
    * _is_ the method name, so that's easy.
    */
 
-  handleParcel: function(request_type, length, error, options) {
+  handleParcel: function(request_type, length, error, callback, options) {
     let method = this[request_type];
+    let result;
     if (typeof method == "function") {
       if (DEBUG) this.context.debug("Handling parcel as " + method.name);
-      method.call(this, length, error, options);
+      result = method.call(this, length, error, options);
+    }
+
+    // An unsolicited response can't have callback, and a solicted response may
+    // or may not have a callback.
+    if (callback) {
+      callback(length, error, result);
     }
   }
 };

@@ -556,7 +556,7 @@ let Buf = {
   /**
    * Communicate with the IPC thread.
    */
-  sendParcel: function() {
+  sendParcel: function(opaque) {
     // Compute the size of the parcel and write it to the front of the parcel
     // where we left room for it. Note that he parcel size does not include
     // the size itself.
@@ -567,7 +567,7 @@ let Buf = {
     // right away!
     let parcel = this.outgoingBytes.subarray(0, this.outgoingIndex);
     if (DEBUG) debug("Outgoing parcel: " + Array.slice(parcel));
-    this.onSendParcel(parcel);
+    this.onSendParcel(parcel, opaque);
     this.outgoingIndex = this.PARCEL_SIZE_SIZE;
   },
 
@@ -601,6 +601,8 @@ let Buf = {
    *
    * @param parcel
    *        An array of numeric octet data.
+   * @param opaque
+   *        The opaque data object passed to sendParcel().
    */
   //onSendParcel: function(parcel) {
   //  ...
