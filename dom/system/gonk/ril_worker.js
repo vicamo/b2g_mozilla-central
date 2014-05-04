@@ -181,7 +181,6 @@ BufObject.prototype = {
     options.rilRequestType = type;
     this.mTokenRequestMap.set(this.mToken, options);
     this.mToken++;
-    return this.mToken;
   },
 
   simpleRequest: function(type, options) {
@@ -2068,7 +2067,7 @@ RilObject.prototype = {
       radioTech = options.radioTech + 2;
     }
     let Buf = this.context.Buf;
-    let token = Buf.newParcel(REQUEST_SETUP_DATA_CALL, options);
+    Buf.newParcel(REQUEST_SETUP_DATA_CALL, options);
     Buf.writeInt32(7);
     Buf.writeString(radioTech.toString());
     Buf.writeString(DATACALL_PROFILE_DEFAULT.toString());
@@ -2078,7 +2077,6 @@ RilObject.prototype = {
     Buf.writeString(options.chappap.toString());
     Buf.writeString(options.pdptype);
     Buf.sendParcel();
-    return token;
   },
 
   /**
