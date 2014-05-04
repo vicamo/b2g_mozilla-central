@@ -77,9 +77,7 @@ add_test(function test_setCallForward_unconditional() {
   let context = worker.ContextPool._contexts[0];
 
   context.RIL.setCallForward = function fakeSetCallForward(options) {
-    context.RIL[REQUEST_SET_CALL_FORWARD](0, {
-      rilRequestError: ERROR_SUCCESS
-    });
+    context.RIL[REQUEST_SET_CALL_FORWARD](0, ERROR_SUCCESS, {});
   };
 
   context.RIL.setCallForward({
@@ -104,9 +102,7 @@ add_test(function test_queryCallForwardStatus_unconditional() {
   let context = worker.ContextPool._contexts[0];
 
   context.RIL.setCallForward = function fakeSetCallForward(options) {
-    context.RIL[REQUEST_SET_CALL_FORWARD](0, {
-      rilRequestError: ERROR_SUCCESS
-    });
+    context.RIL[REQUEST_SET_CALL_FORWARD](0, ERROR_SUCCESS, {});
   };
 
   context.Buf.readInt32 = function fakeReadUint32() {
@@ -126,9 +122,7 @@ add_test(function test_queryCallForwardStatus_unconditional() {
       1,   // rules.active
       1    // rulesLength
     ];
-    context.RIL[REQUEST_QUERY_CALL_FORWARD_STATUS](1, {
-      rilRequestError: ERROR_SUCCESS
-    });
+    context.RIL[REQUEST_QUERY_CALL_FORWARD_STATUS](1, ERROR_SUCCESS, {});
   };
 
   context.RIL.queryCallForwardStatus({

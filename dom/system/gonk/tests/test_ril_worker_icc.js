@@ -2121,7 +2121,7 @@ add_test(function test_error_message_update_icc_contact() {
 
   // Error 6, ICC IO Error.
   io.loadLinearFixedEF = function(options) {
-    ril[REQUEST_SIM_IO](0, {rilRequestError: ERROR_GENERIC_FAILURE});
+    ril[REQUEST_SIM_IO](0, ERROR_GENERIC_FAILURE, {});
   };
   do_test({contactType: "adn", contact: {contactId: ICCID + "1"}},
           GECKO_ERROR_GENERIC_FAILURE);
@@ -2155,8 +2155,8 @@ add_test(function test_process_icc_io_error() {
       do_check_eq(errorMsg, expectedErrorMsg);
     }
 
-    ioHelper.processICCIOError({rilRequestError: errorCode,
-                                fileId: 0xffff,
+    ioHelper.processICCIOError(errorCode,
+                               {fileId: 0xffff,
                                 command: 0xff,
                                 sw1: 0xff,
                                 sw2: 0xff,

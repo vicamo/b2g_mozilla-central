@@ -32,9 +32,7 @@ add_test(function test_setCallWaiting_success() {
   let context = worker.ContextPool._contexts[0];
 
   context.RIL.setCallWaiting = function fakeSetCallWaiting(options) {
-    context.RIL[REQUEST_SET_CALL_WAITING](0, {
-      rilRequestError: ERROR_SUCCESS
-    });
+    context.RIL[REQUEST_SET_CALL_WAITING](0, ERROR_SUCCESS, {});
   };
 
   context.RIL.setCallWaiting({
@@ -55,9 +53,7 @@ add_test(function test_setCallWaiting_generic_failure() {
   let context = worker.ContextPool._contexts[0];
 
   context.RIL.setCallWaiting = function fakeSetCallWaiting(options) {
-    context.RIL[REQUEST_SET_CALL_WAITING](0, {
-      rilRequestError: ERROR_GENERIC_FAILURE
-    });
+    context.RIL[REQUEST_SET_CALL_WAITING](0, ERROR_GENERIC_FAILURE, {});
   };
 
   context.RIL.setCallWaiting({
@@ -87,9 +83,7 @@ add_test(function test_queryCallWaiting_success_enabled_true() {
       1,  // enabled
       1   // length
     ];
-    context.RIL[REQUEST_QUERY_CALL_WAITING](1, {
-      rilRequestError: ERROR_SUCCESS
-    });
+    context.RIL[REQUEST_QUERY_CALL_WAITING](1, ERROR_SUCCESS, {});
   };
 
   context.RIL.queryCallWaiting({});
@@ -118,9 +112,7 @@ add_test(function test_queryCallWaiting_success_enabled_false() {
       0,  // enabled
       1   // length
     ];
-    context.RIL[REQUEST_QUERY_CALL_WAITING](1, {
-      rilRequestError: ERROR_SUCCESS
-    });
+    context.RIL[REQUEST_QUERY_CALL_WAITING](1, ERROR_SUCCESS, {});
   };
 
   context.RIL.queryCallWaiting({});

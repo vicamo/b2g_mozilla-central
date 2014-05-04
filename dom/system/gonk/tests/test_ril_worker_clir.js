@@ -41,9 +41,8 @@ add_test(function test_setCLIR_success() {
   let context = worker.ContextPool._contexts[0];
 
   context.RIL.setCLIR = function fakeSetCLIR(options) {
-    context.RIL[REQUEST_SET_CLIR](0, {
+    context.RIL[REQUEST_SET_CLIR](0, ERROR_SUCCESS, {
       rilMessageType: "setCLIR",
-      rilRequestError: ERROR_SUCCESS
     });
   };
 
@@ -65,9 +64,8 @@ add_test(function test_setCLIR_generic_failure() {
   let context = worker.ContextPool._contexts[0];
 
   context.RIL.setCLIR = function fakeSetCLIR(options) {
-    context.RIL[REQUEST_SET_CLIR](0, {
+    context.RIL[REQUEST_SET_CLIR](0, ERROR_GENERIC_FAILURE, {
       rilMessageType: "setCLIR",
-      rilRequestError: ERROR_GENERIC_FAILURE
     });
   };
 
@@ -99,9 +97,8 @@ add_test(function test_getCLIR_n0_m1() {
       0,  // CLIR provisioned in permanent mode.
       2   // Length.
     ];
-    context.RIL[REQUEST_GET_CLIR](1, {
+    context.RIL[REQUEST_GET_CLIR](1, ERROR_SUCCESS, {
       rilMessageType: "setCLIR",
-      rilRequestError: ERROR_SUCCESS
     });
   };
 
@@ -132,9 +129,8 @@ add_test(function test_getCLIR_error_generic_failure_invalid_length() {
       0,  // CLIR provisioned in permanent mode.
       0   // Length (invalid one).
     ];
-    context.RIL[REQUEST_GET_CLIR](1, {
+    context.RIL[REQUEST_GET_CLIR](1, ERROR_SUCCESS, {
       rilMessageType: "setCLIR",
-      rilRequestError: ERROR_SUCCESS
     });
   };
 
