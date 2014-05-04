@@ -122,10 +122,10 @@ BufObject.prototype = {
   processParcel: function() {
     let response_type = this.readInt32();
 
-    let request_type, options;
+    let request_type, error, options;
     if (response_type == RESPONSE_TYPE_SOLICITED) {
       let token = this.readInt32();
-      let error = this.readInt32();
+      error = this.readInt32();
 
       options = this.mTokenRequestMap.get(token);
       if (!options) {
@@ -139,7 +139,6 @@ BufObject.prototype = {
       this.mTokenRequestMap.delete(token);
       request_type = options.rilRequestType;
 
-      options.rilRequestError = error;
       if (DEBUG) {
         this.context.debug("Solicited response for request type " + request_type +
                            ", token " + token + ", error " + error);
@@ -156,7 +155,7 @@ BufObject.prototype = {
       return;
     }
 
-    this.context.RIL.handleParcel(request_type, this.readAvailable, options);
+    this.context.RIL.handleParcel(request_type, this.readAvailable, error, options);
   },
 
   /**
@@ -180,7 +179,6 @@ BufObject.prototype = {
       options = {};
     }
     options.rilRequestType = type;
-    options.rilRequestError = null;
     this.mTokenRequestMap.set(this.mToken, options);
     this.mToken++;
     return this.mToken;
@@ -5242,11 +5240,11 @@ RilObject.prototype = {
    * _is_ the method name, so that's easy.
    */
 
-  handleParcel: function(request_type, length, options) {
+  handleParcel: function(request_type, length, error, options) {
     let method = this[request_type];
     if (typeof method == "function") {
       if (DEBUG) this.context.debug("Handling parcel as " + method.name);
-      method.call(this, length, options);
+      method.call(this, length, error, options);
     }
   }
 };
