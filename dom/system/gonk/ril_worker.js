@@ -1127,8 +1127,22 @@ RilObject.prototype = {
    * (MMI request for code "*#30#")
    *
    */
-  queryCLIP: function(options) {
-    this.context.Buf.simpleRequest(REQUEST_QUERY_CLIP, options);
+  queryCLIP: function(callback) {
+    this.context.Buf.simpleRequest(REQUEST_QUERY_CLIP, null,
+                                   function(length, rilRequestError, uintArray) {
+      // uintArray is either null when rilRequestError != ERROR_SUCCESS, or an
+      // array of uint32 integers.
+
+      if (rilRequestError === ERROR_SUCCESS && uintArray.length < 1) {
+        rilRequestError = ERROR_GENERIC_FAILURE;
+      }
+
+      let m;
+      if (rilRequestError === ERROR_SUCCESS) {
+        m = uintArray[0]; // TS 27.007 +CLIP parameter 'm'.
+      }
+      callback && callback(rilRequestError, m);
+    });
   },
 
   /**
@@ -2484,7 +2498,34 @@ RilObject.prototype = {
         options.mmiServiceCode = MMI_KS_SC_CLIP;
         options.procedure = mmi.procedure;
         if (options.procedure === MMI_PROCEDURE_INTERROGATION) {
-          this.queryCLIP(options);
+          this.queryCLIP((function(rilRequestError, m) {
+            if (rilRequestError === ERROR_SUCCESS) {
+              options.success = true;
+
+              // options.provisioned informs about the called party receives
+              // the calling party's address information:
+              // 0 for CLIP not provisioned
+              // 1 for CLIP provisioned
+              // 2 for unknown
+              options.provisioned = m;
+              switch (options.provisioned) {
+                case 0:
+                  options.statusMessage = MMI_SM_KS_SERVICE_DISABLED;
+                  break;
+                case 1:
+                  options.statusMessage = MMI_SM_KS_SERVICE_ENABLED;
+                  break;
+                default:
+                  options.success = false;
+                  options.errorMsg = MMI_ERROR_KS_ERROR;
+                  break;
+              }
+            } else {
+              options.success = false;
+              options.errorMsg = RIL_ERROR_TO_GECKO_ERROR[rilRequestError];
+            }
+            this.sendChromeMessage(options);
+          }).bind(this));
         } else {
           _sendMMIError(MMI_ERROR_KS_NOT_SUPPORTED, MMI_KS_SC_CLIP);
         }
@@ -6106,44 +6147,8 @@ RilObject.prototype[REQUEST_SEPARATE_CONNECTION] =
 RilObject.prototype[REQUEST_SET_MUTE] = null;
 RilObject.prototype[REQUEST_GET_MUTE] = null;
 RilObject.prototype[REQUEST_QUERY_CLIP] =
-  function REQUEST_QUERY_CLIP(length, rilRequestError, options) {
-  options.success = (rilRequestError === 0);
-  if (!options.success) {
-    options.errorMsg = RIL_ERROR_TO_GECKO_ERROR[rilRequestError];
-    this.sendChromeMessage(options);
-    return;
-  }
-
-  let Buf = this.context.Buf;
-  let bufLength = Buf.readInt32();
-  if (!bufLength) {
-    options.success = false;
-    options.errorMsg = GECKO_ERROR_GENERIC_FAILURE;
-    this.sendChromeMessage(options);
-    return;
-  }
-
-  // options.provisioned informs about the called party receives the calling
-  // party's address information:
-  // 0 for CLIP not provisioned
-  // 1 for CLIP provisioned
-  // 2 for unknown
-  options.provisioned = Buf.readInt32();
-  if (options.rilMessageType === "sendMMI") {
-    switch (options.provisioned) {
-      case 0:
-        options.statusMessage = MMI_SM_KS_SERVICE_DISABLED;
-        break;
-      case 1:
-        options.statusMessage = MMI_SM_KS_SERVICE_ENABLED;
-        break;
-      default:
-        options.success = false;
-        options.errorMsg = MMI_ERROR_KS_ERROR;
-        break;
-    }
-  }
-  this.sendChromeMessage(options);
+  function REQUEST_QUERY_CLIP(length, rilRequestError) {
+  return rilRequestError ? null : this.context.Buf.readInt32List();
 };
 RilObject.prototype[REQUEST_LAST_DATA_CALL_FAIL_CAUSE] = null;
 
