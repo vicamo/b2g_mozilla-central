@@ -489,7 +489,15 @@ RilObject.prototype = {
    * Retrieve the ICC's status.
    */
   getICCStatus: function() {
-    this.context.Buf.simpleRequest(REQUEST_GET_SIM_STATUS);
+    this.context.Buf.simpleRequest(REQUEST_GET_SIM_STATUS, null,
+                                   (function(length, rilRequestError, iccStatus) {
+      if (!iccsStatus) {
+        return;
+      }
+
+      if (DEBUG) this.context.debug("iccStatus: " + JSON.stringify(iccStatus));
+      this._processICCStatus(iccStatus);
+    }).bind(this));
   },
 
   /**
@@ -5279,9 +5287,9 @@ RilObject.prototype = {
 };
 
 RilObject.prototype[REQUEST_GET_SIM_STATUS] =
-  function REQUEST_GET_SIM_STATUS(length, rilRequestError, options) {
+  function REQUEST_GET_SIM_STATUS(length, rilRequestError) {
   if (rilRequestError) {
-    return;
+    return null;
   }
 
   let iccStatus = {};
@@ -5319,8 +5327,7 @@ RilObject.prototype[REQUEST_GET_SIM_STATUS] =
     }
   }
 
-  if (DEBUG) this.context.debug("iccStatus: " + JSON.stringify(iccStatus));
-  this._processICCStatus(iccStatus);
+  return iccStatus;
 };
 RilObject.prototype[REQUEST_ENTER_SIM_PIN] =
   function REQUEST_ENTER_SIM_PIN(length, rilRequestError, options) {
