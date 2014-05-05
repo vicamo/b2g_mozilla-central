@@ -1147,10 +1147,25 @@ RilObject.prototype = {
 
   /**
    * Queries current CLIR status.
-   *
    */
-  getCLIR: function(options) {
-    this.context.Buf.simpleRequest(REQUEST_GET_CLIR, options);
+  getCLIR: function(callback) {
+    this.context.Buf.simpleRequest(REQUEST_GET_CLIR, null,
+                                   (function(length, rilRequestError, uintArray) {
+      // uintArray is either null when rilRequestError != ERROR_SUCCESS, or an
+      // array of uint32 integers.
+
+      if (rilRequestError === ERROR_SUCCESS && uintArray.length < 2) {
+        rilRequestError = ERROR_GENERIC_FAILURE;
+      }
+
+      let n, m;
+      if (rilRequestError === ERROR_SUCCESS) {
+        n = uintArray[0]; // Will be TS 27.007 +CLIR parameter 'n'.
+        m = uintArray[1]; // Will be TS 27.007 +CLIR parameter 'm'.
+      }
+
+      callback && callback(rilRequestError, n, m);
+    }).bind(this));
   },
 
   /**
@@ -5709,90 +5724,8 @@ RilObject.prototype[REQUEST_CANCEL_USSD] =
   this.sendChromeMessage(options);
 };
 RilObject.prototype[REQUEST_GET_CLIR] =
-  function REQUEST_GET_CLIR(length, rilRequestError, options) {
-  options.success = (rilRequestError === 0);
-  if (!options.success) {
-    options.errorMsg = RIL_ERROR_TO_GECKO_ERROR[rilRequestError];
-    this.sendChromeMessage(options);
-    return;
-  }
-
-  let Buf = this.context.Buf;
-  let bufLength = Buf.readInt32();
-  if (!bufLength || bufLength < 2) {
-    options.success = false;
-    options.errorMsg = GECKO_ERROR_GENERIC_FAILURE;
-    this.sendChromeMessage(options);
-    return;
-  }
-
-  options.n = Buf.readInt32(); // Will be TS 27.007 +CLIR parameter 'n'.
-  options.m = Buf.readInt32(); // Will be TS 27.007 +CLIR parameter 'm'.
-
-  if (options.rilMessageType === "sendMMI") {
-    // TS 27.007 +CLIR parameter 'm'.
-    switch (options.m) {
-      // CLIR not provisioned.
-      case 0:
-        options.statusMessage = MMI_SM_KS_SERVICE_NOT_PROVISIONED;
-        break;
-      // CLIR provisioned in permanent mode.
-      case 1:
-        options.statusMessage = MMI_SM_KS_CLIR_PERMANENT;
-        break;
-      // Unknown (e.g. no network, etc.).
-      case 2:
-        options.success = false;
-        options.errorMsg = MMI_ERROR_KS_ERROR;
-        break;
-      // CLIR temporary mode presentation restricted.
-      case 3:
-        // TS 27.007 +CLIR parameter 'n'.
-        switch (options.n) {
-          // Default.
-          case 0:
-          // CLIR invocation.
-          case 1:
-            options.statusMessage = MMI_SM_KS_CLIR_DEFAULT_ON_NEXT_CALL_ON;
-            break;
-          // CLIR suppression.
-          case 2:
-            options.statusMessage = MMI_SM_KS_CLIR_DEFAULT_ON_NEXT_CALL_OFF;
-            break;
-          default:
-            options.success = false;
-            options.errorMsg = GECKO_ERROR_GENERIC_FAILURE;
-            break;
-        }
-        break;
-      // CLIR temporary mode presentation allowed.
-      case 4:
-        // TS 27.007 +CLIR parameter 'n'.
-        switch (options.n) {
-          // Default.
-          case 0:
-          // CLIR suppression.
-          case 2:
-            options.statusMessage = MMI_SM_KS_CLIR_DEFAULT_OFF_NEXT_CALL_OFF;
-            break;
-          // CLIR invocation.
-          case 1:
-            options.statusMessage = MMI_SM_KS_CLIR_DEFAULT_OFF_NEXT_CALL_ON;
-            break;
-          default:
-            options.success = false;
-            options.errorMsg = GECKO_ERROR_GENERIC_FAILURE;
-            break;
-        }
-        break;
-      default:
-        options.success = false;
-        options.errorMsg = GECKO_ERROR_GENERIC_FAILURE;
-        break;
-    }
-  }
-
-  this.sendChromeMessage(options);
+  function REQUEST_GET_CLIR(length, rilRequestError) {
+  return rilRequestError ? null : this.context.Buf.readInt32List();
 };
 RilObject.prototype[REQUEST_SET_CLIR] =
   function REQUEST_SET_CLIR(length, rilRequestError, options) {
