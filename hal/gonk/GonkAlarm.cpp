@@ -19,7 +19,14 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/syscall.h>
+#include <time.h>
+
+#if defined(__i386__)
+#include <linux/ioctl.h>
+#include <linux/rtc.h>
+#else
 #include <linux/android_alarm.h>
+#endif
 
 #include "mozilla/DebugOnly.h"
 #include "mozilla/FileUtils.h"
@@ -33,6 +40,12 @@ namespace mozilla {
 namespace hal_impl {
 
 namespace {
+
+#if defined(__i386__)
+const char *alarmDeviceName = "/dev/rtc0";
+#else
+const char *alarmDeviceName = "/dev/alarm";
+#endif
 
 const char *wakeLockFilename = "/sys/power/wake_lock";
 const char *wakeUnlockFilename = "/sys/power/wake_unlock";
@@ -151,6 +164,16 @@ WaitForAlarm(void* aData)
   AlarmData* alarmData = static_cast<AlarmData*>(aData);
 
   while (!alarmData->mShuttingDown) {
+#if defined(__i386__)
+    int retval;
+    unsigned long data;
+
+    /* This blocks until the alarm ring causes an interrupt */
+    retval = read(alarmData->mFd, &data, sizeof data);
+    if (retval == -1) {
+      continue;
+    }
+#else
     int alarmTypeFlags = 0;
 
     // ALARM_WAIT apparently will block even if an alarm hasn't been
@@ -162,16 +185,20 @@ WaitForAlarm(void* aData)
     } while (alarmTypeFlags < 0 && errno == EINTR &&
              !alarmData->mShuttingDown);
 
-    if (!alarmData->mShuttingDown && alarmTypeFlags >= 0 &&
-        (alarmTypeFlags & ANDROID_ALARM_RTC_WAKEUP_MASK)) {
-      // To make sure the observer can get the alarm firing notification
-      // *on time* (the system won't sleep during the process in any way),
-      // we need to acquire a CPU wake lock before firing the alarm event.
-      InternalLockCpu();
-      nsRefPtr<AlarmFiredEvent> event =
-        new AlarmFiredEvent(alarmData->mGeneration);
-      NS_DispatchToMainThread(event);
+    if (alarmData->mShuttingDown ||
+        alarmTypeFlags < 0 ||
+        !(alarmTypeFlags & ANDROID_ALARM_RTC_WAKEUP_MASK)) {
+      continue;
     }
+#endif
+
+    // To make sure the observer can get the alarm firing notification
+    // *on time* (the system won't sleep during the process in any way),
+    // we need to acquire a CPU wake lock before firing the alarm event.
+    InternalLockCpu();
+    nsRefPtr<AlarmFiredEvent> event =
+      new AlarmFiredEvent(alarmData->mGeneration);
+    NS_DispatchToMainThread(event);
   }
 
   pthread_cleanup_pop(1);
@@ -209,7 +236,7 @@ EnableAlarm()
 {
   MOZ_ASSERT(!sAlarmData);
 
-  int alarmFd = open("/dev/alarm", O_RDWR);
+  int alarmFd = open(alarmDeviceName, O_RDONLY);
   if (alarmFd < 0) {
     HAL_LOG(("Failed to open alarm device: %s.", strerror(errno)));
     return false;
@@ -274,13 +301,26 @@ SetAlarm(int32_t aSeconds, int32_t aNanoseconds)
     return false;
   }
 
+  int result;
+#if defined(__i386__)
+  struct rtc_time rtc_tm;
+  struct tm tm;
+  time_t t;
+
+  t = aSeconds + (aNanoseconds ? 1 : 0);
+  gmtime_r(&t, &tm);
+  memcpy(&rtc_tm, &tm, sizeof rtc_tm);
+
+  result = ioctl(sAlarmData->mFd, RTC_ALM_SET, &rtc_tm);
+#else
   struct timespec ts;
   ts.tv_sec = aSeconds;
   ts.tv_nsec = aNanoseconds;
 
   // Currently we only support RTC wakeup alarm type.
-  const int result = ioctl(sAlarmData->mFd,
-                           ANDROID_ALARM_SET(ANDROID_ALARM_RTC_WAKEUP), &ts);
+  result = ioctl(sAlarmData->mFd,
+                 ANDROID_ALARM_SET(ANDROID_ALARM_RTC_WAKEUP), &ts);
+#endif
 
   if (result < 0) {
     HAL_LOG(("Unable to set alarm: %s.", strerror(errno)));
