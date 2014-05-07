@@ -69,11 +69,9 @@ bool sCpuSleepAllowed = true;
 // when reading or writing this variable to ensure thread-safe.
 int32_t sInternalLockCpuCount = 0;
 
-} // anonymous namespace
+Monitor* sInternalLockCpuMonitor = nullptr;
 
-static Monitor* sInternalLockCpuMonitor = nullptr;
-
-static void
+void
 UpdateCpuSleepState()
 {
   sInternalLockCpuMonitor->AssertCurrentThreadOwns();
@@ -81,36 +79,22 @@ UpdateCpuSleepState()
   WriteToFile(allowed ? wakeUnlockFilename : wakeLockFilename, "gecko");
 }
 
-static void
+void
 InternalLockCpu() {
   MonitorAutoLock monitor(*sInternalLockCpuMonitor);
   ++sInternalLockCpuCount;
   UpdateCpuSleepState();
 }
 
-static void
+void
 InternalUnlockCpu() {
   MonitorAutoLock monitor(*sInternalLockCpuMonitor);
   --sInternalLockCpuCount;
   UpdateCpuSleepState();
 }
 
-bool
-GetCpuSleepAllowed()
-{
-  return sCpuSleepAllowed;
-}
-
-void
-SetCpuSleepAllowed(bool aAllowed)
-{
-  MonitorAutoLock monitor(*sInternalLockCpuMonitor);
-  sCpuSleepAllowed = aAllowed;
-  UpdateCpuSleepState();
-}
-
 // This thread will wait for the alarm firing by a blocking IO.
-static pthread_t sAlarmFireWatcherThread;
+pthread_t sAlarmFireWatcherThread;
 
 // If |sAlarmData| is non-null, it's owned by the alarm-watcher thread.
 struct AlarmData {
@@ -152,23 +136,14 @@ private:
 };
 
 // Runs on alarm-watcher thread.
-static void
+void
 DestroyAlarmData(void* aData)
 {
   AlarmData* alarmData = static_cast<AlarmData*>(aData);
   delete alarmData;
 }
 
-// Runs on alarm-watcher thread.
-void ShutDownAlarm(int aSigno)
-{
-  if (aSigno == SIGUSR1 && sAlarmData) {
-    sAlarmData->mShuttingDown = true;
-  }
-  return;
-}
-
-static void*
+void*
 WaitForAlarm(void* aData)
 {
   pthread_cleanup_push(DestroyAlarmData, aData);
@@ -201,6 +176,32 @@ WaitForAlarm(void* aData)
 
   pthread_cleanup_pop(1);
   return nullptr;
+}
+
+// Runs on alarm-watcher thread.
+void
+ShutDownAlarm(int aSigno)
+{
+  if (aSigno == SIGUSR1 && sAlarmData) {
+    sAlarmData->mShuttingDown = true;
+  }
+  return;
+}
+
+} // anonymous namespace
+
+bool
+GetCpuSleepAllowed()
+{
+  return sCpuSleepAllowed;
+}
+
+void
+SetCpuSleepAllowed(bool aAllowed)
+{
+  MonitorAutoLock monitor(*sInternalLockCpuMonitor);
+  sCpuSleepAllowed = aAllowed;
+  UpdateCpuSleepState();
 }
 
 bool
