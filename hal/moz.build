@@ -66,7 +66,6 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'android':
     ]
 elif CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
     UNIFIED_SOURCES += [
-        'gonk/GonkAlarm.cpp',
         'gonk/GonkDiskSpaceWatcher.cpp',
         'gonk/GonkFMRadio.cpp',
         'gonk/GonkSensor.cpp',
@@ -75,6 +74,15 @@ elif CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
         'linux/LinuxMemory.cpp',
         'linux/LinuxPower.cpp',
     ]
+    if CONFIG['TARGET_CPU'] == 'arm':
+        UNIFIED_SOURCES += [
+            'gonk/GonkAlarm.cpp',
+        ]
+    else:
+        UNIFIED_SOURCES += [
+            'fallback/FallbackWakeLocks.cpp',
+            'linux/LinuxAlarm.cpp',
+        ]
     # GonkHal.cpp cannot be built in unified mode because it relies on HalImpl.h.
     SOURCES += [
         'gonk/GonkHal.cpp',
