@@ -15,28 +15,21 @@
  * limitations under the License.
  */
 
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/android_alarm.h>
-#include <math.h>
 #include <regex.h>
-#include <stdio.h>
 #include <sys/klog.h>
 #include <sys/syscall.h>
 #include <sys/resource.h>
 #include <time.h>
 #include <asm/page.h>
 
-#include "mozilla/DebugOnly.h"
-
 #include "android/log.h"
 #include "cutils/properties.h"
 #include "hardware/hardware.h"
 #include "hardware/lights.h"
-#include "hardware_legacy/uevent.h"
 #include "hardware_legacy/vibrator.h"
-#include "hardware_legacy/power.h"
 #include "libdisplay/GonkDisplay.h"
 
 #include "base/message_loop.h"
@@ -51,7 +44,6 @@
 #include "mozilla/Services.h"
 #include "mozilla/StaticPtr.h"
 #include "mozilla/Preferences.h"
-#include "nsAlgorithm.h"
 #include "nsPrintfCString.h"
 #include "nsIObserver.h"
 #include "nsIObserverService.h"
@@ -59,12 +51,10 @@
 #include "nsIRunnable.h"
 #include "nsScreenManagerGonk.h"
 #include "nsThreadUtils.h"
-#include "nsThreadUtils.h"
 #include "nsIThread.h"
 #include "nsXULAppAPI.h"
 #include "OrientationObserver.h"
 #include "UeventPoller.h"
-#include <algorithm>
 
 #define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "Gonk", args)
 #define NsecPerMsec  1000000LL
@@ -100,7 +90,6 @@
 #define BATTERY_FULL_ARGB 0x0000FF00
 #endif
 
-using namespace mozilla;
 using namespace mozilla::hal;
 
 namespace mozilla {
@@ -453,29 +442,6 @@ namespace {
 /**
  * RAII class to help us remember to close file descriptors.
  */
-const char *wakeLockFilename = "/sys/power/wake_lock";
-const char *wakeUnlockFilename = "/sys/power/wake_unlock";
-
-template<ssize_t n>
-bool ReadFromFile(const char *filename, char (&buf)[n])
-{
-  int fd = open(filename, O_RDONLY);
-  ScopedClose autoClose(fd);
-  if (fd < 0) {
-    HAL_LOG(("Unable to open file %s.", filename));
-    return false;
-  }
-
-  ssize_t numRead = read(fd, buf, n);
-  if (numRead < 0) {
-    HAL_LOG(("Error reading from file %s.", filename));
-    return false;
-  }
-
-  buf[std::min(numRead, n - 1)] = '\0';
-  return true;
-}
-
 bool WriteToFile(const char *filename, const char *toWrite)
 {
   int fd = open(filename, O_WRONLY);
@@ -497,17 +463,6 @@ bool WriteToFile(const char *filename, const char *toWrite)
 // we read, we always get "mem"!  So we have to keep track ourselves whether
 // the screen is on or not.
 bool sScreenEnabled = true;
-
-// We can read wakeLockFilename to find out whether the cpu wake lock
-// is already acquired, but reading and parsing it is a lot more work
-// than tracking it ourselves, and it won't be accurate anyway (kernel
-// internal wake locks aren't counted here.)
-bool sCpuSleepAllowed = true;
-
-// Some CPU wake locks may be acquired internally in HAL. We use a counter to
-// keep track of these needs. Note we have to hold |sInternalLockCpuMonitor|
-// when reading or writing this variable to ensure thread-safe.
-int32_t sInternalLockCpuCount = 0;
 
 } // anonymous namespace
 
@@ -559,44 +514,6 @@ SetScreenBrightness(double brightness)
   aConfig.color() = color;
   hal::SetLight(hal::eHalLightID_Backlight, aConfig);
   hal::SetLight(hal::eHalLightID_Buttons, aConfig);
-}
-
-static Monitor* sInternalLockCpuMonitor = nullptr;
-
-static void
-UpdateCpuSleepState()
-{
-  sInternalLockCpuMonitor->AssertCurrentThreadOwns();
-  bool allowed = sCpuSleepAllowed && !sInternalLockCpuCount;
-  WriteToFile(allowed ? wakeUnlockFilename : wakeLockFilename, "gecko");
-}
-
-static void
-InternalLockCpu() {
-  MonitorAutoLock monitor(*sInternalLockCpuMonitor);
-  ++sInternalLockCpuCount;
-  UpdateCpuSleepState();
-}
-
-static void
-InternalUnlockCpu() {
-  MonitorAutoLock monitor(*sInternalLockCpuMonitor);
-  --sInternalLockCpuCount;
-  UpdateCpuSleepState();
-}
-
-bool
-GetCpuSleepAllowed()
-{
-  return sCpuSleepAllowed;
-}
-
-void
-SetCpuSleepAllowed(bool aAllowed)
-{
-  MonitorAutoLock monitor(*sInternalLockCpuMonitor);
-  sCpuSleepAllowed = aAllowed;
-  UpdateCpuSleepState();
 }
 
 static light_device_t* sLights[hal::eHalLightID_Count];	// will be initialized to nullptr
@@ -864,186 +781,6 @@ void
 UnlockScreenOrientation()
 {
   OrientationObserver::GetInstance()->UnlockScreenOrientation();
-}
-
-// This thread will wait for the alarm firing by a blocking IO.
-static pthread_t sAlarmFireWatcherThread;
-
-// If |sAlarmData| is non-null, it's owned by the alarm-watcher thread.
-struct AlarmData {
-public:
-  AlarmData(int aFd) : mFd(aFd),
-                       mGeneration(sNextGeneration++),
-                       mShuttingDown(false) {}
-  ScopedClose mFd;
-  int mGeneration;
-  bool mShuttingDown;
-
-  static int sNextGeneration;
-
-};
-
-int AlarmData::sNextGeneration = 0;
-
-AlarmData* sAlarmData = nullptr;
-
-class AlarmFiredEvent : public nsRunnable {
-public:
-  AlarmFiredEvent(int aGeneration) : mGeneration(aGeneration) {}
-
-  NS_IMETHOD Run() {
-    // Guard against spurious notifications caused by an alarm firing
-    // concurrently with it being disabled.
-    if (sAlarmData && !sAlarmData->mShuttingDown &&
-        mGeneration == sAlarmData->mGeneration) {
-      hal::NotifyAlarmFired();
-    }
-    // The fired alarm event has been delivered to the observer (if needed);
-    // we can now release a CPU wake lock.
-    InternalUnlockCpu();
-    return NS_OK;
-  }
-
-private:
-  int mGeneration;
-};
-
-// Runs on alarm-watcher thread.
-static void
-DestroyAlarmData(void* aData)
-{
-  AlarmData* alarmData = static_cast<AlarmData*>(aData);
-  delete alarmData;
-}
-
-// Runs on alarm-watcher thread.
-void ShutDownAlarm(int aSigno)
-{
-  if (aSigno == SIGUSR1 && sAlarmData) {
-    sAlarmData->mShuttingDown = true;
-  }
-  return;
-}
-
-static void*
-WaitForAlarm(void* aData)
-{
-  pthread_cleanup_push(DestroyAlarmData, aData);
-
-  AlarmData* alarmData = static_cast<AlarmData*>(aData);
-
-  while (!alarmData->mShuttingDown) {
-    int alarmTypeFlags = 0;
-
-    // ALARM_WAIT apparently will block even if an alarm hasn't been
-    // programmed, although this behavior doesn't seem to be
-    // documented.  We rely on that here to avoid spinning the CPU
-    // while awaiting an alarm to be programmed.
-    do {
-      alarmTypeFlags = ioctl(alarmData->mFd, ANDROID_ALARM_WAIT);
-    } while (alarmTypeFlags < 0 && errno == EINTR &&
-             !alarmData->mShuttingDown);
-
-    if (!alarmData->mShuttingDown && alarmTypeFlags >= 0 &&
-        (alarmTypeFlags & ANDROID_ALARM_RTC_WAKEUP_MASK)) {
-      // To make sure the observer can get the alarm firing notification
-      // *on time* (the system won't sleep during the process in any way),
-      // we need to acquire a CPU wake lock before firing the alarm event.
-      InternalLockCpu();
-      nsRefPtr<AlarmFiredEvent> event =
-        new AlarmFiredEvent(alarmData->mGeneration);
-      NS_DispatchToMainThread(event);
-    }
-  }
-
-  pthread_cleanup_pop(1);
-  return nullptr;
-}
-
-bool
-EnableAlarm()
-{
-  MOZ_ASSERT(!sAlarmData);
-
-  int alarmFd = open("/dev/alarm", O_RDWR);
-  if (alarmFd < 0) {
-    HAL_LOG(("Failed to open alarm device: %s.", strerror(errno)));
-    return false;
-  }
-
-  nsAutoPtr<AlarmData> alarmData(new AlarmData(alarmFd));
-
-  struct sigaction actions;
-  memset(&actions, 0, sizeof(actions));
-  sigemptyset(&actions.sa_mask);
-  actions.sa_flags = 0;
-  actions.sa_handler = ShutDownAlarm;
-  if (sigaction(SIGUSR1, &actions, nullptr)) {
-    HAL_LOG(("Failed to set SIGUSR1 signal for alarm-watcher thread."));
-    return false;
-  }
-
-  pthread_attr_t attr;
-  pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
-  // Initialize the monitor for internally locking CPU to ensure thread-safe
-  // before running the alarm-watcher thread.
-  sInternalLockCpuMonitor = new Monitor("sInternalLockCpuMonitor");
-  int status = pthread_create(&sAlarmFireWatcherThread, &attr, WaitForAlarm,
-                              alarmData.get());
-  if (status) {
-    alarmData = nullptr;
-    delete sInternalLockCpuMonitor;
-    HAL_LOG(("Failed to create alarm-watcher thread. Status: %d.", status));
-    return false;
-  }
-
-  pthread_attr_destroy(&attr);
-
-  // The thread owns this now.  We only hold a pointer.
-  sAlarmData = alarmData.forget();
-  return true;
-}
-
-void
-DisableAlarm()
-{
-  MOZ_ASSERT(sAlarmData);
-
-  // NB: this must happen-before the thread cancellation.
-  sAlarmData = nullptr;
-
-  // The cancel will interrupt the thread and destroy it, freeing the
-  // data pointed at by sAlarmData.
-  DebugOnly<int> err = pthread_kill(sAlarmFireWatcherThread, SIGUSR1);
-  MOZ_ASSERT(!err);
-
-  delete sInternalLockCpuMonitor;
-}
-
-bool
-SetAlarm(int32_t aSeconds, int32_t aNanoseconds)
-{
-  if (!sAlarmData) {
-    HAL_LOG(("We should have enabled the alarm."));
-    return false;
-  }
-
-  struct timespec ts;
-  ts.tv_sec = aSeconds;
-  ts.tv_nsec = aNanoseconds;
-
-  // Currently we only support RTC wakeup alarm type.
-  const int result = ioctl(sAlarmData->mFd,
-                           ANDROID_ALARM_SET(ANDROID_ALARM_RTC_WAKEUP), &ts);
-
-  if (result < 0) {
-    HAL_LOG(("Unable to set alarm: %s.", strerror(errno)));
-    return false;
-  }
-
-  return true;
 }
 
 static int
