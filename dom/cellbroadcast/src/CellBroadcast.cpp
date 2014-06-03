@@ -5,82 +5,72 @@
 
 #include "CellBroadcast.h"
 #include "mozilla/dom/MozCellBroadcastBinding.h"
+#include "mozilla/Services.h"
 #include "nsIDOMMozCellBroadcastEvent.h"
 #include "nsIDOMMozCellBroadcastMessage.h"
+#include "nsICellBroadcastService.h"
+#include "nsIObserverService.h"
 #include "nsServiceManagerUtils.h"
 #include "GeneratedEvents.h"
 
 #define NS_RILCONTENTHELPER_CONTRACTID "@mozilla.org/ril/content-helper;1"
 
-using namespace mozilla::dom;
+namespace mozilla {
+namespace dom {
 
-/**
- * CellBroadcast::Listener Implementation.
- */
+namespace cellbroadcast {
 
-class CellBroadcast::Listener : public nsICellBroadcastListener
-{
-private:
-  CellBroadcast* mCellBroadcast;
+const char* kCellBroadcastReceivedObserverTopic = "cellbroadcast-received";
 
-public:
-  NS_DECL_ISUPPORTS
-  NS_FORWARD_SAFE_NSICELLBROADCASTLISTENER(mCellBroadcast)
+} // namespace cellbroadcast
 
-  Listener(CellBroadcast* aCellBroadcast)
-    : mCellBroadcast(aCellBroadcast)
-  {
-    MOZ_ASSERT(mCellBroadcast);
-  }
+using namespace cellbroadcast;
 
-  void Disconnect()
-  {
-    MOZ_ASSERT(mCellBroadcast);
-    mCellBroadcast = nullptr;
-  }
-};
+NS_INTERFACE_MAP_BEGIN(CellBroadcast)
+  NS_INTERFACE_MAP_ENTRY(nsIObserver)
+NS_INTERFACE_MAP_END_INHERITING(DOMEventTargetHelper)
 
-NS_IMPL_ISUPPORTS(CellBroadcast::Listener, nsICellBroadcastListener)
+NS_IMPL_ADDREF_INHERITED(CellBroadcast, DOMEventTargetHelper)
+NS_IMPL_RELEASE_INHERITED(CellBroadcast, DOMEventTargetHelper)
 
 /**
  * CellBroadcast Implementation.
  */
 
-// static
-already_AddRefed<CellBroadcast>
-CellBroadcast::Create(nsPIDOMWindow* aWindow, ErrorResult& aRv)
+CellBroadcast::CellBroadcast(nsPIDOMWindow *aWindow)
+  : DOMEventTargetHelper(aWindow)
 {
-  MOZ_ASSERT(aWindow);
-  MOZ_ASSERT(aWindow->IsInnerWindow());
+}
 
+void
+CellBroadcast::Init()
+{
   nsCOMPtr<nsICellBroadcastService> service =
     do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
   if (!service) {
-    aRv.Throw(NS_ERROR_UNEXPECTED);
-    return nullptr;
+    return;
   }
 
-  nsRefPtr<CellBroadcast> cb = new CellBroadcast(aWindow, service);
-  return cb.forget();
+  nsresult rv = service->RegisterCellBroadcastMsg();
+  if (NS_FAILED(rv)) {
+    return;
+  }
+
+  nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
+  // GetObserverService() can return null is some situations like shutdown.
+  if (obs) {
+    obs->AddObserver(this, kCellBroadcastReceivedObserverTopic, false);
+  }
 }
 
-CellBroadcast::CellBroadcast(nsPIDOMWindow *aWindow,
-                             nsICellBroadcastService *aService)
-  : DOMEventTargetHelper(aWindow)
-  , mService(aService)
+void
+CellBroadcast::Shutdown()
 {
-  mListener = new Listener(this);
-  DebugOnly<nsresult> rv = mService->RegisterCellBroadcastMsg(mListener);
-  NS_WARN_IF_FALSE(NS_SUCCEEDED(rv),
-                   "Failed registering Cell Broadcast callback with service");
-}
-
-CellBroadcast::~CellBroadcast()
-{
-  MOZ_ASSERT(mService && mListener);
-
-  mListener->Disconnect();
-  mService->UnregisterCellBroadcastMsg(mListener);
+  nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
+  // GetObserverService() can return null is some situations like shutdown.
+  if (obs) {
+    obs->RemoveObserver(this, kCellBroadcastReceivedObserverTopic);
+  }
 }
 
 JSObject*
@@ -88,8 +78,6 @@ CellBroadcast::WrapObject(JSContext* aCx)
 {
   return MozCellBroadcastBinding::Wrap(aCx, this);
 }
-
-// Forwarded nsICellBroadcastListener methods
 
 NS_IMETHODIMP
 CellBroadcast::NotifyMessageReceived(nsIDOMMozCellBroadcastMessage* aMessage)
@@ -104,3 +92,21 @@ CellBroadcast::NotifyMessageReceived(nsIDOMMozCellBroadcastMessage* aMessage)
 
   return DispatchTrustedEvent(ce);
 }
+
+// nsIObserver
+
+NS_IMETHODIMP
+CellBroadcast::Observe(nsISupports* aSubject,
+                       const char* aTopic,
+                       const char16_t* aData)
+{
+  if (!strcmp(aTopic, kCellBroadcastReceivedObserverTopic)) {
+    nsCOMPtr<nsIDOMMozCellBroadcastMessage> message = do_QueryInterface(aSubject);
+    return NotifyMessageReceived(message);
+  }
+
+  return NS_OK;
+}
+
+} // namespace dom
+} // namespace mozilla

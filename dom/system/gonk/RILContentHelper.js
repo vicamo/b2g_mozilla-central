@@ -1568,16 +1568,17 @@ RILContentHelper.prototype = {
     this.unregisterListener("_voicemailListeners", 0, listener);
   },
 
-  registerCellBroadcastMsg: function(listener) {
+  registerCellBroadcastMsg: function() {
     if (DEBUG) debug("Registering for Cell Broadcast related messages");
     //TODO: Bug 921326 - Cellbroadcast API: support multiple sim cards
-    this.registerListener("_cellBroadcastListeners", 0, listener);
+    if (!this._cellBroadcastListeners.length) {
+      this.registerListener("_cellBroadcastListeners", 0, {
+        notifyMessageReceived: function(message) {
+          Services.obs.notifyObservers(message, "cellbroadcast-received", null);
+        }
+      });
+    }
     cpmm.sendAsyncMessage("RIL:RegisterCellBroadcastMsg");
-  },
-
-  unregisterCellBroadcastMsg: function(listener) {
-    //TODO: Bug 921326 - Cellbroadcast API: support multiple sim cards
-    this.unregisterListener("_cellBroadcastListeners", 0, listener);
   },
 
   registerIccMsg: function(clientId, listener) {

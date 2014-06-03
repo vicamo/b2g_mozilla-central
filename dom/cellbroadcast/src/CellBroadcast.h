@@ -8,39 +8,26 @@
 
 #include "mozilla/Attributes.h"
 #include "mozilla/DOMEventTargetHelper.h"
-#include "mozilla/ErrorResult.h"
-#include "nsICellBroadcastService.h"
-#include "js/TypeDecls.h"
+#include "nsIObserver.h"
 
-class nsPIDOMWindow;
+class nsIDOMMozCellBroadcastMessage;
 
 namespace mozilla {
 namespace dom {
 
 class CellBroadcast MOZ_FINAL : public DOMEventTargetHelper
+                              , public nsIObserver
 {
-  /**
-   * Class CellBroadcast doesn't actually inherit nsICellBroadcastListener.
-   * Instead, it owns an nsICellBroadcastListener derived instance mListener
-   * and passes it to nsICellBroadcastService. The onreceived events are first
-   * delivered to mListener and then forwarded to its owner, CellBroadcast. See
-   * also bug 775997 comment #51.
-   */
-  class Listener;
-
 public:
-  NS_DECL_NSICELLBROADCASTLISTENER
+  NS_DECL_ISUPPORTS_INHERITED
+  NS_DECL_NSIOBSERVER
 
   NS_REALLY_FORWARD_NSIDOMEVENTTARGET(DOMEventTargetHelper)
 
-  static already_AddRefed<CellBroadcast>
-  Create(nsPIDOMWindow* aOwner, ErrorResult& aRv);
+  CellBroadcast(nsPIDOMWindow *aWindow);
 
-  CellBroadcast() MOZ_DELETE;
-  CellBroadcast(nsPIDOMWindow *aWindow,
-                nsICellBroadcastService* aService);
-  // MOZ_FINAL suppresses -Werror,-Wdelete-non-virtual-dtor
-  ~CellBroadcast();
+  void Init();
+  void Shutdown();
 
   nsPIDOMWindow*
   GetParentObject() const { return GetOwner(); }
@@ -51,8 +38,8 @@ public:
   IMPL_EVENT_HANDLER(received)
 
 private:
-  nsCOMPtr<nsICellBroadcastService> mService;
-  nsRefPtr<Listener> mListener;
+  nsresult
+  NotifyMessageReceived(nsIDOMMozCellBroadcastMessage* aMessage);
 };
 
 } // namespace dom

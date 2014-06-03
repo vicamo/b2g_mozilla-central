@@ -4,25 +4,11 @@
 
 #include "nsISupports.idl"
 
-interface nsIDOMMozCellBroadcastMessage;
-
-[scriptable, uuid(4c6fb794-31bd-4ed7-b21a-34b82aa3efbe)]
-interface nsICellBroadcastListener : nsISupports
-{
-  /**
-   * Called when a Cell Broadcast message has been received by the network.
-   *
-   * @param message
-   *        The received Cell Broadcast Message.
-   */
-  void notifyMessageReceived(in nsIDOMMozCellBroadcastMessage message);
-};
-
 /**
  * XPCOM component (in the content process) that provides the cell broadcast
  * information.
  */
-[scriptable, uuid(d3be042f-16bf-4cf3-9b0d-3cfa83ae4b6a)]
+[scriptable, uuid(6a25f5dc-60ff-4937-9043-33225cf7d483)]
 interface nsICellBroadcastService : nsISupports
 {
   /**
@@ -30,6 +16,5 @@ interface nsICellBroadcastService : nsISupports
    * RadioInterfaceLayer in the chrome process. Only a content process that has
    * the 'cellbroadcast' permission is allowed to register.
    */
-  void registerCellBroadcastMsg(in nsICellBroadcastListener listener);
-  void unregisterCellBroadcastMsg(in nsICellBroadcastListener listener);
+  void registerCellBroadcastMsg();
 };

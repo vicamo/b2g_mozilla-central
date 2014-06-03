@@ -1608,7 +1608,8 @@ Navigator::GetMozCellBroadcast(ErrorResult& aRv)
       aRv.Throw(NS_ERROR_UNEXPECTED);
       return nullptr;
     }
-    mCellBroadcast = CellBroadcast::Create(mWindow, aRv);
+    mCellBroadcast = new CellBroadcast(mWindow);
+    mCellBroadcast->Init();
   }
 
   return mCellBroadcast;
