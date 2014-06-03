@@ -457,7 +457,7 @@ RILContentHelper.prototype = {
   __proto__: DOMRequestIpcHelper.prototype,
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIMobileConnectionProvider,
-                                         Ci.nsICellBroadcastProvider,
+                                         Ci.nsICellBroadcastService,
                                          Ci.nsIVoicemailProvider,
                                          Ci.nsIIccProvider,
                                          Ci.nsIObserver,
@@ -467,7 +467,7 @@ RILContentHelper.prototype = {
   classInfo: XPCOMUtils.generateCI({classID: RILCONTENTHELPER_CID,
                                     classDescription: "RILContentHelper",
                                     interfaces: [Ci.nsIMobileConnectionProvider,
-                                                 Ci.nsICellBroadcastProvider,
+                                                 Ci.nsICellBroadcastService,
                                                  Ci.nsIVoicemailProvider,
                                                  Ci.nsIIccProvider]}),
 

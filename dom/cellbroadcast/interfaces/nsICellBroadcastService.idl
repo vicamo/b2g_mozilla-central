@@ -22,8 +22,8 @@ interface nsICellBroadcastListener : nsISupports
  * XPCOM component (in the content process) that provides the cell broadcast
  * information.
  */
-[scriptable, uuid(e6c01d18-829e-4d5a-9611-60fca36e6b46)]
-interface nsICellBroadcastProvider : nsISupports
+[scriptable, uuid(d3be042f-16bf-4cf3-9b0d-3cfa83ae4b6a)]
+interface nsICellBroadcastService : nsISupports
 {
   /**
    * Called when a content process registers receiving unsolicited messages from

@@ -53,34 +53,34 @@ CellBroadcast::Create(nsPIDOMWindow* aWindow, ErrorResult& aRv)
   MOZ_ASSERT(aWindow);
   MOZ_ASSERT(aWindow->IsInnerWindow());
 
-  nsCOMPtr<nsICellBroadcastProvider> provider =
+  nsCOMPtr<nsICellBroadcastService> service =
     do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
-  if (!provider) {
+  if (!service) {
     aRv.Throw(NS_ERROR_UNEXPECTED);
     return nullptr;
   }
 
-  nsRefPtr<CellBroadcast> cb = new CellBroadcast(aWindow, provider);
+  nsRefPtr<CellBroadcast> cb = new CellBroadcast(aWindow, service);
   return cb.forget();
 }
 
 CellBroadcast::CellBroadcast(nsPIDOMWindow *aWindow,
-                             nsICellBroadcastProvider *aProvider)
+                             nsICellBroadcastService *aService)
   : DOMEventTargetHelper(aWindow)
-  , mProvider(aProvider)
+  , mService(aService)
 {
   mListener = new Listener(this);
-  DebugOnly<nsresult> rv = mProvider->RegisterCellBroadcastMsg(mListener);
+  DebugOnly<nsresult> rv = mService->RegisterCellBroadcastMsg(mListener);
   NS_WARN_IF_FALSE(NS_SUCCEEDED(rv),
-                   "Failed registering Cell Broadcast callback with provider");
+                   "Failed registering Cell Broadcast callback with service");
 }
 
 CellBroadcast::~CellBroadcast()
 {
-  MOZ_ASSERT(mProvider && mListener);
+  MOZ_ASSERT(mService && mListener);
 
   mListener->Disconnect();
-  mProvider->UnregisterCellBroadcastMsg(mListener);
+  mService->UnregisterCellBroadcastMsg(mListener);
 }
 
 JSObject*
