@@ -13,8 +13,6 @@
 #include "nsServiceManagerUtils.h"
 #include "GeneratedEvents.h"
 
-#define NS_RILCONTENTHELPER_CONTRACTID "@mozilla.org/ril/content-helper;1"
-
 namespace mozilla {
 namespace dom {
 
@@ -46,7 +44,7 @@ void
 CellBroadcast::Init()
 {
   nsCOMPtr<nsICellBroadcastService> service =
-    do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
+    do_GetService(CELLBROADCAST_SERVICE_CONTRACTID);
   if (!service) {
     return;
   }

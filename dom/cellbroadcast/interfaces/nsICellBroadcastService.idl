@@ -4,6 +4,12 @@
 
 #include "nsISupports.idl"
 
+%{C++
+#define CELLBROADCAST_SERVICE_CID { 0x67de78c3, 0x7d80, 0x4098, \
+        { 0x86, 0xf1, 0x75, 0x0e, 0x05, 0x3a, 0x26, 0xbb } }
+#define CELLBROADCAST_SERVICE_CONTRACTID "@mozilla.org/cellbroadcast/service;1"
+%}
+
 /**
  * XPCOM component (in the content process) that provides the cell broadcast
  * information.

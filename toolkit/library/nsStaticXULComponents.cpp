@@ -183,6 +183,12 @@
 #define SYNTH_PICO_MODULE
 #endif
 
+#if defined(MOZ_B2G_RIL)
+#define CELLBROADCAST_MODULE MODULE(CellBroadcastModule)
+#else
+#define CELLBROADCAST_MODULE
+#endif
+
 #define XUL_MODULES                          \
     MODULE(nsUConvModule)                    \
     MODULE(nsI18nModule)                     \
@@ -245,6 +251,7 @@
     GIO_MODULE                               \
     SYNTH_PICO_MODULE                        \
     MODULE(DiskSpaceWatcherModule)           \
+    CELLBROADCAST_MODULE                     \
     /* end of list */
 
 #define MODULE(_name) \
