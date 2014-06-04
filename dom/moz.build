@@ -43,6 +43,7 @@ PARALLEL_DIRS += [
     'bindings',
     'battery',
     'browser-element',
+    'cellbroadcast',
     'contacts',
     'crypto',
     'phonenumberutils',
@@ -97,7 +98,6 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
 if CONFIG['MOZ_B2G_RIL']:
     PARALLEL_DIRS += [
         'icc',
-        'cellbroadcast',
         'mobileconnection',
         'voicemail',
         'wappush',

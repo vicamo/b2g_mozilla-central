@@ -270,12 +270,14 @@ partial interface Navigator {
   [Throws, Pref="dom.mobileconnection.enabled", CheckPermissions="mobileconnection mobilenetwork"]
   readonly attribute MozMobileConnectionArray mozMobileConnections;
 };
+#endif // MOZ_B2G_RIL
 
 partial interface Navigator {
-  [Throws, Pref="dom.cellbroadcast.enabled", CheckPermissions="cellbroadcast"]
+  [Throws, Func="Navigator::HasCellBroadcastSupport"]
   readonly attribute MozCellBroadcast mozCellBroadcast;
 };
 
+#ifdef MOZ_B2G_RIL
 partial interface Navigator {
   [Throws, Pref="dom.voicemail.enabled", CheckPermissions="voicemail"]
   readonly attribute MozVoicemail mozVoicemail;

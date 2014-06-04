@@ -27,8 +27,8 @@ simple_events = [
     'MozWifiConnectionInfoEvent',
     'MozWifiStationInfoEvent',
 #endif
-#ifdef MOZ_B2G_RIL
     'MozCellBroadcastEvent',
+#ifdef MOZ_B2G_RIL
     'MozVoicemailEvent',
 #endif
     'ElementReplaceEvent',

@@ -426,6 +426,11 @@ pref("dom.sms.enabled", true);
 //The waiting time in network manager.
 pref("network.gonk.ms-release-mms-connection", 30000);
 
+// Cell Broadcast API
+#ifdef MOZ_B2G_RIL
+pref("dom.cellbroadcast.enabled", true);
+#endif
+
 // WebContacts
 pref("dom.mozContacts.enabled", true);
 pref("dom.navigator-property.disable.mozContacts", false);

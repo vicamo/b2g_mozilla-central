@@ -62,6 +62,7 @@ class FMRadio;
 
 class Promise;
 
+class CellBroadcast;
 class DesktopNotificationCenter;
 class MobileMessageManager;
 class MozIdleObserver;
@@ -85,7 +86,6 @@ class BluetoothManager;
 #endif // MOZ_B2G_BT
 
 #ifdef MOZ_B2G_RIL
-class CellBroadcast;
 class IccManager;
 class MobileConnectionArray;
 class Voicemail;
@@ -207,6 +207,7 @@ public:
   DesktopNotificationCenter* GetMozNotification(ErrorResult& aRv);
   bool MozIsLocallyAvailable(const nsAString& aURI, bool aWhenOffline,
                              ErrorResult& aRv);
+  CellBroadcast* GetMozCellBroadcast(ErrorResult& aRv);
   nsIDOMMozMobileMessageManager* GetMozMobileMessage(ErrorResult& aRv);
   Telephony* GetMozTelephony(ErrorResult& aRv);
   network::Connection* GetConnection(ErrorResult& aRv);
@@ -217,7 +218,6 @@ public:
   bool MozHasPendingMessage(const nsAString& aType, ErrorResult& aRv);
 #ifdef MOZ_B2G_RIL
   MobileConnectionArray* GetMozMobileConnections(ErrorResult& aRv);
-  CellBroadcast* GetMozCellBroadcast(ErrorResult& aRv);
   Voicemail* GetMozVoicemail(ErrorResult& aRv);
   IccManager* GetMozIccManager(ErrorResult& aRv);
 #endif // MOZ_B2G_RIL
@@ -265,6 +265,8 @@ public:
 
   // WebIDL helper methods
   static bool HasWakeLockSupport(JSContext* /* unused*/, JSObject* /*unused */);
+  static bool HasCellBroadcastSupport(JSContext* /* unused */,
+                                      JSObject* aGlobal);
   static bool HasMobileMessageSupport(JSContext* /* unused */,
                                       JSObject* aGlobal);
   static bool HasCameraSupport(JSContext* /* unused */,
@@ -315,12 +317,12 @@ private:
   nsRefPtr<FMRadio> mFMRadio;
 #endif
   nsRefPtr<PowerManager> mPowerManager;
+  nsRefPtr<CellBroadcast> mCellBroadcast;
   nsRefPtr<MobileMessageManager> mMobileMessageManager;
   nsRefPtr<Telephony> mTelephony;
   nsRefPtr<network::Connection> mConnection;
 #ifdef MOZ_B2G_RIL
   nsRefPtr<MobileConnectionArray> mMobileConnections;
-  nsRefPtr<CellBroadcast> mCellBroadcast;
   nsRefPtr<IccManager> mIccManager;
   nsRefPtr<Voicemail> mVoicemail;
 #endif

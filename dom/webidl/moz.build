@@ -533,6 +533,8 @@ WEBIDL_FILES += [
     'ElementReplaceEvent.webidl',
     'HashChangeEvent.webidl',
     'MozApplicationEvent.webidl',
+    'MozCellBroadcast.webidl',
+    'MozCellBroadcastEvent.webidl',
     'MozMmsEvent.webidl',
     'MozSettingsEvent.webidl',
     'MozSmsEvent.webidl',
@@ -570,8 +572,6 @@ if CONFIG['MOZ_B2G_RIL']:
     WEBIDL_FILES += [
         'DOMMMIError.webidl',
         'IccCardLockError.webidl',
-        'MozCellBroadcast.webidl',
-        'MozCellBroadcastEvent.webidl',
         'MozIcc.webidl',
         'MozIccManager.webidl',
         'MozMobileCellInfo.webidl',
