@@ -1,0 +1,30 @@
+/* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set sw=2 ts=8 et ft=cpp : */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+include protocol PContent;
+
+include CellBroadcastIPCTypes;
+
+namespace mozilla {
+namespace dom {
+namespace cellbroadcast {
+
+sync protocol PCellBroadcast {
+    manager PContent;
+
+child:
+  NotifyReceivedMessage(MessageData aMessageData);
+
+parent:
+  /**
+   * Sent when the child no longer needs to use sms.
+   */
+  __delete__();
+};
+
+} // namespace cellbroadcast
+} // namespace dom
+} // namespace mozilla

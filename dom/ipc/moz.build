@@ -102,6 +102,7 @@ LOCAL_INCLUDES += [
     '/dom/base',
     '/dom/bluetooth',
     '/dom/bluetooth/ipc',
+    '/dom/cellbroadcast/src/ipc',
     '/dom/devicestorage',
     '/dom/filesystem',
     '/dom/fmradio/ipc',

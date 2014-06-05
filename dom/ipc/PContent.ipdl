@@ -9,6 +9,7 @@ include protocol PBackground;
 include protocol PBlob;
 include protocol PBluetooth;
 include protocol PBrowser;
+include protocol PCellBroadcast;
 include protocol PCompositor;
 include protocol PCycleCollectWithLogs;
 include protocol PCrashReporter;
@@ -281,6 +282,7 @@ intr protocol PContent
     manages PBlob;
     manages PBluetooth;
     manages PBrowser;
+    manages PCellBroadcast;
     manages PCrashReporter;
     manages PCycleCollectWithLogs;
     manages PDeviceStorageRequest;
@@ -448,6 +450,9 @@ parent:
     PDeviceStorageRequest(DeviceStorageParams params);
 
     PFileSystemRequest(FileSystemParams params);
+
+    sync PCellBroadcast()
+        returns (bool isSupported);
 
     sync PCrashReporter(NativeThreadId tid, uint32_t processType);
 

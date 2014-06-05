@@ -1,0 +1,57 @@
+/* -*- Mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; tab-width: 40 -*- */
+/* vim: set ts=2 et sw=2 tw=80: */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+using struct mozilla::void_t from "ipc/IPCMessageUtils.h";
+
+using GsmGeographicalScope from "mozilla/dom/cellbroadcast/Types.h";
+using MessageClass from "mozilla/dom/cellbroadcast/Types.h";
+using WarningType from "mozilla/dom/cellbroadcast/Types.h";
+
+namespace mozilla {
+namespace dom {
+namespace cellbroadcast {
+
+union OptionalGsmGeographicalScope
+{
+  void_t;
+  GsmGeographicalScope;
+};
+
+union OptionalCdmaServiceCategory
+{
+  void_t;
+  uint32_t;
+};
+
+struct EtwsInfoData
+{
+  WarningType warningType;
+  bool emergencyUserAlert;
+  bool popup;
+};
+
+union OptionalEtwsInfoData
+{
+  void_t;
+  EtwsInfoData;
+};
+
+struct MessageData
+{
+  OptionalGsmGeographicalScope gsmGeographicalScope;
+  uint16_t messageCode;
+  uint16_t messageId;
+  nsString language;
+  nsString body;
+  MessageClass messageClass;
+  uint64_t timestamp; // ms since epoch.
+  OptionalCdmaServiceCategory cdmaServiceCategory;
+  OptionalEtwsInfoData etws;
+};
+
+} // namespace cellbroadcast
+} // namespace dom
+} // namespace mozilla

@@ -8,11 +8,22 @@ EXPORTS.mozilla.dom += [
     'CellBroadcast.h',
 ]
 
+EXPORTS.mozilla.dom.cellbroadcast += [
+    'Types.h', # Required by CellBroadcastIPCTypes.h
+]
+
 SOURCES += [
     'CellBroadcast.cpp',
     'CellBroadcastModule.cpp',
 ]
 
+IPDL_SOURCES += [
+    'ipc/CellBroadcastIPCTypes.ipdlh',
+    'ipc/PCellBroadcast.ipdl',
+]
+
 FAIL_ON_WARNINGS = True
+
+include('/ipc/chromium/chromium-config.mozbuild')
 
 FINAL_LIBRARY = 'gklayout'
