@@ -37,7 +37,7 @@ public:
 
   NS_REALLY_FORWARD_NSIDOMEVENTTARGET(DOMEventTargetHelper)
 
-  Voicemail(nsPIDOMWindow* aWindow, nsIVoicemailProvider* aProvider);
+  Voicemail(nsPIDOMWindow* aWindow);
 
   virtual ~Voicemail();
 
@@ -77,9 +77,5 @@ private:
 
 } // namespace dom
 } // namespace mozilla
-
-nsresult
-NS_NewVoicemail(nsPIDOMWindow* aWindow,
-                mozilla::dom::Voicemail** aVoicemail);
 
 #endif // mozilla_dom_voicemail_voicemail_h__

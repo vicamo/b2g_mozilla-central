@@ -44,11 +44,15 @@ public:
 
 NS_IMPL_ISUPPORTS(Voicemail::Listener, nsIVoicemailListener)
 
-Voicemail::Voicemail(nsPIDOMWindow* aWindow,
-                     nsIVoicemailProvider* aProvider)
+Voicemail::Voicemail(nsPIDOMWindow* aWindow)
   : DOMEventTargetHelper(aWindow)
-  , mProvider(aProvider)
 {
+  mProvider = do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
+  if (!mProvider) {
+    NS_WARNING("Could not acquire nsIVoicemailProvider!");
+    return;
+  }
+
   mListener = new Listener(this);
   DebugOnly<nsresult> rv = mProvider->RegisterVoicemailMsg(mListener);
   NS_WARN_IF_FALSE(NS_SUCCEEDED(rv),
@@ -57,10 +61,10 @@ Voicemail::Voicemail(nsPIDOMWindow* aWindow,
 
 Voicemail::~Voicemail()
 {
-  MOZ_ASSERT(mProvider && mListener);
-
-  mListener->Disconnect();
-  mProvider->UnregisterVoicemailMsg(mListener);
+  if (mProvider) {
+    mListener->Disconnect();
+    mProvider->UnregisterVoicemailMsg(mListener);
+  }
 }
 
 JSObject*
@@ -81,6 +85,8 @@ bool
 Voicemail::PassedOrDefaultServiceId(const Optional<uint32_t>& aServiceId,
                                     uint32_t& aResult) const
 {
+  MOZ_ASSERT(mProvider);
+
   if (aServiceId.WasPassed()) {
     if (!IsValidServiceId(aServiceId.Value())) {
       return false;
@@ -173,20 +179,4 @@ Voicemail::NotifyStatusChanged(nsIDOMMozVoicemailStatus* aStatus)
   NS_ENSURE_SUCCESS(rv, rv);
 
   return DispatchTrustedEvent(ce);
-}
-
-nsresult
-NS_NewVoicemail(nsPIDOMWindow* aWindow, Voicemail** aVoicemail)
-{
-  nsPIDOMWindow* innerWindow = aWindow->IsInnerWindow() ?
-    aWindow :
-    aWindow->GetCurrentInnerWindow();
-
-  nsCOMPtr<nsIVoicemailProvider> provider =
-    do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
-  NS_ENSURE_STATE(provider);
-
-  nsRefPtr<Voicemail> voicemail = new Voicemail(innerWindow, provider);
-  voicemail.forget(aVoicemail);
-  return NS_OK;
 }

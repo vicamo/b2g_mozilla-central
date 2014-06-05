@@ -1556,13 +1556,13 @@ Navigator::RequestWakeLock(const nsAString &aTopic, ErrorResult& aRv)
 }
 
 nsIDOMMozMobileMessageManager*
-Navigator::GetMozMobileMessage()
+Navigator::GetMozMobileMessage(ErrorResult& aRv)
 {
   if (!mMobileMessageManager) {
-    // Check that our window has not gone away
-    NS_ENSURE_TRUE(mWindow, nullptr);
-    NS_ENSURE_TRUE(mWindow->GetDocShell(), nullptr);
-
+    if (!mWindow || !mWindow->GetDocShell()) {
+      aRv.Throw(NS_ERROR_UNEXPECTED);
+      return nullptr;
+    }
     mMobileMessageManager = new MobileMessageManager();
     mMobileMessageManager->Init(mWindow);
   }
@@ -1590,7 +1590,7 @@ MobileConnectionArray*
 Navigator::GetMozMobileConnections(ErrorResult& aRv)
 {
   if (!mMobileConnections) {
-    if (!mWindow) {
+    if (!mWindow || !mWindow->GetDocShell()) {
       aRv.Throw(NS_ERROR_UNEXPECTED);
       return nullptr;
     }
@@ -1604,7 +1604,7 @@ CellBroadcast*
 Navigator::GetMozCellBroadcast(ErrorResult& aRv)
 {
   if (!mCellBroadcast) {
-    if (!mWindow) {
+    if (!mWindow || !mWindow->GetDocShell()) {
       aRv.Throw(NS_ERROR_UNEXPECTED);
       return nullptr;
     }
@@ -1619,15 +1619,11 @@ Voicemail*
 Navigator::GetMozVoicemail(ErrorResult& aRv)
 {
   if (!mVoicemail) {
-    if (!mWindow) {
+    if (!mWindow || !mWindow->GetDocShell()) {
       aRv.Throw(NS_ERROR_UNEXPECTED);
       return nullptr;
     }
-
-    aRv = NS_NewVoicemail(mWindow, getter_AddRefs(mVoicemail));
-    if (aRv.Failed()) {
-      return nullptr;
-    }
+    mVoicemail = new Voicemail(mWindow);
   }
 
   return mVoicemail;
@@ -1637,12 +1633,10 @@ IccManager*
 Navigator::GetMozIccManager(ErrorResult& aRv)
 {
   if (!mIccManager) {
-    if (!mWindow) {
+    if (!mWindow || !mWindow->GetDocShell()) {
       aRv.Throw(NS_ERROR_UNEXPECTED);
       return nullptr;
     }
-    NS_ENSURE_TRUE(mWindow->GetDocShell(), nullptr);
-
     mIccManager = new IccManager(mWindow);
   }
 
@@ -2123,8 +2117,6 @@ Navigator::HasWakeLockSupport(JSContext* /* unused*/, JSObject* /*unused */)
 bool
 Navigator::HasMobileMessageSupport(JSContext* /* unused */, JSObject* aGlobal)
 {
-  nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
-
 #ifndef MOZ_WEBSMS_BACKEND
   return false;
 #endif
@@ -2136,8 +2128,8 @@ Navigator::HasMobileMessageSupport(JSContext* /* unused */, JSObject* aGlobal)
     return false;
   }
 
-  NS_ENSURE_TRUE(win, false);
-  NS_ENSURE_TRUE(win->GetDocShell(), false);
+  nsCOMPtr<nsPIDOMWindow> win = GetWindowFromGlobal(aGlobal);
+  NS_ENSURE_TRUE(win && win->GetDocShell(), false);
 
   if (!CheckPermission(win, "sms")) {
     return false;

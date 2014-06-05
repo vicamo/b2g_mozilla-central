@@ -239,8 +239,8 @@ partial interface Navigator {
 // nsIDOMMozNavigatorMobileMessage
 interface MozMobileMessageManager;
 partial interface Navigator {
-  [Func="Navigator::HasMobileMessageSupport"]
-  readonly attribute MozMobileMessageManager? mozMobileMessage;
+  [Throws, Func="Navigator::HasMobileMessageSupport"]
+  readonly attribute MozMobileMessageManager mozMobileMessage;
 };
 
 // NetworkInformation
@@ -283,14 +283,14 @@ partial interface Navigator {
 
 partial interface Navigator {
   [Throws, Pref="dom.icc.enabled", CheckPermissions="mobileconnection"]
-  readonly attribute MozIccManager? mozIccManager;
+  readonly attribute MozIccManager mozIccManager;
 };
+#endif // MOZ_B2G_RIL
 
 partial interface Navigator {
   [Throws, Pref="dom.telephony.enabled", CheckPermissions="telephony"]
-  readonly attribute Telephony? mozTelephony;
+  readonly attribute Telephony mozTelephony;
 };
-#endif // MOZ_B2G_RIL
 
 #ifdef MOZ_GAMEPAD
 // https://dvcs.w3.org/hg/gamepad/raw-file/default/gamepad.html#navigator-interface-extension
