@@ -8,6 +8,15 @@ interface MozMmsMessage;
 interface MozSmsFilter;
 interface MozSmsMessage;
 
+dictionary SmsSegmentInfo {
+  /* The number of total segments for the input string. */
+  long segments;
+  /* The number of characters available per segment. */
+  long charsPerSegment;
+  /* The maximum number of available characters in the last segment. */
+  long charsAvailableInLastSegment;
+};
+
 dictionary MmsAttachment {
   DOMString? id = null;
   DOMString? location = null;
