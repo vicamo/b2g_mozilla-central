@@ -6,6 +6,29 @@ const {Cc: Cc, Ci: Ci, Cr: Cr, Cu: Cu} = SpecialPowers;
 let Promise = Cu.import("resource://gre/modules/Promise.jsm").Promise;
 
 /**
+ * Promise wrapper for |SpecialPowers.pushPrefEnv|.
+ *
+ * Resolve if that action is done.  Never reject.
+ *
+ * Fulfill params: (None).
+ *
+ * @param aPrefs
+ *        An array of preference actions.
+ *
+ * @return A deferred promise.
+ */
+function pushPrefEnv(aPrefs) {
+  let deferred = Promise.defer();
+
+  SpecialPowers.pushPrefEnv(aPrefs, function() {
+    ok(true, "preferences pushed: " + JSON.stringify(aPrefs));
+    deferred.resolve();
+  });
+
+  return deferred.promise;
+}
+
+/**
  * Push required permissions and test if |navigator.mozMobileMessage| exists.
  * Resolve if it does, reject otherwise.
  *
