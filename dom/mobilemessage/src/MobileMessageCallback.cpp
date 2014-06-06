@@ -4,11 +4,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MobileMessageCallback.h"
+#include "mozilla/dom/ToJSValue.h"
 #include "nsContentUtils.h"
 #include "nsCxPusher.h"
 #include "nsIDOMMozSmsMessage.h"
 #include "nsIDOMMozMmsMessage.h"
-#include "nsIDOMSmsSegmentInfo.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsPIDOMWindow.h"
 #include "MmsMessage.h"
@@ -235,9 +235,27 @@ MobileMessageCallback::NotifyMarkMessageReadFailed(int32_t aError)
 }
 
 NS_IMETHODIMP
-MobileMessageCallback::NotifySegmentInfoForTextGot(nsIDOMMozSmsSegmentInfo *aInfo)
+MobileMessageCallback::NotifySegmentInfoForTextGot(int32_t aSegments,
+                                                   int32_t aCharsPerSegment,
+                                                   int32_t aCharsAvailableInLastSegment)
 {
-  return NotifySuccess(aInfo, true);
+  nsresult rv;
+  nsIScriptContext* sc = mDOMRequest->GetContextForEventHandlers(&rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(sc, NS_ERROR_FAILURE);
+
+  AutoPushJSContext cx(sc->GetNativeContext());
+  NS_ENSURE_TRUE(cx, NS_ERROR_FAILURE);
+
+  SmsSegmentInfo info;
+  info.mSegments.Construct(aSegments);
+  info.mCharsPerSegment.Construct(aCharsPerSegment);
+  info.mCharsAvailableInLastSegment.Construct(aCharsAvailableInLastSegment);
+
+  JS::Rooted<JS::Value> val(cx);
+  NS_ENSURE_TRUE(ToJSValue(cx, info, &val), NS_ERROR_FAILURE);
+
+  return NotifySuccess(val, true);
 }
 
 NS_IMETHODIMP

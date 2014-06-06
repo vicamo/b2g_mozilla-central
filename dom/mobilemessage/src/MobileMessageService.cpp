@@ -6,7 +6,6 @@
 #include "MmsMessage.h"
 #include "MobileMessageThread.h"
 #include "MobileMessageService.h"
-#include "SmsSegmentInfo.h"
 
 namespace mozilla {
 namespace dom {
@@ -98,18 +97,6 @@ MobileMessageService::CreateMmsMessage(int32_t aId,
                             aReadReportRequested,
                             aCx,
                             aMessage);
-}
-
-NS_IMETHODIMP
-MobileMessageService::CreateSmsSegmentInfo(int32_t aSegments,
-                                           int32_t aCharsPerSegment,
-                                           int32_t aCharsAvailableInLastSegment,
-                                           nsIDOMMozSmsSegmentInfo** aSegmentInfo)
-{
-  nsCOMPtr<nsIDOMMozSmsSegmentInfo> info =
-      new SmsSegmentInfo(aSegments, aCharsPerSegment, aCharsAvailableInLastSegment);
-  info.forget(aSegmentInfo);
-  return NS_OK;
 }
 
 NS_IMETHODIMP
