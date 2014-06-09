@@ -20,9 +20,8 @@ function verifyInitialState() {
 
 function deleteAllMsgs(nextFunction) {
   let msgList = new Array();
-  let filter = new MozSmsFilter;
 
-  let cursor = manager.getMessages(filter, false);
+  let cursor = manager.getMessages();
   ok(cursor instanceof DOMCursor,
       "cursor is instanceof " + cursor.constructor);
 
@@ -126,14 +125,15 @@ function nextRep() {
 }
 
 function getMsgs() {
-  var filter = new MozSmsFilter();
   let foundSmsList = new Array();
 
   // Set filter for start date 2 days ago and end date yesterday (so 0 found)
   let yesterday = new Date(Date.now() - 86400000); // 24 hours = 86400000 ms
   let twoDaysAgo = new Date(Date.now() - 172800000);
-  filter.startDate = twoDaysAgo;
-  filter.endDate = yesterday;
+  let filter = {
+    startDate: twoDaysAgo,
+    endDate: yesterday,
+  };
 
   log("Getting SMS messages with dates between " + twoDaysAgo + " and "
       + yesterday +".");

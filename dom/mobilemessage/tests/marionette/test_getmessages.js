@@ -2,190 +2,54 @@
  * http://creativecommons.org/publicdomain/zero/1.0/ */
 
 MARIONETTE_TIMEOUT = 60000;
+MARIONETTE_HEAD_JS = 'head.js';
 
-SpecialPowers.addPermission("sms", true, document);
-SpecialPowers.setBoolPref("dom.sms.enabled", true);
+const REMOTE = "5552229797";
+const NUM_MESSAGES = 10;
 
-let manager = window.navigator.mozMobileMessage;
-let numberMsgs = 10;
 let smsList = new Array();
-
-function verifyInitialState() {
-  log("Verifying initial state.");
-  ok(manager instanceof MozMobileMessageManager,
-     "manager is instance of " + manager.constructor);
-  // Ensure test is starting clean with no existing sms messages
-  deleteAllMsgs(simulateIncomingSms);
-}
 
 function isIn(aVal, aArray, aMsg) {
   ok(aArray.indexOf(aVal) >= 0, aMsg);
 }
 
-function deleteAllMsgs(nextFunction) {
-  let msgList = new Array();
-  let smsFilter = new MozSmsFilter;
-
-  let cursor = manager.getMessages(smsFilter, false);
-  ok(cursor instanceof DOMCursor,
-      "cursor is instanceof " + cursor.constructor);
-
-  cursor.onsuccess = function(event) {
-    // Check if message was found
-    if (cursor.result) {
-      msgList.push(cursor.result.id);
-      // Now get next message in the list
-      cursor.continue();
-    } else {
-      // No (more) messages found
-      if (msgList.length) {
-        log("Found " + msgList.length + " SMS messages to delete.");
-        deleteMsgs(msgList, nextFunction);
-      } else {
-        log("No SMS messages found.");
-        nextFunction();
-      }
-    }
-  };
-
-  cursor.onerror = function(event) {
-    log("Received 'onerror' event.");
-    ok(event.target.error, "domerror obj");
-    log("manager.getMessages error: " + event.target.error.name);
-    ok(false,"Could not get SMS messages");
-    cleanUp();
-  };
-}
-
-function deleteMsgs(msgList, nextFunction) {
-  let smsId = msgList.shift();
-
-  log("Deleting SMS (id: " + smsId + ").");
-  let request = manager.delete(smsId);
-  ok(request instanceof DOMRequest,
-      "request is instanceof " + request.constructor);
-
-  request.onsuccess = function(event) {
-    log("Received 'onsuccess' smsrequest event.");
-    if (event.target.result) {
-      // Message deleted, continue until none are left
-      if (msgList.length) {
-        deleteMsgs(msgList, nextFunction);
-      } else {
-        log("Finished deleting SMS messages.");
-        nextFunction();
-      }
-    } else {
-      log("SMS delete failed.");
-      ok(false,"manager.delete request returned false");
-      cleanUp();
-    }
-  };
-
-  request.onerror = function(event) {
-    log("Received 'onerror' smsrequest event.");
-    ok(event.target.error, "domerror obj");
-    ok(false, "manager.delete request returned unexpected error: "
-        + event.target.error.name );
-    cleanUp();
-  };
-}
-
 function simulateIncomingSms() {
+  let promises = [];
+
+  promises.push(waitForManagerEvent("received"));
+
   let text = "Incoming SMS number " + (smsList.length + 1);
-  let remoteNumber = "5552229797";
+  ok(true, text);
+  promises.push(sendTextSmsToEmulator(REMOTE, text));
 
-  log("Simulating incoming SMS number " + (smsList.length + 1) + " of "
-      + numberMsgs + ".");
+  return Promise.all(promises)
+    .then(function(aResults) {
+      let incomingSms = aResults[0].message;
+      log("  Received SMS (id: " + incomingSms.id + ").");
 
-  // Simulate incoming sms sent from remoteNumber to our emulator
-  rcvdEmulatorCallback = false;
-  runEmulatorCmd("sms send " + remoteNumber + " " + text, function(result) {
-    is(result[0], "OK", "emulator callback");
-    rcvdEmulatorCallback = true;
-  });
+      // Add newly received message to array of received msgs
+      smsList.push(incomingSms);
+    });
 }
 
-// Callback for incoming sms
-manager.onreceived = function onreceived(event) {
-  log("Received 'onreceived' sms event.");
-  let incomingSms = event.message;
-  log("Received SMS (id: " + incomingSms.id + ").");
+function populate() {
+  log("Populating DB with incoming SMS messages");
 
-  // Add newly received message to array of received msgs
-  smsList.push(incomingSms);
-
-  // Wait for emulator to catch up before continuing
-  waitFor(nextRep,function() {
-    return(rcvdEmulatorCallback);
-  });
-};
-
-function nextRep() {
-  if (smsList.length < numberMsgs) {
-    simulateIncomingSms();
-  } else {
-    log("Received " + numberMsgs + " sms messages in total.");
-    getMsgs(false);
-  }
-}
-
-function getMsgs(reverse) {
-  let smsFilter = new MozSmsFilter;
-  let foundSmsCount = 0;
-  let foundSmsList = new Array();
-
-  if (!reverse) {
-    log("Getting the sms messages.");
-  } else {
-    log("Getting the sms messages in reverse order.");
+  let promise = Promise.resolve();
+  for (let i = 0; i < NUM_MESSAGES; i++) {
+    promise = promise.then(simulateIncomingSms);
   }
 
-  // Note: This test is intended for getMessages, so just a basic test with
-  // no filter (default); separate tests will be written for sms filtering
-  let cursor = manager.getMessages(smsFilter, reverse);
-  ok(cursor instanceof DOMCursor,
-      "cursor is instanceof " + cursor.constructor);
-
-  cursor.onsuccess = function(event) {
-    log("Received 'onsuccess' event.");
-
-    if (cursor.result) {
-      // Another message found
-      log("Got SMS (id: " + cursor.result.id + ").");
-      foundSmsCount++;
-      // Store found message
-      foundSmsList.push(cursor.result);
-      // Now get next message in the list
-      cursor.continue();
-    } else {
-      // No more messages; ensure correct number found
-      if (foundSmsCount == numberMsgs) {
-        log("SMS getMessages returned " + foundSmsCount +
-            " messages as expected.");  
-      } else {
-        log("SMS getMessages returned " + foundSmsCount +
-            " messages, but expected " + numberMsgs + ".");
-        ok(false, "Incorrect number of messages returned by manager.getMessages");
-      }
-      verifyFoundMsgs(foundSmsList, reverse);
-    }
-  };
-
-  cursor.onerror = function(event) {
-    log("Received 'onerror' event.");
-    ok(event.target.error, "domerror obj");
-    log("manager.getMessages error: " + event.target.error.name);
-    ok(false,"Could not get SMS messages");
-    cleanUp();
-  };
+  return promise.then(() => log("Received " + smsList.length + " sms messages in total."));
 }
 
 function verifyFoundMsgs(foundSmsList, reverse) {
+  log("Verifying found messages: reverse=" + reverse);
+
   if (reverse) {
     smsList.reverse();
   }
-  for (var x = 0; x < numberMsgs; x++) {
+  for (var x = 0; x < NUM_MESSAGES; x++) {
     is(foundSmsList[x].id, smsList[x].id, "id");
     is(foundSmsList[x].threadId, smsList[x].threadId, "thread id");
     is(foundSmsList[x].body, smsList[x].body, "body");
@@ -204,24 +68,14 @@ function verifyFoundMsgs(foundSmsList, reverse) {
     is(foundSmsList[x].timestamp, smsList[x].timestamp, "timestamp");
     is(foundSmsList[x].sentTimestamp, smsList[x].sentTimestamp, "sentTimestamp");
   }
-
-  log("Content in all of the returned SMS messages is correct.");
-
-  if (!reverse) {
-    // Now get messages in reverse
-    getMsgs(true);
-  } else {
-    // Finished, delete all messages
-    deleteAllMsgs(cleanUp);
-  };
 }
 
-function cleanUp() {
-  manager.onreceived = null;
-  SpecialPowers.removePermission("sms", document);
-  SpecialPowers.clearUserPref("dom.sms.enabled");
-  finish();
-}
+startTestCommon(function testCaseMain() {
+  return populate()
 
-// Start the test
-verifyInitialState();
+    .then(() => getMessages(null, false))
+    .then((aMessages) => verifyFoundMsgs(aMessages, false))
+
+    .then(() => getMessages(null, true))
+    .then((aMessages) => verifyFoundMsgs(aMessages, true))
+});
