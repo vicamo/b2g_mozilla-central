@@ -24,7 +24,6 @@
 #include "nsIObserverService.h"
 #include "nsISmsService.h"
 #include "nsServiceManagerUtils.h" // For do_GetService()
-#include "SmsFilter.h"
 
 #define RECEIVED_EVENT_NAME         NS_LITERAL_STRING("received")
 #define RETRIEVING_EVENT_NAME       NS_LITERAL_STRING("retrieving")
@@ -362,7 +361,7 @@ MobileMessageManager::Delete(const Sequence<OwningLongOrMozSmsMessageOrMozMmsMes
 }
 
 already_AddRefed<DOMCursor>
-MobileMessageManager::GetMessages(nsIDOMMozSmsFilter* aFilter,
+MobileMessageManager::GetMessages(const MobileMessageFilter& aFilter,
                                   bool aReverse,
                                   ErrorResult& aRv)
 {
@@ -373,16 +372,18 @@ MobileMessageManager::GetMessages(nsIDOMMozSmsFilter* aFilter,
     return nullptr;
   }
 
-  nsCOMPtr<nsIDOMMozSmsFilter> filter = aFilter;
-  if (!filter) {
-    filter = new SmsFilter();
+  AutoSafeJSContext cx;
+  JS::Rooted<JS::Value> val(cx);
+  if (!ToJSValue(cx, aFilter, &val)) {
+    aRv.Throw(NS_ERROR_TYPE_ERR);
+    return nullptr;
   }
 
   nsRefPtr<MobileMessageCursorCallback> cursorCallback =
     new MobileMessageCursorCallback();
 
   nsCOMPtr<nsICursorContinueCallback> continueCallback;
-  nsresult rv = dbService->CreateMessageCursor(filter, aReverse, cursorCallback,
+  nsresult rv = dbService->CreateMessageCursor(val, aReverse, cursorCallback,
                                                getter_AddRefs(continueCallback));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);

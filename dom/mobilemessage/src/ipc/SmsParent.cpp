@@ -14,13 +14,13 @@
 #include "SmsMessage.h"
 #include "MmsMessage.h"
 #include "nsIMobileMessageDatabaseService.h"
-#include "SmsFilter.h"
 #include "SmsSegmentInfo.h"
 #include "MobileMessageThread.h"
 #include "nsIDOMFile.h"
 #include "mozilla/dom/ipc/Blob.h"
 #include "mozilla/dom/ContentParent.h"
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
+#include "mozilla/dom/ToJSValue.h"
 #include "nsContentUtils.h"
 #include "nsTArrayHelpers.h"
 #include "nsCxPusher.h"
@@ -759,11 +759,39 @@ MobileMessageCursorParent::DoRequest(const CreateMessageCursorRequest& aRequest)
   nsCOMPtr<nsIMobileMessageDatabaseService> dbService =
     do_GetService(MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID);
   if (dbService) {
-    nsCOMPtr<nsIDOMMozSmsFilter> filter = new SmsFilter(aRequest.filter());
+    const SmsFilterData filter = aRequest.filter();
     bool reverse = aRequest.reverse();
+    MobileMessageFilter dict;
 
-    rv = dbService->CreateMessageCursor(filter, reverse, this,
-                                        getter_AddRefs(mContinueCallback));
+    if (!IsNaN(filter.startDate())) {
+      dict.mStartDate.SetValue().SetTimeStamp(filter.startDate());
+    }
+    if (!IsNaN(filter.endDate())) {
+      dict.mEndDate.SetValue().SetTimeStamp(filter.endDate());
+    }
+    if (filter.numbers().Length()) {
+      dict.mNumbers.SetValue().AppendElements(filter.numbers());
+    }
+    if (eDeliveryState_Unknown != filter.delivery()) {
+      bool isReceived = filter.delivery() == eDeliveryState_Received;
+      dict.mDelivery.SetValue(isReceived ? MobileMessageFilterDelivery::Received
+                                         : MobileMessageFilterDelivery::Sent);
+    }
+    if (eReadState_Unknown != filter.read()) {
+      dict.mRead.SetValue(filter.read());
+    }
+    if (filter.threadId()) {
+      dict.mThreadId.SetValue(filter.threadId());
+    }
+
+    AutoSafeJSContext cx;
+    JS::Rooted<JS::Value> val(cx);
+    if (ToJSValue(cx, dict, &val)) {
+      rv = dbService->CreateMessageCursor(val, reverse, this,
+                                          getter_AddRefs(mContinueCallback));
+    } else {
+      rv = NS_ERROR_FAILURE;
+    }
   }
 
   if (NS_FAILED(rv)) {

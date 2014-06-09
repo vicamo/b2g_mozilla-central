@@ -14,6 +14,9 @@
 
 namespace mozilla {
 namespace dom {
+
+class MobileMessageFilter;
+
 namespace mobilemessage {
 
 class PSmsChild;
@@ -31,6 +34,12 @@ public:
   NS_DECL_NSIOBSERVER
 
   SmsIPCService();
+
+  nsresult
+  CreateMessageCursor(const MobileMessageFilter& aFilter,
+                      bool aReverse,
+                      nsIMobileMessageCursorCallback* aCursorCallback,
+                      nsICursorContinueCallback** aResult);
 
 private:
   uint32_t mMmsDefaultServiceId;

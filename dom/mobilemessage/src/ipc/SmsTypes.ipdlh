@@ -84,8 +84,8 @@ union MobileMessageData
 
 struct SmsFilterData
 {
-  uint64_t      startDate;
-  uint64_t      endDate;
+  double        startDate;
+  double        endDate;
   nsString[]    numbers;
   DeliveryState delivery;
   ReadState     read;

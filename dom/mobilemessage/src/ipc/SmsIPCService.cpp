@@ -6,14 +6,15 @@
 #include "mozilla/dom/ContentChild.h"
 #include "SmsIPCService.h"
 #include "nsXULAppAPI.h"
+#include "mozilla/dom/mobilemessage/Constants.h" // For DELIVERY_RECEIVED, DELIVERY_SENT
 #include "mozilla/dom/mobilemessage/SmsChild.h"
 #include "SmsMessage.h"
-#include "SmsFilter.h"
 #include "SmsSegmentInfo.h"
 #include "nsJSUtils.h"
 #include "nsCxPusher.h"
 #include "mozilla/dom/MozMobileMessageManagerBinding.h"
 #include "mozilla/dom/BindingUtils.h"
+#include "mozilla/FloatingPoint.h"
 #include "mozilla/Preferences.h"
 #include "nsString.h"
 
@@ -222,13 +223,57 @@ SmsIPCService::DeleteMessage(int32_t *aMessageIds, uint32_t aSize,
 }
 
 NS_IMETHODIMP
-SmsIPCService::CreateMessageCursor(nsIDOMMozSmsFilter* aFilter,
+SmsIPCService::CreateMessageCursor(JS::Handle<JS::Value> aFilter,
                                    bool aReverse,
                                    nsIMobileMessageCursorCallback* aCursorCallback,
                                    nsICursorContinueCallback** aResult)
 {
-  const SmsFilterData& data =
-    SmsFilterData(static_cast<SmsFilter*>(aFilter)->GetData());
+  mozilla::AutoJSContext cx;
+  JS::Rooted<JS::Value> rooted(cx, aFilter);
+  RootedDictionary<MobileMessageFilter> filter(cx);
+  if (!filter.Init(cx, rooted)) {
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  return CreateMessageCursor(filter, aReverse, aCursorCallback, aResult);
+}
+
+nsresult
+SmsIPCService::CreateMessageCursor(const MobileMessageFilter& aFilter,
+                                   bool aReverse,
+                                   nsIMobileMessageCursorCallback* aCursorCallback,
+                                   nsICursorContinueCallback** aResult)
+{
+  SmsFilterData data;
+
+  const Nullable<Date>& startDate = aFilter.mStartDate;
+  data.startDate() = startDate.IsNull() ? UnspecifiedNaN<double>()
+                                        : startDate.Value().TimeStamp();
+
+  const Nullable<Date>& endDate = aFilter.mEndDate;
+  data.endDate() = endDate.IsNull() ? UnspecifiedNaN<double>()
+                                    : endDate.Value().TimeStamp();
+
+  const Nullable<Sequence<nsString>>& numbers = aFilter.mNumbers;
+  if (!numbers.IsNull()) {
+    data.numbers().AppendElements(numbers.Value());
+  }
+
+  const Nullable<MobileMessageFilterDelivery>& delivery = aFilter.mDelivery;
+  data.delivery() = eDeliveryState_Unknown;
+  if (!delivery.IsNull()) {
+    data.delivery() = (delivery.Value() == MobileMessageFilterDelivery::Received)
+                    ? eDeliveryState_Received : eDeliveryState_Sent;
+  }
+
+  const Nullable<bool> read = aFilter.mRead;
+  data.read() = eReadState_Unknown;
+  if (!read.IsNull()) {
+    data.read() = read.Value() ? eReadState_Read : eReadState_Unread;
+  }
+
+  const Nullable<uint64_t> threadId = aFilter.mThreadId;
+  data.threadId() = threadId.IsNull() ? 0 : threadId.Value();
 
   return SendCursorRequest(CreateMessageCursorRequest(data, aReverse),
                            aCursorCallback, aResult);
