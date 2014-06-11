@@ -12,8 +12,6 @@
 #include "nsIObserver.h"
 
 class nsISmsService;
-class nsIDOMMozSmsMessage;
-class nsIDOMMozMmsMessage;
 
 namespace mozilla {
 namespace dom {
@@ -78,11 +76,11 @@ public:
          ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  Delete(nsIDOMMozSmsMessage* aMessage,
+  Delete(SmsMessage& aMessage,
          ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  Delete(nsIDOMMozMmsMessage* aMessage,
+  Delete(MmsMessage& aMessage,
          ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
@@ -108,7 +106,7 @@ public:
               ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  RetrieveMMS(nsIDOMMozMmsMessage* aMessage,
+  RetrieveMMS(MmsMessage& aMessage,
               ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>

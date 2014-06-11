@@ -6,36 +6,87 @@
 #ifndef mozilla_dom_mobilemessage_SmsMessage_h
 #define mozilla_dom_mobilemessage_SmsMessage_h
 
-#include "mozilla/dom/mobilemessage/SmsTypes.h"
-#include "nsIDOMMozSmsMessage.h"
-#include "nsString.h"
-#include "mozilla/dom/mobilemessage/Types.h"
 #include "mozilla/Attributes.h"
+#include "mozilla/dom/MozSmsMessageBinding.h"
+#include "nsIMobileMessageService.h"
+#include "nsString.h"
+#include "nsWrapperCache.h"
 
 namespace mozilla {
 namespace dom {
 
-class SmsMessage MOZ_FINAL : public nsIDOMMozSmsMessage
+namespace mobilemessage {
+
+class SmsMessageData;
+
+class MobileMessageCommon
 {
 public:
-  NS_DECL_ISUPPORTS
-  NS_DECL_NSIDOMMOZSMSMESSAGE
+  MobileMessageCommon(MobileMessageType aType,
+                      int32_t aId,
+                      uint64_t aThreadId,
+                      const nsAString& aIccId,
+                      const nsAString& aSender,
+                      uint64_t aTimestamp,
+                      uint64_t aSentTimestamp,
+                      bool aRead);
 
+private:
+  // Don't try to use the default constructor.
+  MobileMessageCommon() MOZ_DELETE;
+
+public:
+  // WebIDL
+  MobileMessageType Type() const { return mType; }
+  int32_t Id() const { return mId; }
+  uint64_t ThreadId() const { return mThreadId; }
+  void GetIccId(nsAString& aIccId) const { aIccId = mIccId; }
+  void GetSender(nsAString& aSender) const { aSender = mSender; }
+  uint64_t Timestamp() const { return mTimestamp; }
+  uint64_t SentTimestamp() const { return mSentTimestamp; }
+  bool Read() const { return mRead; }
+
+protected:
+  MobileMessageType mType;
+  int32_t mId;
+  uint64_t mThreadId;
+  nsString mIccId;
+  nsString mSender;
+  uint64_t mTimestamp;
+  uint64_t mSentTimestamp;
+  bool mRead;
+};
+
+} // namespace mobilemessage
+
+class SmsMessage MOZ_FINAL : public nsISmsMessage
+                           , public nsWrapperCache
+                           , public mobilemessage::MobileMessageCommon
+{
+  typedef mobilemessage::SmsMessageData SmsMessageData;
+
+public:
+  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
+  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(SmsMessage)
+
+  NS_DECL_NSISMSMESSAGE
+
+public:
   SmsMessage(int32_t aId,
              uint64_t aThreadId,
-             const nsString& aIccId,
-             mobilemessage::DeliveryState aDelivery,
-             mobilemessage::DeliveryStatus aDeliveryStatus,
-             const nsString& aSender,
-             const nsString& aReceiver,
-             const nsString& aBody,
-             mobilemessage::MessageClass aMessageClass,
+             const nsAString& aIccId,
+             SmsDeliveryState aDelivery,
+             SmsDeliveryStatus aDeliveryStatus,
+             const nsAString& aSender,
+             const nsAString& aReceiver,
+             const nsAString& aBody,
+             SmsMessageClass aMessageClass,
              uint64_t aTimestamp,
              uint64_t aSentTimestamp,
              uint64_t aDeliveryTimestamp,
              bool aRead);
 
-  SmsMessage(const mobilemessage::SmsMessageData& aData);
+  SmsMessage(const SmsMessageData& aData);
 
   static nsresult Create(int32_t aId,
                          uint64_t aThreadId,
@@ -50,15 +101,40 @@ public:
                          uint64_t aSentTimestamp,
                          uint64_t aDeliveryTimestamp,
                          bool aRead,
-                         JSContext* aCx,
-                         nsIDOMMozSmsMessage** aMessage);
-  const mobilemessage::SmsMessageData& GetData() const;
+                         nsISmsMessage** aMessage);
 
 private:
   // Don't try to use the default constructor.
-  SmsMessage();
+  SmsMessage() MOZ_DELETE;
 
-  mobilemessage::SmsMessageData mData;
+public:
+  // WrapperCache
+  virtual JSObject*
+  WrapObject(JSContext* aCx) MOZ_OVERRIDE;
+
+public:
+  // WebIDL
+
+  nsISupports* GetParentObject() const { return nullptr; }
+
+  SmsDeliveryState Delivery() const { return mDelivery; }
+  SmsDeliveryStatus DeliveryStatus() const { return mDeliveryStatus; }
+  void GetReceiver(nsAString& aReceiver) const { aReceiver = mReceiver; }
+  void GetBody(nsAString& aBody) const { aBody = mBody; }
+  SmsMessageClass MessageClass() const { return mMessageClass; }
+  uint64_t DeliveryTimestamp() const { return mDeliveryTimestamp; }
+
+public:
+  // IPC
+  bool GetData(SmsMessageData& aData) const;
+
+private:
+  SmsDeliveryState mDelivery;
+  SmsDeliveryStatus mDeliveryStatus;
+  nsString mReceiver;
+  nsString mBody;
+  SmsMessageClass mMessageClass;
+  uint64_t mDeliveryTimestamp;
 };
 
 } // namespace dom

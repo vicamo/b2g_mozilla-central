@@ -3,50 +3,226 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "SmsMessage.h"
-#include "nsIDOMClassInfo.h"
-#include "jsapi.h" // For OBJECT_TO_JSVAL and JS_NewDateObjectMsec
-#include "jsfriendapi.h" // For js_DateGetMsecSinceEpoch
+#include "mozilla/dom/SmsMessage.h"
+
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
+#include "mozilla/dom/mobilemessage/SmsTypes.h"
 
-using namespace mozilla::dom::mobilemessage;
+namespace {
 
-DOMCI_DATA(MozSmsMessage, mozilla::dom::SmsMessage)
+mozilla::dom::SmsDeliveryState
+ToWebIdlSmsDeliveryState(mozilla::dom::mobilemessage::DeliveryState aIpdlState)
+{
+  using mozilla::dom::SmsDeliveryState;
+  using namespace mozilla::dom::mobilemessage;
+
+  switch (aIpdlState) {
+    case eDeliveryState_Received:
+      return SmsDeliveryState::Received;
+    case eDeliveryState_Sending:
+      return SmsDeliveryState::Sending;
+    case eDeliveryState_Sent:
+      return SmsDeliveryState::Sent;
+    case eDeliveryState_Error:
+      return SmsDeliveryState::Error;
+    default:
+      MOZ_CRASH("We shouldn't get any other ipdl sms delivery state!");
+      break;
+  }
+
+  return SmsDeliveryState::EndGuard_;
+}
+
+mozilla::dom::mobilemessage::DeliveryState
+ToIpdlDeliveryState(mozilla::dom::SmsDeliveryState aWebidlState)
+{
+  using mozilla::dom::SmsDeliveryState;
+  using namespace mozilla::dom::mobilemessage;
+
+  switch (aWebidlState) {
+    case SmsDeliveryState::Received:
+      return eDeliveryState_Received;
+    case SmsDeliveryState::Sending:
+      return eDeliveryState_Sending;
+    case SmsDeliveryState::Sent:
+      return eDeliveryState_Sent;
+    case SmsDeliveryState::Error:
+      return eDeliveryState_Error;
+    default:
+      MOZ_CRASH("We shouldn't get any other webidl sms delivery state!");
+      break;
+  }
+
+  return eDeliveryState_EndGuard;
+}
+
+mozilla::dom::SmsDeliveryStatus
+ToWebIdlSmsDeliveryStatus(mozilla::dom::mobilemessage::DeliveryStatus aIpdlStatus)
+{
+  using mozilla::dom::SmsDeliveryStatus;
+  using namespace mozilla::dom::mobilemessage;
+
+  switch (aIpdlStatus) {
+    case eDeliveryStatus_NotApplicable:
+      return SmsDeliveryStatus::Not_applicable;
+    case eDeliveryStatus_Success:
+      return SmsDeliveryStatus::Success;
+    case eDeliveryStatus_Pending:
+      return SmsDeliveryStatus::Pending;
+    case eDeliveryStatus_Error:
+      return SmsDeliveryStatus::Error;
+    default:
+      MOZ_CRASH("We shouldn't get any other ipdl sms delivery status!");
+      break;
+  }
+
+  return SmsDeliveryStatus::EndGuard_;
+}
+
+mozilla::dom::mobilemessage::DeliveryStatus
+ToIpdlDeliveryStatus(mozilla::dom::SmsDeliveryStatus aWebidlStatus)
+{
+  using mozilla::dom::SmsDeliveryStatus;
+  using namespace mozilla::dom::mobilemessage;
+
+  switch (aWebidlStatus) {
+    case SmsDeliveryStatus::Not_applicable:
+      return eDeliveryStatus_NotApplicable;
+    case SmsDeliveryStatus::Success:
+      return eDeliveryStatus_Success;
+    case SmsDeliveryStatus::Pending:
+      return eDeliveryStatus_Pending;
+    case SmsDeliveryStatus::Error:
+      return eDeliveryStatus_Error;
+    default:
+      MOZ_CRASH("We shouldn't get any other webidl sms delivery status!");
+      break;
+  }
+
+  return eDeliveryStatus_EndGuard;
+}
+
+mozilla::dom::SmsMessageClass
+ToWebIdlSmsMessageClass(mozilla::dom::mobilemessage::MessageClass aIpdlMessageClass)
+{
+  using mozilla::dom::SmsMessageClass;
+  using namespace mozilla::dom::mobilemessage;
+
+  switch (aIpdlMessageClass) {
+    case eMessageClass_Normal:
+      return SmsMessageClass::Normal;
+    case eMessageClass_Class0:
+      return SmsMessageClass::Class_0;
+    case eMessageClass_Class1:
+      return SmsMessageClass::Class_1;
+    case eMessageClass_Class2:
+      return SmsMessageClass::Class_2;
+    case eMessageClass_Class3:
+      return SmsMessageClass::Class_3;
+    default:
+      MOZ_CRASH("We shouldn't get any other ipdl sms message class!");
+      break;
+  }
+
+  return SmsMessageClass::EndGuard_;
+}
+
+mozilla::dom::mobilemessage::MessageClass
+ToIpdlMessageClass(mozilla::dom::SmsMessageClass aWebidlMessageClass)
+{
+  using mozilla::dom::SmsMessageClass;
+  using namespace mozilla::dom::mobilemessage;
+
+  switch (aWebidlMessageClass) {
+    case SmsMessageClass::Normal:
+      return eMessageClass_Normal;
+    case SmsMessageClass::Class_0:
+      return eMessageClass_Class0;
+    case SmsMessageClass::Class_1:
+      return eMessageClass_Class1;
+    case SmsMessageClass::Class_2:
+      return eMessageClass_Class2;
+    case SmsMessageClass::Class_3:
+      return eMessageClass_Class3;
+    default:
+      MOZ_CRASH("We shouldn't get any other webidl sms message class!");
+      break;
+  }
+
+  return eMessageClass_EndGuard;
+}
+
+} // anonymous namespace
 
 namespace mozilla {
 namespace dom {
 
-NS_INTERFACE_MAP_BEGIN(SmsMessage)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMMozSmsMessage)
+namespace mobilemessage {
+
+MobileMessageCommon::MobileMessageCommon(MobileMessageType aType,
+                                         int32_t aId,
+                                         uint64_t aThreadId,
+                                         const nsAString& aIccId,
+                                         const nsAString& aSender,
+                                         uint64_t aTimestamp,
+                                         uint64_t aSentTimestamp,
+                                         bool aRead)
+  : mType(aType), mId(aId), mThreadId(aThreadId), mIccId(aIccId)
+  , mSender(aSender), mTimestamp(aTimestamp), mSentTimestamp(aSentTimestamp)
+  , mRead(aRead)
+{
+}
+
+} // namespace mobilemessage
+
+NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_0(SmsMessage)
+
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(SmsMessage)
+  NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MozSmsMessage)
+  NS_INTERFACE_MAP_ENTRY(nsISmsMessage)
 NS_INTERFACE_MAP_END
 
-NS_IMPL_ADDREF(SmsMessage)
-NS_IMPL_RELEASE(SmsMessage)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(SmsMessage)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(SmsMessage)
 
 SmsMessage::SmsMessage(int32_t aId,
                        uint64_t aThreadId,
-                       const nsString& aIccId,
-                       DeliveryState aDelivery,
-                       DeliveryStatus aDeliveryStatus,
-                       const nsString& aSender,
-                       const nsString& aReceiver,
-                       const nsString& aBody,
-                       MessageClass aMessageClass,
+                       const nsAString& aIccId,
+                       SmsDeliveryState aDelivery,
+                       SmsDeliveryStatus aDeliveryStatus,
+                       const nsAString& aSender,
+                       const nsAString& aReceiver,
+                       const nsAString& aBody,
+                       SmsMessageClass aMessageClass,
                        uint64_t aTimestamp,
                        uint64_t aSentTimestamp,
                        uint64_t aDeliveryTimestamp,
                        bool aRead)
-  : mData(aId, aThreadId, aIccId, aDelivery, aDeliveryStatus,
-          aSender, aReceiver, aBody, aMessageClass, aTimestamp, aSentTimestamp,
-          aDeliveryTimestamp, aRead)
+  : MobileMessageCommon(MobileMessageType::Sms, aId, aThreadId, aIccId, aSender,
+                        aTimestamp, aSentTimestamp, aRead)
+  , mDelivery(aDelivery)
+  , mDeliveryStatus(aDeliveryStatus)
+  , mReceiver(aReceiver)
+  , mBody(aBody)
+  , mMessageClass(aMessageClass)
+  , mDeliveryTimestamp(aDeliveryTimestamp)
 {
+  SetIsDOMBinding();
 }
 
 SmsMessage::SmsMessage(const SmsMessageData& aData)
-  : mData(aData)
+  : MobileMessageCommon(MobileMessageType::Sms, aData.id(), aData.threadId(),
+                        aData.iccId(), aData.sender(), aData.timestamp(),
+                        aData.sentTimestamp(), aData.read())
+  , mDelivery(ToWebIdlSmsDeliveryState(aData.delivery()))
+  , mDeliveryStatus(ToWebIdlSmsDeliveryStatus(aData.deliveryStatus()))
+  , mReceiver(aData.receiver())
+  , mBody(aData.body())
+  , mMessageClass(ToWebIdlSmsMessageClass(aData.messageClass()))
+  , mDeliveryTimestamp(aData.deliveryTimestamp())
 {
+  SetIsDOMBinding();
 }
 
 /* static */ nsresult
@@ -63,230 +239,83 @@ SmsMessage::Create(int32_t aId,
                    uint64_t aSentTimestamp,
                    uint64_t aDeliveryTimestamp,
                    bool aRead,
-                   JSContext* aCx,
-                   nsIDOMMozSmsMessage** aMessage)
+                   nsISmsMessage** aMessage)
 {
   *aMessage = nullptr;
 
-  // SmsMessageData exposes these as references, so we can simply assign
-  // to them.
-  SmsMessageData data;
-  data.id() = aId;
-  data.threadId() = aThreadId;
-  data.iccId() = nsString(aIccId);
-  data.sender() = nsString(aSender);
-  data.receiver() = nsString(aReceiver);
-  data.body() = nsString(aBody);
-  data.read() = aRead;
-
+  SmsDeliveryState delivery;
   if (aDelivery.Equals(DELIVERY_RECEIVED)) {
-    data.delivery() = eDeliveryState_Received;
+    delivery = SmsDeliveryState::Received;
   } else if (aDelivery.Equals(DELIVERY_SENDING)) {
-    data.delivery() = eDeliveryState_Sending;
+    delivery = SmsDeliveryState::Sending;
   } else if (aDelivery.Equals(DELIVERY_SENT)) {
-    data.delivery() = eDeliveryState_Sent;
+    delivery = SmsDeliveryState::Sent;
   } else if (aDelivery.Equals(DELIVERY_ERROR)) {
-    data.delivery() = eDeliveryState_Error;
+    delivery = SmsDeliveryState::Error;
   } else {
     return NS_ERROR_INVALID_ARG;
   }
 
+  SmsDeliveryStatus deliveryStatus;
   if (aDeliveryStatus.Equals(DELIVERY_STATUS_NOT_APPLICABLE)) {
-    data.deliveryStatus() = eDeliveryStatus_NotApplicable;
+    deliveryStatus = SmsDeliveryStatus::Not_applicable;
   } else if (aDeliveryStatus.Equals(DELIVERY_STATUS_SUCCESS)) {
-    data.deliveryStatus() = eDeliveryStatus_Success;
+    deliveryStatus = SmsDeliveryStatus::Success;
   } else if (aDeliveryStatus.Equals(DELIVERY_STATUS_PENDING)) {
-    data.deliveryStatus() = eDeliveryStatus_Pending;
+    deliveryStatus = SmsDeliveryStatus::Pending;
   } else if (aDeliveryStatus.Equals(DELIVERY_STATUS_ERROR)) {
-    data.deliveryStatus() = eDeliveryStatus_Error;
+    deliveryStatus = SmsDeliveryStatus::Error;
   } else {
     return NS_ERROR_INVALID_ARG;
   }
 
+  SmsMessageClass messageClass;
   if (aMessageClass.Equals(MESSAGE_CLASS_NORMAL)) {
-    data.messageClass() = eMessageClass_Normal;
+    messageClass = SmsMessageClass::Normal;
   } else if (aMessageClass.Equals(MESSAGE_CLASS_CLASS_0)) {
-    data.messageClass() = eMessageClass_Class0;
+    messageClass = SmsMessageClass::Class_0;
   } else if (aMessageClass.Equals(MESSAGE_CLASS_CLASS_1)) {
-    data.messageClass() = eMessageClass_Class1;
+    messageClass = SmsMessageClass::Class_1;
   } else if (aMessageClass.Equals(MESSAGE_CLASS_CLASS_2)) {
-    data.messageClass() = eMessageClass_Class2;
+    messageClass = SmsMessageClass::Class_2;
   } else if (aMessageClass.Equals(MESSAGE_CLASS_CLASS_3)) {
-    data.messageClass() = eMessageClass_Class3;
+    messageClass = SmsMessageClass::Class_3;
   } else {
     return NS_ERROR_INVALID_ARG;
   }
 
-  // Set |timestamp|.
-  data.timestamp() = aTimestamp;
-
-  // Set |sentTimestamp|.
-  data.sentTimestamp() = aSentTimestamp;
-
-  // Set |deliveryTimestamp|.
-  data.deliveryTimestamp() = aDeliveryTimestamp;
-
-  nsCOMPtr<nsIDOMMozSmsMessage> message = new SmsMessage(data);
+  nsCOMPtr<nsISmsMessage> message =
+    new SmsMessage(aId, aThreadId, aIccId, delivery, deliveryStatus, aSender,
+                   aReceiver, aBody, messageClass, aTimestamp, aSentTimestamp,
+                   aDeliveryTimestamp, aRead);
   message.swap(*aMessage);
   return NS_OK;
 }
 
-const SmsMessageData&
-SmsMessage::GetData() const
+JSObject*
+SmsMessage::WrapObject(JSContext* aCx)
 {
-  return mData;
+  return MozSmsMessageBinding::Wrap(aCx, this);
 }
 
-NS_IMETHODIMP
-SmsMessage::GetType(nsAString& aType)
+bool
+SmsMessage::GetData(SmsMessageData& aData) const
 {
-  aType = NS_LITERAL_STRING("sms");
-  return NS_OK;
-}
+  aData.id() = Id();
+  aData.threadId() = ThreadId();
+  GetIccId(aData.iccId());
+  aData.delivery() = ToIpdlDeliveryState(Delivery());
+  aData.deliveryStatus() = ToIpdlDeliveryStatus(DeliveryStatus());
+  GetSender(aData.sender());
+  GetReceiver(aData.receiver());
+  GetBody(aData.body());
+  aData.messageClass() = ToIpdlMessageClass(MessageClass());
+  aData.timestamp() = Timestamp();
+  aData.sentTimestamp() = SentTimestamp();
+  aData.deliveryTimestamp() = DeliveryTimestamp();
+  aData.read() = Read();
 
-NS_IMETHODIMP
-SmsMessage::GetId(int32_t* aId)
-{
-  *aId = mData.id();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetThreadId(uint64_t* aThreadId)
-{
-  *aThreadId = mData.threadId();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetIccId(nsAString& aIccId)
-{
-  aIccId = mData.iccId();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetDelivery(nsAString& aDelivery)
-{
-  switch (mData.delivery()) {
-    case eDeliveryState_Received:
-      aDelivery = DELIVERY_RECEIVED;
-      break;
-    case eDeliveryState_Sending:
-      aDelivery = DELIVERY_SENDING;
-      break;
-    case eDeliveryState_Sent:
-      aDelivery = DELIVERY_SENT;
-      break;
-    case eDeliveryState_Error:
-      aDelivery = DELIVERY_ERROR;
-      break;
-    case eDeliveryState_Unknown:
-    case eDeliveryState_EndGuard:
-    default:
-      MOZ_CRASH("We shouldn't get any other delivery state!");
-  }
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetDeliveryStatus(nsAString& aDeliveryStatus)
-{
-  switch (mData.deliveryStatus()) {
-    case eDeliveryStatus_NotApplicable:
-      aDeliveryStatus = DELIVERY_STATUS_NOT_APPLICABLE;
-      break;
-    case eDeliveryStatus_Success:
-      aDeliveryStatus = DELIVERY_STATUS_SUCCESS;
-      break;
-    case eDeliveryStatus_Pending:
-      aDeliveryStatus = DELIVERY_STATUS_PENDING;
-      break;
-    case eDeliveryStatus_Error:
-      aDeliveryStatus = DELIVERY_STATUS_ERROR;
-      break;
-    case eDeliveryStatus_EndGuard:
-    default:
-      MOZ_CRASH("We shouldn't get any other delivery status!");
-  }
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetSender(nsAString& aSender)
-{
-  aSender = mData.sender();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetReceiver(nsAString& aReceiver)
-{
-  aReceiver = mData.receiver();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetBody(nsAString& aBody)
-{
-  aBody = mData.body();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetMessageClass(nsAString& aMessageClass)
-{
-  switch (mData.messageClass()) {
-    case eMessageClass_Normal:
-      aMessageClass = MESSAGE_CLASS_NORMAL;
-      break;
-    case eMessageClass_Class0:
-      aMessageClass = MESSAGE_CLASS_CLASS_0;
-      break;
-    case eMessageClass_Class1:
-      aMessageClass = MESSAGE_CLASS_CLASS_1;
-      break;
-    case eMessageClass_Class2:
-      aMessageClass = MESSAGE_CLASS_CLASS_2;
-      break;
-    case eMessageClass_Class3:
-      aMessageClass = MESSAGE_CLASS_CLASS_3;
-      break;
-    default:
-      MOZ_CRASH("We shouldn't get any other message class!");
-  }
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetTimestamp(DOMTimeStamp* aTimestamp)
-{
-  *aTimestamp = mData.timestamp();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetSentTimestamp(DOMTimeStamp* aSentTimestamp)
-{
-  *aSentTimestamp = mData.sentTimestamp();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetDeliveryTimestamp(DOMTimeStamp* aDate)
-{
-  *aDate = mData.deliveryTimestamp();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-SmsMessage::GetRead(bool* aRead)
-{
-  *aRead = mData.read();
-  return NS_OK;
+  return true;
 }
 
 } // namespace dom

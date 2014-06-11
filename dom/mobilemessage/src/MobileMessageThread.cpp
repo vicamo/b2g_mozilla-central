@@ -4,28 +4,68 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MobileMessageThread.h"
-#include "nsIDOMClassInfo.h"
-#include "jsapi.h"           // For OBJECT_TO_JSVAL and JS_NewDateObjectMsec
-#include "jsfriendapi.h"     // For js_DateGetMsecSinceEpoch
-#include "nsJSUtils.h"       // For nsDependentJSString
-#include "nsTArrayHelpers.h" // For nsTArrayToJSArray
+
+#include "jsapi.h" // For JS array APIs
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
+#include "mozilla/dom/mobilemessage/SmsTypes.h"
+#include "mozilla/dom/MozMobileMessageThreadBinding.h"
+#include "nsJSUtils.h" // For nsDependentJSString
 
-using namespace mozilla::dom::mobilemessage;
+namespace {
 
-DOMCI_DATA(MozMobileMessageThread, mozilla::dom::MobileMessageThread)
+mozilla::dom::MobileMessageType
+ToWebIdlMobileMessageType(mozilla::dom::mobilemessage::MessageType aIpcType)
+{
+  using mozilla::dom::MobileMessageType;
+  using namespace mozilla::dom::mobilemessage;
+
+  switch (aIpcType) {
+    case eMessageType_SMS:
+      return MobileMessageType::Sms;
+    case eMessageType_MMS:
+      return MobileMessageType::Mms;
+    default:
+      MOZ_CRASH("We shouldn't get any other ipdl message type!");
+      break;
+  }
+
+  return MobileMessageType::EndGuard_;
+}
+
+mozilla::dom::mobilemessage::MessageType
+ToIpdlMobileMessageType(mozilla::dom::MobileMessageType aWebidlType)
+{
+  using mozilla::dom::MobileMessageType;
+  using namespace mozilla::dom::mobilemessage;
+
+  switch (aWebidlType) {
+    case MobileMessageType::Sms:
+      return eMessageType_SMS;
+    case MobileMessageType::Mms:
+      return eMessageType_MMS;
+    default:
+      MOZ_CRASH("We shouldn't get any other webidl message type!");
+      break;
+  }
+
+  return eMessageType_EndGuard;
+}
+
+} // anonymous namespace
 
 namespace mozilla {
 namespace dom {
 
-NS_INTERFACE_MAP_BEGIN(MobileMessageThread)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMMozMobileMessageThread)
+NS_IMPL_CYCLE_COLLECTION_WRAPPERCACHE_0(MobileMessageThread)
+
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(MobileMessageThread)
+  NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MozMobileMessageThread)
+  NS_INTERFACE_MAP_ENTRY(nsIMobileMessageThread)
 NS_INTERFACE_MAP_END
 
-NS_IMPL_ADDREF(MobileMessageThread)
-NS_IMPL_RELEASE(MobileMessageThread)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(MobileMessageThread)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(MobileMessageThread)
 
 /* static */ nsresult
 MobileMessageThread::Create(uint64_t aId,
@@ -36,19 +76,12 @@ MobileMessageThread::Create(uint64_t aId,
                             uint64_t aUnreadCount,
                             const nsAString& aLastMessageType,
                             JSContext* aCx,
-                            nsIDOMMozMobileMessageThread** aThread)
+                            nsIMobileMessageThread** aThread)
 {
   *aThread = nullptr;
 
-  // ThreadData exposes these as references, so we can simply assign
-  // to them.
-  ThreadData data;
-  data.id() = aId;
-  data.lastMessageSubject().Assign(aLastMessageSubject);
-  data.body().Assign(aBody);
-  data.unreadCount() = aUnreadCount;
-
   // Participants.
+  nsTArray<nsString> participants;
   {
     if (!aParticipants.isObject()) {
       return NS_ERROR_INVALID_ARG;
@@ -72,27 +105,23 @@ MobileMessageThread::Create(uint64_t aId,
 
       nsDependentJSString str;
       str.init(aCx, val.toString());
-      data.participants().AppendElement(str);
+      participants.AppendElement(str);
     }
   }
-
-  // Set |timestamp|;
-  data.timestamp() = aTimestamp;
 
   // Set |lastMessageType|.
-  {
-    MessageType lastMessageType;
-    if (aLastMessageType.Equals(MESSAGE_TYPE_SMS)) {
-      lastMessageType = eMessageType_SMS;
-    } else if (aLastMessageType.Equals(MESSAGE_TYPE_MMS)) {
-      lastMessageType = eMessageType_MMS;
-    } else {
-      return NS_ERROR_INVALID_ARG;
-    }
-    data.lastMessageType() = lastMessageType;
+  MobileMessageType lastMessageType;
+  if (aLastMessageType.Equals(MESSAGE_TYPE_SMS)) {
+    lastMessageType = MobileMessageType::Sms;
+  } else if (aLastMessageType.Equals(MESSAGE_TYPE_MMS)) {
+    lastMessageType = MobileMessageType::Mms;
+  } else {
+    return NS_ERROR_INVALID_ARG;
   }
 
-  nsCOMPtr<nsIDOMMozMobileMessageThread> thread = new MobileMessageThread(data);
+  nsCOMPtr<nsIMobileMessageThread> thread =
+    new MobileMessageThread(aId, participants, aTimestamp, aLastMessageSubject,
+                            aBody, aUnreadCount, lastMessageType);
   thread.forget(aThread);
   return NS_OK;
 }
@@ -100,86 +129,59 @@ MobileMessageThread::Create(uint64_t aId,
 MobileMessageThread::MobileMessageThread(uint64_t aId,
                                          const nsTArray<nsString>& aParticipants,
                                          uint64_t aTimestamp,
-                                         const nsString& aLastMessageSubject,
-                                         const nsString& aBody,
+                                         const nsAString& aLastMessageSubject,
+                                         const nsAString& aBody,
                                          uint64_t aUnreadCount,
-                                         MessageType aLastMessageType)
-  : mData(aId, aParticipants, aTimestamp, aLastMessageSubject, aBody,
-          aUnreadCount, aLastMessageType)
+                                         MobileMessageType aLastMessageType)
+  : mId(aId)
+  , mLastMessageSubject(aLastMessageSubject)
+  , mBody(aBody)
+  , mUnreadCount(aUnreadCount)
+  , mParticipants(new DOMStringList())
+  , mTimestamp(aTimestamp)
+  , mLastMessageType(aLastMessageType)
 {
   MOZ_ASSERT(aParticipants.Length());
+
+  mParticipants->StringArray() = aParticipants;
+
+  SetIsDOMBinding();
 }
 
 MobileMessageThread::MobileMessageThread(const ThreadData& aData)
-  : mData(aData)
+  : mId(aData.id())
+  , mLastMessageSubject(aData.lastMessageSubject())
+  , mBody(aData.body())
+  , mUnreadCount(aData.unreadCount())
+  , mParticipants(new DOMStringList())
+  , mTimestamp(aData.timestamp())
+  , mLastMessageType(ToWebIdlMobileMessageType(aData.lastMessageType()))
 {
   MOZ_ASSERT(aData.participants().Length());
+
+  mParticipants->StringArray() = aData.participants();
+
+  SetIsDOMBinding();
 }
 
-NS_IMETHODIMP
-MobileMessageThread::GetId(uint64_t* aId)
+JSObject*
+MobileMessageThread::WrapObject(JSContext* aCx)
 {
-  *aId = mData.id();
-  return NS_OK;
+  return MozMobileMessageThreadBinding::Wrap(aCx, this);
 }
 
-NS_IMETHODIMP
-MobileMessageThread::GetLastMessageSubject(nsAString& aLastMessageSubject)
+bool
+MobileMessageThread::GetData(ThreadData& aData) const
 {
-  aLastMessageSubject = mData.lastMessageSubject();
-  return NS_OK;
-}
+  aData.id() = Id();
+  aData.participants() = mParticipants->StringArray();
+  aData.timestamp() = Timestamp();
+  GetLastMessageSubject(aData.lastMessageSubject());
+  GetBody(aData.body());
+  aData.unreadCount() = UnreadCount();
+  aData.lastMessageType() = ToIpdlMobileMessageType(LastMessageType());
 
-NS_IMETHODIMP
-MobileMessageThread::GetBody(nsAString& aBody)
-{
-  aBody = mData.body();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-MobileMessageThread::GetUnreadCount(uint64_t* aUnreadCount)
-{
-  *aUnreadCount = mData.unreadCount();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-MobileMessageThread::GetParticipants(JSContext* aCx,
-                                     JS::MutableHandle<JS::Value> aParticipants)
-{
-  JS::Rooted<JSObject*> obj(aCx);
-
-  nsresult rv = nsTArrayToJSArray(aCx, mData.participants(), &obj);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  aParticipants.setObject(*obj);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-MobileMessageThread::GetTimestamp(DOMTimeStamp* aDate)
-{
-  *aDate = mData.timestamp();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-MobileMessageThread::GetLastMessageType(nsAString& aLastMessageType)
-{
-  switch (mData.lastMessageType()) {
-    case eMessageType_SMS:
-      aLastMessageType = MESSAGE_TYPE_SMS;
-      break;
-    case eMessageType_MMS:
-      aLastMessageType = MESSAGE_TYPE_MMS;
-      break;
-    case eMessageType_EndGuard:
-    default:
-      MOZ_CRASH("We shouldn't get any other message type!");
-  }
-
-  return NS_OK;
+  return true;
 }
 
 } // namespace dom

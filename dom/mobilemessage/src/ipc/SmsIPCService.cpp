@@ -8,7 +8,7 @@
 #include "nsXULAppAPI.h"
 #include "mozilla/dom/mobilemessage/Constants.h" // For DELIVERY_RECEIVED, DELIVERY_SENT
 #include "mozilla/dom/mobilemessage/SmsChild.h"
-#include "SmsMessage.h"
+#include "mozilla/dom/SmsMessage.h"
 #include "nsJSUtils.h"
 #include "nsCxPusher.h"
 #include "mozilla/dom/MozMobileMessageManagerBinding.h"
@@ -324,7 +324,7 @@ GetSendMmsMessageRequestFromParams(uint32_t aServiceId,
   }
 
   for (uint32_t i = 0; i < params.mAttachments.Value().Length(); i++) {
-    mozilla::dom::MmsAttachment& attachment = params.mAttachments.Value()[i];
+    mozilla::dom::MmsAttachmentParameters& attachment = params.mAttachments.Value()[i];
     MmsAttachmentData mmsAttachment;
     mmsAttachment.id().Assign(attachment.mId);
     mmsAttachment.location().Assign(attachment.mLocation);

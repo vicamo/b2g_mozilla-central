@@ -42,7 +42,7 @@ MobileMessageService::CreateSmsMessage(int32_t aId,
                                        uint64_t aDeliveryTimestamp,
                                        bool aRead,
                                        JSContext* aCx,
-                                       nsIDOMMozSmsMessage** aMessage)
+                                       nsISmsMessage** aMessage)
 {
   return SmsMessage::Create(aId,
                             aThreadId,
@@ -57,7 +57,6 @@ MobileMessageService::CreateSmsMessage(int32_t aId,
                             aSentTimestamp,
                             aDeliveryTimestamp,
                             aRead,
-                            aCx,
                             aMessage);
 }
 
@@ -78,7 +77,7 @@ MobileMessageService::CreateMmsMessage(int32_t aId,
                                        uint64_t aExpiryDate,
                                        bool aReadReportRequested,
                                        JSContext* aCx,
-                                       nsIDOMMozMmsMessage** aMessage)
+                                       nsIMmsMessage** aMessage)
 {
   return MmsMessage::Create(aId,
                             aThreadId,
@@ -108,7 +107,7 @@ MobileMessageService::CreateThread(uint64_t aId,
                                    uint64_t aUnreadCount,
                                    const nsAString& aLastMessageType,
                                    JSContext* aCx,
-                                   nsIDOMMozMobileMessageThread** aThread)
+                                   nsIMobileMessageThread** aThread)
 {
   return MobileMessageThread::Create(aId,
                                      aParticipants,

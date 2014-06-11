@@ -4,19 +4,18 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MobileMessageCallback.h"
+
+#include "DOMMobileMessageError.h"
+#include "jsapi.h"
+#include "mozilla/dom/MmsMessage.h"
+#include "mozilla/dom/MozMobileMessageManagerBinding.h"
 #include "mozilla/dom/ToJSValue.h"
 #include "nsContentUtils.h"
 #include "nsCxPusher.h"
-#include "nsIDOMMozSmsMessage.h"
-#include "nsIDOMMozMmsMessage.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsPIDOMWindow.h"
-#include "MmsMessage.h"
-#include "jsapi.h"
+#include "nsServiceManagerUtils.h" // For do_GetService
 #include "xpcpublic.h"
-#include "nsServiceManagerUtils.h"
-#include "nsTArrayHelpers.h"
-#include "DOMMobileMessageError.h"
 
 namespace mozilla {
 namespace dom {
@@ -159,15 +158,17 @@ MobileMessageCallback::NotifySendMessageFailed(int32_t aError, nsISupports *aMes
   nsRefPtr<DOMMobileMessageError> domMobileMessageError;
   if (aMessage) {
     nsAutoString errorStr = ConvertErrorCodeToErrorString(aError);
-    nsCOMPtr<nsIDOMMozSmsMessage> smsMsg = do_QueryInterface(aMessage);
+    nsCOMPtr<nsISmsMessage> smsMsg = do_QueryInterface(aMessage);
     if (smsMsg) {
       domMobileMessageError =
-        new DOMMobileMessageError(mDOMRequest->GetOwner(), errorStr, smsMsg);
+        new DOMMobileMessageError(mDOMRequest->GetOwner(), errorStr,
+                                  static_cast<SmsMessage*>(smsMsg.get()));
     }
     else {
-      nsCOMPtr<nsIDOMMozMmsMessage> mmsMsg = do_QueryInterface(aMessage);
+      nsCOMPtr<nsIMmsMessage> mmsMsg = do_QueryInterface(aMessage);
       domMobileMessageError =
-        new DOMMobileMessageError(mDOMRequest->GetOwner(), errorStr, mmsMsg);
+        new DOMMobileMessageError(mDOMRequest->GetOwner(), errorStr,
+                                  static_cast<MmsMessage*>(mmsMsg.get()));
     }
     NS_ASSERTION(domMobileMessageError, "Invalid DOMMobileMessageError!");
   }

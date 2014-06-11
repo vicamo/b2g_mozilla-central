@@ -59,10 +59,6 @@ DOMCI_CLASS(File)
 // DOM modal content window class, almost identical to Window
 DOMCI_CLASS(ModalContentWindow)
 
-DOMCI_CLASS(MozSmsMessage)
-DOMCI_CLASS(MozMmsMessage)
-DOMCI_CLASS(MozMobileMessageThread)
-
 // @font-face in CSS
 DOMCI_CLASS(CSSFontFaceRule)
 

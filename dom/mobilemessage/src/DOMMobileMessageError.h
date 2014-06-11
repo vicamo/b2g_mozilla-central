@@ -8,9 +8,8 @@
 #define mozilla_dom_MobileMessageError_h
 
 #include "mozilla/dom/DOMError.h"
-
-class nsIDOMMozMmsMessage;
-class nsIDOMMozSmsMessage;
+#include "mozilla/dom/MmsMessage.h"
+#include "mozilla/dom/SmsMessage.h"
 
 namespace mozilla {
 namespace dom {
@@ -24,10 +23,10 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(DOMMobileMessageError, DOMError)
 
   DOMMobileMessageError(nsPIDOMWindow* aWindow, const nsAString& aName,
-                        nsIDOMMozSmsMessage* aSms);
+                        SmsMessage* aSms);
 
   DOMMobileMessageError(nsPIDOMWindow* aWindow, const nsAString& aName,
-                        nsIDOMMozMmsMessage* aMms);
+                        MmsMessage* aMms);
 
   virtual JSObject*
   WrapObject(JSContext* aCx) MOZ_OVERRIDE;
@@ -35,8 +34,8 @@ public:
   void GetData(OwningMozSmsMessageOrMozMmsMessage& aRetVal) const;
 
 private:
-  nsCOMPtr<nsIDOMMozSmsMessage> mSms;
-  nsCOMPtr<nsIDOMMozMmsMessage> mMms;
+  nsRefPtr<SmsMessage> mSms;
+  nsRefPtr<MmsMessage> mMms;
 };
 
 } // namespace dom
