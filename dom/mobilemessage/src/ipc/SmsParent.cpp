@@ -8,17 +8,16 @@
 #include "nsIMmsService.h"
 #include "nsIObserverService.h"
 #include "mozilla/Services.h"
-#include "nsIDOMMozSmsMessage.h"
-#include "nsIDOMMozMmsMessage.h"
+#include "mozilla/dom/SmsMessage.h"
+#include "mozilla/dom/MmsMessage.h"
 #include "mozilla/unused.h"
-#include "SmsMessage.h"
-#include "MmsMessage.h"
 #include "nsIMobileMessageDatabaseService.h"
-#include "MobileMessageThread.h"
+#include "mozilla/dom/MobileMessageThread.h"
 #include "nsIDOMFile.h"
 #include "mozilla/dom/ipc/Blob.h"
 #include "mozilla/dom/ContentParent.h"
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
+#include "mozilla/dom/MozMobileMessageManagerBinding.h"
 #include "mozilla/dom/ToJSValue.h"
 #include "nsContentUtils.h"
 #include "nsTArrayHelpers.h"
@@ -134,23 +133,30 @@ GetMobileMessageDataFromMessage(ContentParent* aParent,
     return false;
   }
 
-  nsCOMPtr<nsIDOMMozMmsMessage> mmsMsg = do_QueryInterface(aMsg);
+  nsCOMPtr<nsIMmsMessage> mmsMsg = do_QueryInterface(aMsg);
   if (mmsMsg) {
     if (!aParent) {
       NS_ERROR("Invalid ContentParent to convert MMS Message!");
       return false;
     }
+
     MmsMessageData data;
     if (!static_cast<MmsMessage*>(mmsMsg.get())->GetData(aParent, data)) {
       return false;
     }
+
     aData = data;
     return true;
   }
 
-  nsCOMPtr<nsIDOMMozSmsMessage> smsMsg = do_QueryInterface(aMsg);
+  nsCOMPtr<nsISmsMessage> smsMsg = do_QueryInterface(aMsg);
   if (smsMsg) {
-    aData = static_cast<SmsMessage*>(smsMsg.get())->GetData();
+    SmsMessageData data;
+    if (!static_cast<SmsMessage*>(smsMsg.get())->GetData(data)) {
+      return false;
+    }
+
+    aData = data;
     return true;
   }
 
@@ -284,20 +290,24 @@ SmsParent::Observe(nsISupports* aSubject, const char* aTopic,
   }
 
   if (!strcmp(aTopic, kSilentSmsReceivedObserverTopic)) {
-    nsCOMPtr<nsIDOMMozSmsMessage> smsMsg = do_QueryInterface(aSubject);
+    nsCOMPtr<nsISmsMessage> smsMsg = do_QueryInterface(aSubject);
     if (!smsMsg) {
       return NS_OK;
     }
 
+    SmsMessage* message = static_cast<SmsMessage*>(smsMsg.get());
     nsString sender;
-    if (NS_FAILED(smsMsg->GetSender(sender)) ||
-        !mSilentNumbers.Contains(sender)) {
+    message->GetSender(sender);
+    if (!mSilentNumbers.Contains(sender)) {
       return NS_OK;
     }
 
-    MobileMessageData msgData =
-      static_cast<SmsMessage*>(smsMsg.get())->GetData();
-    unused << SendNotifyReceivedSilentMessage(msgData);
+    SmsMessageData data;
+    if (!message->GetData(data)) {
+      return NS_OK;
+    }
+
+    unused << SendNotifyReceivedSilentMessage(data);
     return NS_OK;
   }
 
@@ -845,14 +855,18 @@ MobileMessageCursorParent::NotifyCursorResult(nsISupports* aResult)
   // error here to avoid sending a message to the dead process.
   NS_ENSURE_TRUE(mContinueCallback, NS_ERROR_FAILURE);
 
-  nsCOMPtr<nsIDOMMozSmsMessage> iSms = do_QueryInterface(aResult);
+  nsCOMPtr<nsISmsMessage> iSms = do_QueryInterface(aResult);
   if (iSms) {
     SmsMessage* message = static_cast<SmsMessage*>(aResult);
-    return SendNotifyResult(MobileMessageCursorData(message->GetData()))
+    SmsMessageData data;
+    if (!message->GetData(data)) {
+      return NS_ERROR_FAILURE;
+    }
+    return SendNotifyResult(MobileMessageCursorData(data))
       ? NS_OK : NS_ERROR_FAILURE;
   }
 
-  nsCOMPtr<nsIDOMMozMmsMessage> iMms = do_QueryInterface(aResult);
+  nsCOMPtr<nsIMmsMessage> iMms = do_QueryInterface(aResult);
   if (iMms) {
     MmsMessage* message = static_cast<MmsMessage*>(aResult);
     ContentParent* parent = static_cast<ContentParent*>(Manager()->Manager());
@@ -864,10 +878,14 @@ MobileMessageCursorParent::NotifyCursorResult(nsISupports* aResult)
       ? NS_OK : NS_ERROR_FAILURE;
   }
 
-  nsCOMPtr<nsIDOMMozMobileMessageThread> iThread = do_QueryInterface(aResult);
+  nsCOMPtr<nsIMobileMessageThread> iThread = do_QueryInterface(aResult);
   if (iThread) {
     MobileMessageThread* thread = static_cast<MobileMessageThread*>(aResult);
-    return SendNotifyResult(MobileMessageCursorData(thread->GetData()))
+    ThreadData data;
+    if (!thread->GetData(data)) {
+      return NS_ERROR_FAILURE;
+    }
+    return SendNotifyResult(MobileMessageCursorData(data))
       ? NS_OK : NS_ERROR_FAILURE;
   }
 

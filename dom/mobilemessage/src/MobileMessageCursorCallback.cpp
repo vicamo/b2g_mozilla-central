@@ -4,12 +4,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "MobileMessageCursorCallback.h"
-#include "nsIDOMDOMRequest.h"
-#include "nsIDOMMozSmsMessage.h"
 #include "nsIMobileMessageCallback.h"
 #include "DOMCursor.h"
 #include "nsCxPusher.h"
-#include "nsServiceManagerUtils.h"      // for do_GetService
 
 namespace mozilla {
 namespace dom {

@@ -7,49 +7,94 @@
 #define mozilla_dom_mobilemessage_MobileMessageThread_h
 
 #include "mozilla/Attributes.h"
-#include "mozilla/dom/mobilemessage/SmsTypes.h"
-#include "nsIDOMMozMobileMessageThread.h"
+#include "mozilla/dom/DOMStringList.h"
+#include "mozilla/dom/MozSmsMessageBinding.h" // For MobileMessageType
+#include "nsIMobileMessageService.h"
 #include "nsString.h"
+#include "nsCOMPtr.h"
 
 namespace mozilla {
 namespace dom {
 
-class MobileMessageThread MOZ_FINAL : public nsIDOMMozMobileMessageThread
+namespace mobilemessage {
+
+class ThreadData;
+
+} // namespace mobilemessage
+
+class MobileMessageThread MOZ_FINAL : public nsIMobileMessageThread
+                                    , public nsWrapperCache
 {
-private:
   typedef mobilemessage::ThreadData ThreadData;
 
 public:
-  NS_DECL_ISUPPORTS
-  NS_DECL_NSIDOMMOZMOBILEMESSAGETHREAD
+  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
+  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(MobileMessageThread)
 
+  NS_DECL_NSIMOBILEMESSAGETHREAD
+
+public:
   MobileMessageThread(uint64_t aId,
                       const nsTArray<nsString>& aParticipants,
                       uint64_t aTimestamp,
-                      const nsString& aLastMessageSubject,
-                      const nsString& aBody,
+                      const nsAString& aLastMessageSubject,
+                      const nsAString& aBody,
                       uint64_t aUnreadCount,
-                      mobilemessage::MessageType aLastMessageType);
+                      MobileMessageType aLastMessageType);
 
   MobileMessageThread(const ThreadData& aData);
-
-  static nsresult Create(uint64_t aId,
-                         const JS::Value& aParticipants,
-                         uint64_t aTimestamp,
-                         const nsAString& aLastMessageSubject,
-                         const nsAString& aBody,
-                         uint64_t aUnreadCount,
-                         const nsAString& aLastMessageType,
-                         JSContext* aCx,
-                         nsIDOMMozMobileMessageThread** aThread);
-
-  const ThreadData& GetData() const { return mData; }
 
 private:
   // Don't try to use the default constructor.
   MobileMessageThread() MOZ_DELETE;
 
-  ThreadData mData;
+public:
+  // WrapperCache
+  virtual JSObject*
+  WrapObject(JSContext* aCx) MOZ_OVERRIDE;
+
+public:
+  // WebIDL
+
+  static already_AddRefed<MobileMessageThread>
+  Constructor(const GlobalObject& aGlobal,
+              uint64_t aId,
+              const Sequence<nsString>& aParticipants,
+              uint64_t aTimestamp,
+              const nsAString& aLastMessageSubject,
+              const nsAString& aBody,
+              uint64_t aUnreadCount,
+              MobileMessageType aLastMessageType,
+              ErrorResult& aRv);
+
+  nsISupports* GetParentObject() const { return nullptr; }
+
+  uint64_t Id() const { return mId; }
+  void GetLastMessageSubject(nsAString& aLastMessageSubject) const
+  {
+    aLastMessageSubject = mLastMessageSubject;
+  }
+  void GetBody(nsAString& aBody) const { aBody = mBody; }
+  uint64_t UnreadCount() const { return mUnreadCount; }
+  already_AddRefed<DOMStringList> Participants() const
+  {
+    return nsRefPtr<DOMStringList>(mParticipants).forget();
+  }
+  uint64_t Timestamp() const { return mTimestamp; }
+  MobileMessageType LastMessageType() const { return mLastMessageType; }
+
+public:
+  // IPC
+  bool GetData(ThreadData& aData) const;
+
+private:
+  uint64_t mId;
+  nsString mLastMessageSubject;
+  nsString mBody;
+  uint64_t mUnreadCount;
+  nsRefPtr<DOMStringList> mParticipants;
+  uint64_t mTimestamp;
+  MobileMessageType mLastMessageType;
 };
 
 } // namespace dom

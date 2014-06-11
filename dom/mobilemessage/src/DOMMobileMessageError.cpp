@@ -7,22 +7,12 @@
 #include "DOMMobileMessageError.h"
 #include "mozilla/dom/DOMMobileMessageErrorBinding.h"
 #include "mozilla/dom/UnionTypes.h"
-#include "nsIDOMMozMmsMessage.h"
-#include "nsIDOMMozSmsMessage.h"
 
-using namespace mozilla::dom;
+namespace mozilla {
+namespace dom {
 
-NS_IMPL_CYCLE_COLLECTION_CLASS(DOMMobileMessageError)
-
-NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(DOMMobileMessageError, DOMError)
-  NS_IMPL_CYCLE_COLLECTION_UNLINK(mSms)
-  NS_IMPL_CYCLE_COLLECTION_UNLINK(mMms)
-NS_IMPL_CYCLE_COLLECTION_UNLINK_END
-
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(DOMMobileMessageError, DOMError)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mSms)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mMms)
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+NS_IMPL_CYCLE_COLLECTION_INHERITED(DOMMobileMessageError, DOMError,
+                                   mSms, mMms)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(DOMMobileMessageError)
 NS_INTERFACE_MAP_END_INHERITING(DOMError)
@@ -32,7 +22,7 @@ NS_IMPL_RELEASE_INHERITED(DOMMobileMessageError, DOMError)
 
 DOMMobileMessageError::DOMMobileMessageError(nsPIDOMWindow* aWindow,
                                              const nsAString& aName,
-                                             nsIDOMMozSmsMessage* aSms)
+                                             SmsMessage* aSms)
   : DOMError(aWindow, aName)
   , mSms(aSms)
   , mMms(nullptr)
@@ -41,7 +31,7 @@ DOMMobileMessageError::DOMMobileMessageError(nsPIDOMWindow* aWindow,
 
 DOMMobileMessageError::DOMMobileMessageError(nsPIDOMWindow* aWindow,
                                              const nsAString& aName,
-                                             nsIDOMMozMmsMessage* aMms)
+                                             MmsMessage* aMms)
   : DOMError(aWindow, aName)
   , mSms(nullptr)
   , mMms(aMms)
@@ -69,3 +59,6 @@ DOMMobileMessageError::WrapObject(JSContext* aCx)
 {
   return DOMMobileMessageErrorBinding::Wrap(aCx, this);
 }
+
+} // namespace dom
+} // namespace mozilla

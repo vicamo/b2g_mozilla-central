@@ -217,9 +217,7 @@ static void Shutdown();
 #include "nsCSPContext.h"
 #include "nsISmsService.h"
 #include "nsIMmsService.h"
-#include "nsIMobileMessageService.h"
 #include "nsIMobileMessageDatabaseService.h"
-#include "mozilla/dom/mobilemessage/MobileMessageService.h"
 #include "mozilla/dom/mobilemessage/SmsServicesFactory.h"
 #include "nsIPowerManagerService.h"
 #include "nsIAlarmHalService.h"
@@ -326,8 +324,6 @@ NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsISmsService,
                                          SmsServicesFactory::CreateSmsService)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIMmsService,
                                          SmsServicesFactory::CreateMmsService)
-NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIMobileMessageService,
-                                         MobileMessageService::GetInstance)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIMobileMessageDatabaseService,
                                          SmsServicesFactory::CreateMobileMessageDatabaseService)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIPowerManagerService,
@@ -768,7 +764,6 @@ NS_DEFINE_NAMED_CID(NS_HAPTICFEEDBACK_CID);
 #endif
 NS_DEFINE_NAMED_CID(SMS_SERVICE_CID);
 NS_DEFINE_NAMED_CID(MMS_SERVICE_CID);
-NS_DEFINE_NAMED_CID(MOBILE_MESSAGE_SERVICE_CID);
 NS_DEFINE_NAMED_CID(MOBILE_MESSAGE_DATABASE_SERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_POWERMANAGERSERVICE_CID);
 NS_DEFINE_NAMED_CID(OSFILECONSTANTSSERVICE_CID);
@@ -1059,7 +1054,6 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kNS_STRUCTUREDCLONECONTAINER_CID, false, nullptr, nsStructuredCloneContainerConstructor },
   { &kSMS_SERVICE_CID, false, nullptr, nsISmsServiceConstructor },
   { &kMMS_SERVICE_CID, false, nullptr, nsIMmsServiceConstructor },
-  { &kMOBILE_MESSAGE_SERVICE_CID, false, nullptr, nsIMobileMessageServiceConstructor },
   { &kMOBILE_MESSAGE_DATABASE_SERVICE_CID, false, nullptr, nsIMobileMessageDatabaseServiceConstructor },
   { &kNS_POWERMANAGERSERVICE_CID, false, nullptr, nsIPowerManagerServiceConstructor },
   { &kOSFILECONSTANTSSERVICE_CID, true, nullptr, OSFileConstantsServiceConstructor },
@@ -1215,7 +1209,6 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { NS_STRUCTUREDCLONECONTAINER_CONTRACTID, &kNS_STRUCTUREDCLONECONTAINER_CID },
   { SMS_SERVICE_CONTRACTID, &kSMS_SERVICE_CID },
   { MMS_SERVICE_CONTRACTID, &kMMS_SERVICE_CID },
-  { MOBILE_MESSAGE_SERVICE_CONTRACTID, &kMOBILE_MESSAGE_SERVICE_CID },
   { MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID, &kMOBILE_MESSAGE_DATABASE_SERVICE_CID },
   { POWERMANAGERSERVICE_CONTRACTID, &kNS_POWERMANAGERSERVICE_CID },
   { OSFILECONSTANTSSERVICE_CONTRACTID, &kOSFILECONSTANTSSERVICE_CID },
