@@ -1,32 +1,29 @@
+/* -*- Mode: IDL; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "domstubs.idl"
-#include "nsISupports.idl"
-
-[scriptable, builtinclass, uuid(525ad3a6-59a9-11e3-bdc3-836486cb58be)]
-interface nsIDOMMozMobileMessageThread : nsISupports
+[Pref="dom.sms.enabled"]
+interface MozMobileMessageThread
 {
   // Unique identity of the thread.
   readonly attribute unsigned long long id;
 
   // Last (MMS) message subject.
-  readonly attribute DOMString          lastMessageSubject;
+  readonly attribute DOMString lastMessageSubject;
 
   // Message body of the last message in the thread.
-  readonly attribute DOMString          body;
+  readonly attribute DOMString body;
 
   // Total unread messages in the thread.
   readonly attribute unsigned long long unreadCount;
 
   // Participant addresses of the thread.
-  [implicit_jscontext]
-  readonly attribute jsval              participants; // DOMString[]
+  readonly attribute DOMStringList participants;
 
   // Timestamp of the last message in the thread.
-  readonly attribute DOMTimeStamp       timestamp;
+  readonly attribute DOMTimeStamp timestamp;
 
   // Message type of the last message in the thread.
-  readonly attribute DOMString          lastMessageType;
+  readonly attribute MobileMessageType lastMessageType;
 };

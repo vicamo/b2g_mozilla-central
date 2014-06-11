@@ -4,9 +4,6 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-interface MozMmsMessage;
-interface MozSmsMessage;
-
 dictionary SmsSegmentInfo {
   /* The number of total segments for the input string. */
   long segments;
@@ -16,7 +13,7 @@ dictionary SmsSegmentInfo {
   long charsAvailableInLastSegment;
 };
 
-dictionary MmsAttachment {
+dictionary MmsAttachmentParameters {
   DOMString? id = null;
   DOMString? location = null;
   Blob? content = null;
@@ -26,7 +23,7 @@ dictionary MmsParameters {
   sequence<DOMString> receivers;
   DOMString? subject = null;
   DOMString? smil = null;
-  sequence<MmsAttachment> attachments;
+  sequence<MmsAttachmentParameters> attachments;
 };
 
 dictionary SmsSendParameters {
@@ -130,7 +127,7 @@ interface MozMobileMessageManager : EventTarget
                              boolean read,
                              optional boolean sendReadReport = false);
 
-  // Iterates through nsIDOMMozMobileMessageThread.
+  // Iterates through MozMobileMessageThread.
   [Throws]
   DOMCursor getThreads();
 
