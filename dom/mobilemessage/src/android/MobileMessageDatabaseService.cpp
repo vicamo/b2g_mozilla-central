@@ -3,7 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "SmsFilter.h"
 #include "MobileMessageDatabaseService.h"
 #include "AndroidBridge.h"
 
@@ -47,7 +46,7 @@ MobileMessageDatabaseService::DeleteMessage(int32_t *aMessageIds,
 }
 
 NS_IMETHODIMP
-MobileMessageDatabaseService::CreateMessageCursor(nsIDOMMozSmsFilter* aFilter,
+MobileMessageDatabaseService::CreateMessageCursor(JS::Handle<JS::Value> aFilter,
                                                   bool aReverse,
                                                   nsIMobileMessageCursorCallback* aCallback,
                                                   nsICursorContinueCallback** aResult)

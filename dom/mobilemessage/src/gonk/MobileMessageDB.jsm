@@ -3258,7 +3258,7 @@ let FilterSearcherHelper = {
    * @param error
    *        Previous error while creating the transaction.
    * @param filter
-   *        A SmsFilter object.
+   *        A MobileMessageFilter dictionary.
    * @param reverse
    *        A boolean value indicating whether we should filter message in
    *        reversed order.
