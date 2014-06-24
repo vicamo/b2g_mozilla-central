@@ -2,71 +2,32 @@
  * http://creativecommons.org/publicdomain/zero/1.0/ */
 
 MARIONETTE_TIMEOUT = 60000;
+MARIONETTE_HEAD_JS = 'head.js';
 
-SpecialPowers.setBoolPref("dom.sms.enabled", true);
-SpecialPowers.addPermission("sms", true, document);
-
-let manager = window.navigator.mozMobileMessage;
-ok(manager instanceof MozMobileMessageManager,
-   "manager is instance of " + manager.constructor);
+const FROM = "5551110000";
 
 // Note: 378 chars and below is fine, but 379 and above will cause the issue.
 // Sending first message works, but second one we get emulator callback but
 // the actual SMS is never received, so script will timeout waiting for the
 // onreceived event. Also note that a single larger message (i.e. 1600
 // characters) works; so it is not a compounded send limit.
-let fromNumber = "5551110000";
-let msgLength = 379;
-let msgText = new Array(msgLength + 1).join('a');
+const TEXT_LENGTH = 379;
+const TEXT = new Array(TEXT_LENGTH + 1).join('a');
 
-let pendingEmulatorCmdCount = 0;
-function sendSmsToEmulator(from, text) {
-  ++pendingEmulatorCmdCount;
+function simulateIncomingSms(aFrom, aText) {
+  log("Simulating incoming multipart SMS (" + aText.length + " chars total).");
 
-  let cmd = "sms send " + from + " " + text;
-  runEmulatorCmd(cmd, function(result) {
-    --pendingEmulatorCmdCount;
+  return sendTextSmsToEmulatorAndWait(aFrom, aText)
+    .then(function(aMessage) {
+      log("  Received 'onreceived' event.");
 
-    is(result[0], "OK", "Emulator response");
-  });
+      ok(aMessage, "incoming sms");
+      is(aMessage.body, aText, "msg body");
+    });
 }
 
-function firstIncomingSms() {
-  simulateIncomingSms(secondIncomingSms);
-}
-
-function secondIncomingSms() {
-  simulateIncomingSms(cleanUp);
-}
-
-function simulateIncomingSms(nextFunction) {
-  log("Simulating incoming multipart SMS (" + msgText.length
-      + " chars total).");
-
-  manager.onreceived = function onreceived(event) {
-    log("Received 'onreceived' event.");
-    manager.onreceived = null;
-
-    let incomingSms = event.message;
-    ok(incomingSms, "incoming sms");
-    is(incomingSms.body, msgText, "msg body");
-
-    window.setTimeout(nextFunction, 0);
-  };
-
-  sendSmsToEmulator(fromNumber, msgText);
-}
-
-function cleanUp() {
-  if (pendingEmulatorCmdCount) {
-    window.setTimeout(cleanUp, 100);
-    return;
-  }
-
-  SpecialPowers.removePermission("sms", document);
-  SpecialPowers.clearUserPref("dom.sms.enabled");
-  finish();
-}
-
-// Start the test
-firstIncomingSms();
+startTestBase(function testCaseMain() {
+  return ensureMobileMessage()
+    .then(() => simulateIncomingSms(FROM, TEXT))
+    .then(() => simulateIncomingSms(FROM, TEXT));
+});
