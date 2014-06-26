@@ -252,6 +252,7 @@
 
 XUL_MODULES
 
+MODULE(TelephonyModule)
 #ifdef MOZ_WIDGET_GONK
 MODULE(WifiCertServiceModule)
 MODULE(WifiProxyServiceModule)
@@ -265,6 +266,8 @@ MODULE(NetworkWorkerModule)
 
 extern const mozilla::Module *const *const kPStaticModules[] = {
   XUL_MODULES
+
+MODULE(TelephonyModule)
 #ifdef MOZ_WIDGET_GONK
 MODULE(WifiCertServiceModule)
 MODULE(WifiProxyServiceModule)
