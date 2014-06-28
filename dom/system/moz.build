@@ -17,6 +17,9 @@ elif toolkit == 'android':
 elif toolkit == 'gonk':
     DIRS += ['gonk']
 
+if CONFIG['MOZ_GIO_HAVE_GDBUS']:
+    DIRS += ['ofono']
+
 TEST_DIRS += ['tests']
 
 XPIDL_SOURCES += [

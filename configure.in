@@ -4762,6 +4762,26 @@ then
             MOZ_GIO_LIBS=`echo $MOZ_GIO_LIBS | sed 's/-llinc\>//'`
             MOZ_ENABLE_GIO=1
             AC_DEFINE(MOZ_ENABLE_GIO)
+
+            dnl GIO GDBus features are only available since 2.26
+            dnl ================================================
+            _SAVE_CFLAGS=$CFLAGS
+            _SAVE_LIBS=$LIBS
+
+            CFLAGS="$CFLAGS $MOZ_GIO_CFLAGS"
+            LIBS="$LIBS $MOZ_GIO_LIBS"
+            AC_CHECK_FUNC([g_bus_get])
+            if test "$ac_cv_func_g_bus_get" = "yes"; then
+                MOZ_GIO_HAVE_GDBUS=1
+                AC_DEFINE(MOZ_GIO_HAVE_GDBUS)
+
+                dnl Platform features RIL by connecting to oFono via GDBus.
+                dnl =======================================================
+                _PLATFORM_HAVE_RIL=1
+            fi
+
+            CFLAGS=$_SAVE_CFLAGS
+            LIBS=$_SAVE_LIBS
         ],[
             if test "$MOZ_ENABLE_GIO" = "force"
             then
@@ -4772,6 +4792,7 @@ then
     fi
 
     AC_SUBST(MOZ_ENABLE_GIO)
+    AC_SUBST(MOZ_GIO_HAVE_GDBUS)
     AC_SUBST(MOZ_GIO_CFLAGS)
     AC_SUBST(MOZ_GIO_LIBS)
 
@@ -7454,7 +7475,11 @@ MOZ_ARG_ENABLE_BOOL(b2g-ril,
 [  --enable-b2g-ril      Set compile flags necessary for testing B2G Radio Interface Layer via network sockets ],
     MOZ_B2G_RIL=1,
     MOZ_B2G_RIL=,
-    MOZ_B2G_RIL=$_PLATFORM_HAVE_RIL )
+[
+    if test -n "$MOZ_B2G"; then
+        MOZ_B2G_RIL=$_PLATFORM_HAVE_RIL
+    fi
+])
 if test -n "$MOZ_B2G_RIL"; then
     if test -n "$_PLATFORM_HAVE_RIL"; then
         AC_DEFINE(MOZ_B2G_RIL)
