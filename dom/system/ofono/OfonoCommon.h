@@ -10,6 +10,11 @@
 #include "nsDebug.h"
 #include "nsPrintfCString.h"
 
+// Originally defined in <ofono/dbus.h>
+#define OFONO_SERVICE "org.ofono"
+#define OFONO_MANAGER_INTERFACE "org.ofono.Manager"
+#define OFONO_MANAGER_PATH "/"
+
 // Debug
 #define OFONO_D(args...)                  \
   NS_WARNING(nsPrintfCString(args).get())
