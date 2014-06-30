@@ -6,15 +6,19 @@
 
 EXPORTS.mozilla.dom.ofono += [
     'gdbusmanager.h',
-    'Manager.h'
+    'gdbusmodem.h',
+    'Manager.h',
+    'Modem.h'
 ]
 
 SOURCES += [
-    'gdbusmanager.c'
+    'gdbusmanager.c',
+    'gdbusmodem.c'
 ]
 
 UNIFIED_SOURCES += [
     'Manager.cpp',
+    'Modem.cpp',
     'OfonoModule.cpp',
     'OfonoStartupObserver.cpp'
 ]

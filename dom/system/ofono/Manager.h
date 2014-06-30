@@ -11,10 +11,14 @@
 #include "mozilla/Attributes.h" // for MOZ_FINAL
 #include "mozilla/dom/ofono/gdbusmanager.h"
 #include "nsISupports.h"
+#include "nsAutoPtr.h"
+#include "nsTArray.h"
 
 namespace mozilla {
 namespace dom {
 namespace ofono {
+
+class Modem;
 
 class Manager MOZ_FINAL : public nsISupports
 {
@@ -38,6 +42,11 @@ private:
                           GAsyncResult* aAsyncResult,
                           gpointer aUserData);
 
+  static void
+  OnGDBusManagerGetModemsFinished(GObject* aUnused,
+                                  GAsyncResult* aAsyncResult,
+                                  gpointer aUserData);
+
   Manager();
   virtual ~Manager();
 
@@ -48,6 +57,7 @@ private:
   static bool sIsShuttingDown;
 
   OfonoGDBusManager* mGDBusManager;
+  FallibleTArray<nsRefPtr<Modem>> mModems;
 };
 
 } // namespace ofono
