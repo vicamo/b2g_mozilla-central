@@ -1,0 +1,38 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <interface name="org.ofono.Modem">
+    <method name="GetProperties">
+      <arg name="properties" type="a{sv}" direction="out"/>
+    </method>
+
+    <method name="SetProperty">
+      <arg name="property" type="s" direction="in"/>
+      <arg name="value" type="v" direction="in"/>
+    </method>
+
+    <signal name="PropertyChanged">
+      <arg name="name" type="s"/>
+      <arg name="value" type="v"/>
+    </signal>
+
+    <property name="Powered" type="b" access="readwrite"/>
+    <property name="Online" type="b" access="readwrite"/>
+    <property name="Lockdown" type="b" access="readwrite"/>
+    <!-- optional, experimental -->
+    <property name="Emergency" type="b" access="readwrite"/>
+    <!-- optional -->
+    <property name="Name" type="s" access="read"/>
+    <!-- optional -->
+    <property name="Manufacturer" type="s" access="read"/>
+    <!-- optional -->
+    <property name="Model" type="s" access="read"/>
+    <!-- optional -->
+    <property name="Revision" type="s" access="read"/>
+    <!-- optional -->
+    <property name="Serial" type="s" access="read"/>
+    <property name="Features" type="as" access="read"/>
+    <property name="Interfaces" type="as" access="read"/>
+    <property name="Type" type="s" access="read"/>
+  </interface>
+</node>
