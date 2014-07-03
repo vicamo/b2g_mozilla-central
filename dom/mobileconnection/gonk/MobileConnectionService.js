@@ -8,21 +8,17 @@
 const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
-Cu.import("resource://gre/modules/systemlibs.js");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
-var RIL = {};
-Cu.import("resource://gre/modules/ril_consts.js", RIL);
+const SIMULATOR_MOBILECONNECTIONSERVICE_CONTRACTID =
+  "@mozilla.org/mobileconnection/simulatormobileconnectionservice;1";
 
-const GONK_MOBILECONNECTIONSERVICE_CONTRACTID =
-  "@mozilla.org/mobileconnection/gonkmobileconnectionservice;1";
-
-const GONK_MOBILECONNECTIONSERVICE_CID =
-  Components.ID("{05e20430-fe65-4984-8df9-a6a504b24a91}");
+const SIMULATOR_MOBILECONNECTIONSERVICE_CID =
+  Components.ID("{ec7b746d-16bd-4794-ba41-5587516279a8}");
 const MOBILENETWORKINFO_CID =
-  Components.ID("{a6c8416c-09b4-46d1-bf29-6520d677d085}");
+  Components.ID("{1bc79bf7-8291-4892-8f3b-e869efab7c37}");
 const MOBILECELLINFO_CID =
-  Components.ID("{0635d9ab-997e-4cdf-84e7-c1883752dff3}");
+  Components.ID("{dc0ee401-0a50-47b2-8eac-14180efcc5d0}");
 
 const NS_XPCOM_SHUTDOWN_OBSERVER_ID      = "xpcom-shutdown";
 const NS_PREFBRANCH_PREFCHANGE_TOPIC_ID  = "nsPref:changed";
@@ -30,19 +26,19 @@ const NS_NETWORK_ACTIVE_CHANGED_TOPIC_ID = "network-active-changed";
 
 const kPrefRilDebuggingEnabled = "ril.debugging.enabled";
 
+const SUPPORTED_NETWORK_TYPES = [ "gsm", "wcdma", "cdma", "evdo", "lte" ];
+const SUPPORTED_NETWORK_TYPES_DEFAULT = "gsm,wcdma";
+
+const ICC_SERVICE_CLASS_VOICE = (1 << 0);
+
+const MMI_KS_SC_IMEI = "scImei";
+const MMI_KS_SC_CALL_FORWARDING = "scCallForwarding";
+
 XPCOMUtils.defineLazyServiceGetter(this, "gSystemMessenger",
                                    "@mozilla.org/system-message-internal;1",
                                    "nsISystemMessagesInternal");
 
-XPCOMUtils.defineLazyServiceGetter(this, "gNetworkManager",
-                                   "@mozilla.org/network/manager;1",
-                                   "nsINetworkManager");
-
-XPCOMUtils.defineLazyServiceGetter(this, "gRadioInterfaceLayer",
-                                   "@mozilla.org/ril;1",
-                                   "nsIRadioInterfaceLayer");
-
-let DEBUG = RIL.DEBUG_RIL;
+let DEBUG;
 function debug(s) {
   dump("MobileConnectionService: " + s + "\n");
 }
@@ -111,39 +107,43 @@ MMIResult.prototype = {
                       additionalInformation: 'r'},
 };
 
-function MobileConnectionProvider(aClientId, aRadioInterface) {
+function MobileConnectionProvider(aClientId) {
   this._clientId = aClientId;
-  this._radioInterface = aRadioInterface;
   this._operatorInfo = {};
-  // An array of nsIMobileConnectionListener instances.
   this._listeners = [];
 
-  this.supportedNetworkTypes = this._getSupportedNetworkTypes();
+  this.supportedNetworkTypes = SUPPORTED_NETWORK_TYPES_DEFAULT.slice();
+
   // These objects implement the nsIMobileConnectionInfo interface,
   // although the actual implementation lives in the content process. So are
   // the child attributes `network` and `cell`, which implement
   // nsIMobileNetworkInfo and nsIMobileCellInfo respectively.
-  this.voiceInfo = {connected: false,
-                    emergencyCallsOnly: false,
-                    roaming: false,
-                    network: null,
-                    cell: null,
-                    type: null,
-                    signalStrength: null,
-                    relSignalStrength: null};
-  this.dataInfo = {connected: false,
-                   emergencyCallsOnly: false,
-                   roaming: false,
-                   network: null,
-                   cell: null,
-                   type: null,
-                   signalStrength: null,
-                   relSignalStrength: null};
+  this.voiceInfo = {
+    connected: false,
+    emergencyCallsOnly: false,
+    roaming: false,
+    network: null,
+    cell: null,
+    type: null,
+    signalStrength: null,
+    relSignalStrength: null
+  };
+  this.dataInfo = {
+    connected: false,
+    emergencyCallsOnly: false,
+    roaming: false,
+    network: null,
+    cell: null,
+    type: null,
+    signalStrength: null,
+    relSignalStrength: null
+  };
 }
 MobileConnectionProvider.prototype = {
   _clientId: null,
-  _radioInterface: null,
   _operatorInfo: null,
+
+  // An array of nsIMobileConnectionListener instances.
   _listeners: null,
 
   /**
@@ -166,30 +166,6 @@ MobileConnectionProvider.prototype = {
    */
   _debug: function(aMessage) {
     dump("MobileConnectionProvider[" + this._clientId + "]: " + aMessage + "\n");
-  },
-
-  /**
-   * A utility function to get supportedNetworkTypes from system property.
-   */
-  _getSupportedNetworkTypes: function() {
-    let key = "ro.moz.ril." + this._clientId + ".network_types";
-    let supportedNetworkTypes = libcutils.property_get(key, "").split(",");
-    for (let type of supportedNetworkTypes) {
-      // If the value in system property is not valid, use the default one which
-      // is defined in ril_consts.js.
-      if (RIL.GECKO_SUPPORTED_NETWORK_TYPES.indexOf(type) < 0) {
-        if (DEBUG) {
-          this._debug("Unknown network type: " + type);
-        }
-        supportedNetworkTypes =
-          RIL.GECKO_SUPPORTED_NETWORK_TYPES_DEFAULT.split(",");
-        break;
-      }
-    }
-    if (DEBUG) {
-      this._debug("Supported Network Types: " + supportedNetworkTypes);
-    }
-    return supportedNetworkTypes;
   },
 
   /**
@@ -283,8 +259,7 @@ MobileConnectionProvider.prototype = {
     let operator = aNetworkInfo.network;
     let state = aNetworkInfo.state;
 
-    if (!iccInfo || !operator ||
-        state !== RIL.GECKO_MOBILE_CONNECTION_STATE_REGISTERED) {
+    if (!iccInfo || !operator || state !== "registered") {
       return false;
     }
 
@@ -375,7 +350,7 @@ MobileConnectionProvider.prototype = {
 
     // Make sure we also reset the operator and signal strength information
     // if we drop off the network.
-    if (this.voiceInfo.state !== RIL.GECKO_MOBILE_CONNECTION_STATE_REGISTERED) {
+    if (this.voiceInfo.state !== "registered") {
       this.voiceInfo.cell = null;
       this.voiceInfo.network = null;
       this.voiceInfo.signalStrength = null;
@@ -409,7 +384,7 @@ MobileConnectionProvider.prototype = {
 
     // Make sure we also reset the operator and signal strength information
     // if we drop off the network.
-    if (this.dataInfo.state !== RIL.GECKO_MOBILE_CONNECTION_STATE_REGISTERED) {
+    if (this.dataInfo.state !== "registered") {
       this.dataInfo.cell = null;
       this.dataInfo.network = null;
       this.dataInfo.signalStrength = null;
@@ -443,13 +418,13 @@ MobileConnectionProvider.prototype = {
     }
 
     // If the voice is unregistered, no need to send notification.
-    if (this.voiceInfo.state !== RIL.GECKO_MOBILE_CONNECTION_STATE_REGISTERED &&
+    if (this.voiceInfo.state !== "registered" &&
         isUpdated && !aBatch) {
       this.deliverListenerEvent("notifyVoiceChanged");
     }
 
     // If the data is unregistered, no need to send notification.
-    if (this.dataInfo.state !== RIL.GECKO_MOBILE_CONNECTION_STATE_REGISTERED &&
+    if (this.dataInfo.state !== "registered" &&
         isUpdated && !aBatch) {
       this.deliverListenerEvent("notifyDataChanged");
     }
@@ -457,14 +432,14 @@ MobileConnectionProvider.prototype = {
 
   updateSignalInfo: function(aNewInfo, aBatch = false) {
     // If the voice is not registered, no need to update signal information.
-    if (this.voiceInfo.state === RIL.GECKO_MOBILE_CONNECTION_STATE_REGISTERED) {
+    if (this.voiceInfo.state === "registered") {
       if (this._updateInfo(this.voiceInfo, aNewInfo.voice) && !aBatch) {
         this.deliverListenerEvent("notifyVoiceChanged");
       }
     }
 
     // If the data is not registered, no need to update signal information.
-    if (this.dataInfo.state === RIL.GECKO_MOBILE_CONNECTION_STATE_REGISTERED) {
+    if (this.dataInfo.state === "registered") {
       if (this._updateInfo(this.dataInfo, aNewInfo.data) && !aBatch) {
         this.deliverListenerEvent("notifyDataChanged");
       }
@@ -490,6 +465,9 @@ MobileConnectionProvider.prototype = {
   },
 
   getNetworks: function(aCallback) {
+    /**
+     * FIXME:
+     *
     this._radioInterface.sendWorkerMessage("getAvailableNetworks", null,
                                            (function(aResponse) {
       if (aResponse.errorMsg) {
@@ -507,13 +485,14 @@ MobileConnectionProvider.prototype = {
       aCallback.notifyGetNetworksSuccess(networks.length, networks);
       return false;
     }).bind(this));
+     */
   },
 
   selectNetwork: function(aNetwork, aCallback) {
     if (!aNetwork ||
         isNaN(parseInt(aNetwork.mcc, 10)) ||
         isNaN(parseInt(aNetwork.mnc, 10))) {
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_INVALID_PARAMETER);
+      this._dispatchNotifyError(aCallback, "InvalidParameter");
       return;
     }
 
@@ -558,8 +537,8 @@ MobileConnectionProvider.prototype = {
   },
 
   setPreferredNetworkType: function(aType, aCallback) {
-    if (this.radioState !== RIL.GECKO_RADIOSTATE_ENABLED) {
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_RADIO_NOT_AVAILABLE);
+    if (this.radioState !== "enabled") {
+      this._dispatchNotifyError(aCallback, "RadioNotAvailable");
       return;
     }
 
@@ -577,8 +556,8 @@ MobileConnectionProvider.prototype = {
   },
 
   getPreferredNetworkType: function(aCallback) {
-    if (this.radioState !== RIL.GECKO_RADIOSTATE_ENABLED) {
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_RADIO_NOT_AVAILABLE);
+    if (this.radioState !== "enabled") {
+      this._dispatchNotifyError(aCallback, "RadioNotAvailable");
       return;
     }
 
@@ -655,10 +634,9 @@ MobileConnectionProvider.prototype = {
       // We expect to have an IMEI at this point if the request was supposed
       // to query for the IMEI, so getting a successful reply from the RIL
       // without containing an actual IMEI number is considered an error.
-      if (aResponse.serviceCode === RIL.MMI_KS_SC_IMEI &&
+      if (aResponse.serviceCode === MMI_KS_SC_IMEI &&
           !aResponse.statusMessage) {
-        aResponse.errorMsg = aResponse.errorMsg ||
-                             RIL.GECKO_ERROR_GENERIC_FAILURE;
+        aResponse.errorMsg = aResponse.errorMsg || "GenericFailure";
       }
 
       if (aResponse.errorMsg) {
@@ -683,7 +661,7 @@ MobileConnectionProvider.prototype = {
       // MMI query call forwarding options request returns a set of rules that
       // will be exposed in the form of an array of MozCallForwardingOptions
       // instances.
-      if (aResponse.serviceCode === RIL.MMI_KS_SC_CALL_FORWARDING &&
+      if (aResponse.serviceCode === MMI_KS_SC_CALL_FORWARDING &&
           aResponse.additionalInformation) {
         this._rulesToCallForwardingOptions(aResponse.additionalInformation);
       }
@@ -711,7 +689,7 @@ MobileConnectionProvider.prototype = {
     if (!aOptions ||
         !this._isValidCallForwardingReason(aOptions.reason) ||
         !this._isValidCallForwardingAction(aOptions.action)){
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_INVALID_PARAMETER);
+      this._dispatchNotifyError(aCallback, "InvalidParameter");
       return;
     }
 
@@ -721,7 +699,7 @@ MobileConnectionProvider.prototype = {
       reason: aOptions.reason,
       number: aOptions.number,
       timeSeconds: aOptions.timeSeconds,
-      serviceClass: RIL.ICC_SERVICE_CLASS_VOICE
+      serviceClass: ICC_SERVICE_CLASS_VOICE
     };
 
     this._radioInterface.sendWorkerMessage("setCallForward", options,
@@ -743,7 +721,7 @@ MobileConnectionProvider.prototype = {
 
   getCallForwarding: function(aReason, aCallback) {
     if (!this._isValidCallForwardingReason(aReason)){
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_INVALID_PARAMETER);
+      this._dispatchNotifyError(aCallback, "InvalidParameter");
       return;
     }
 
@@ -764,7 +742,7 @@ MobileConnectionProvider.prototype = {
 
   setCallBarring: function(aOptions, aCallback) {
     if (!this._isValidCallBarringOptions(aOptions, true)) {
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_INVALID_PARAMETER);
+      this._dispatchNotifyError(aCallback, "InvalidParameter");
       return;
     }
 
@@ -789,7 +767,7 @@ MobileConnectionProvider.prototype = {
 
   getCallBarring: function(aOptions, aCallback) {
     if (!this._isValidCallBarringOptions(aOptions)) {
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_INVALID_PARAMETER);
+      this._dispatchNotifyError(aCallback, "InvalidParameter");
       return;
     }
 
@@ -867,12 +845,12 @@ MobileConnectionProvider.prototype = {
 
   setCallingLineIdRestriction: function(aMode, aCallback) {
     if (!this._isValidClirMode(aMode)) {
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_INVALID_PARAMETER);
+      this._dispatchNotifyError(aCallback, "InvalidParameter");
       return;
     }
 
-    if (this.radioState !== RIL.GECKO_RADIOSTATE_ENABLED) {
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_RADIO_NOT_AVAILABLE);
+    if (this.radioState !== "enabled") {
+      this._dispatchNotifyError(aCallback, "RadioNotAvailable");
       return;
     }
 
@@ -890,8 +868,8 @@ MobileConnectionProvider.prototype = {
   },
 
   getCallingLineIdRestriction: function(aCallback) {
-    if (this.radioState !== RIL.GECKO_RADIOSTATE_ENABLED) {
-      this._dispatchNotifyError(aCallback, RIL.GECKO_ERROR_RADIO_NOT_AVAILABLE);
+    if (this.radioState !== "enabled") {
+      this._dispatchNotifyError(aCallback, "RadioNotAvailable");
       return;
     }
 
@@ -952,9 +930,9 @@ function MobileConnectionService() {
   debug("init complete");
 }
 MobileConnectionService.prototype = {
-  classID: GONK_MOBILECONNECTIONSERVICE_CID,
-  classInfo: XPCOMUtils.generateCI({classID: GONK_MOBILECONNECTIONSERVICE_CID,
-                                    contractID: GONK_MOBILECONNECTIONSERVICE_CONTRACTID,
+  classID: SIMULATOR_MOBILECONNECTIONSERVICE_CID,
+  classInfo: XPCOMUtils.generateCI({classID: SIMULATOR_MOBILECONNECTIONSERVICE_CID,
+                                    contractID: SIMULATOR_MOBILECONNECTIONSERVICE_CONTRACTID,
                                     classDescription: "MobileConnectionService",
                                     interfaces: [Ci.nsIGonkMobileConnectionService,
                                                  Ci.nsIMobileConnectionService],
@@ -974,300 +952,147 @@ MobileConnectionService.prototype = {
 
   _updateDebugFlag: function() {
     try {
-      DEBUG = RIL.DEBUG_RIL ||
-              Services.prefs.getBoolPref(kPrefRilDebuggingEnabled);
+      DEBUG = Services.prefs.getBoolPref(kPrefRilDebuggingEnabled);
     } catch (e) {}
+  },
+
+  _getProviderByClientId: function(aClientId) {
+    let provider = this._providers[aClientId];
+    if (!provider) {
+      throw Cr.NS_ERROR_UNEXPECTED;
+    }
+    return provider;
   },
 
   /**
    * nsIMobileConnectionService interface.
    */
   registerListener: function(aClientId, aListener) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.registerListener(aListener);
+    this._getProviderByClientId(aClientId).registerListener(aListener);
   },
 
   unregisterListener: function(aClientId, aListener) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.unregisterListener(aListener);
+    this._getProviderByClientId(aClientId).unregisterListener(aListener);
   },
 
   getVoiceConnectionInfo: function(aClientId) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    return provider.voiceInfo;
+    return this._getProviderByClientId(aClientId).voiceInfo;
   },
 
   getDataConnectionInfo: function(aClientId) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    return provider.dataInfo;
+    return this._getProviderByClientId(aClientId).dataInfo;
   },
 
   getIccId: function(aClientId) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    return provider.iccId;
+    return this._getProviderByClientId(aClientId).iccId;
   },
 
   getNetworkSelectionMode: function(aClientId) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    return provider.networkSelectMode;
+    return this._getProviderByClientId(aClientId).networkSelectMode;
   },
 
   getRadioState: function(aClientId) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    return provider.radioState;
+    return this._getProviderByClientId(aClientId).radioState;
   },
 
   getLastKnownNetwork: function(aClientId) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    return provider.lastKnownNetwork;
+    return this._getProviderByClientId(aClientId).lastKnownNetwork;
   },
 
   getLastKnownHomeNetwork: function(aClientId) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    return provider.lastKnownHomeNetwork;
+    return this._getProviderByClientId(aClientId).lastKnownHomeNetwork;
   },
 
   getSupportedNetworkTypes: function(aClientId) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    return provider.supportedNetworkTypes;
+    return this._getProviderByClientId(aClientId).supportedNetworkTypes;
   },
 
   getNetworks: function(aClientId, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.getNetworks(aCallback);
+    this._getProviderByClientId(aClientId).getNetworks(aCallback);
   },
 
   selectNetwork: function(aClientId, aNetwork, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.selectNetwork(aNetwork, aCallback);
+    this._getProviderByClientId(aClientId).selectNetwork(aNetwork, aCallback);
   },
 
   selectNetworkAutomatically: function(aClientId, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.selectNetworkAutomatically(aCallback);
+    this._getProviderByClientId(aClientId).selectNetworkAutomatically(aCallback);
   },
 
   setPreferredNetworkType: function(aClientId, aType, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.setPreferredNetworkType(aType, aCallback);
+    this._getProviderByClientId(aClientId).setPreferredNetworkType(aType, aCallback);
   },
 
   getPreferredNetworkType: function(aClientId, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.getPreferredNetworkType(aCallback);
+    this._getProviderByClientId(aClientId).getPreferredNetworkType(aCallback);
   },
 
   setRoamingPreference: function(aClientId, aMode, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.setRoamingPreference(aMode, aCallback);
+    this._getProviderByClientId(aClientId).setRoamingPreference(aMode, aCallback);
   },
 
   getRoamingPreference: function(aClientId, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.getRoamingPreference(aCallback);
+    this._getProviderByClientId(aClientId).getRoamingPreference(aCallback);
   },
 
   setVoicePrivacyMode: function(aClientId, aEnabled, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.setVoicePrivacyMode(aEnabled, aCallback);
+    this._getProviderByClientId(aClientId).setVoicePrivacyMode(aEnabled, aCallback);
   },
 
   getVoicePrivacyMode: function(aClientId, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.getVoicePrivacyMode(aCallback);
+    this._getProviderByClientId(aClientId).getVoicePrivacyMode(aCallback);
   },
 
   sendMMI: function(aClientId, aMmi, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.sendMMI(aMmi, aCallback);
+    this._getProviderByClientId(aClientId).sendMMI(aMmi, aCallback);
   },
 
   cancelMMI: function(aClientId, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.cancelMMI(aCallback);
+    this._getProviderByClientId(aClientId).cancelMMI(aCallback);
   },
 
   setCallForwarding: function(aClientId, aOptions, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.setCallForwarding(aOptions, aCallback);
+    this._getProviderByClientId(aClientId).setCallForwarding(aOptions, aCallback);
   },
 
   getCallForwarding: function(aClientId, aReason, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.getCallForwarding(aReason, aCallback);
+    this._getProviderByClientId(aClientId).getCallForwarding(aReason, aCallback);
   },
 
   setCallBarring: function(aClientId, aOptions, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.setCallBarring(aOptions, aCallback);
+    this._getProviderByClientId(aClientId).setCallBarring(aOptions, aCallback);
   },
 
   getCallBarring: function(aClientId, aOptions, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.getCallBarring(aOptions, aCallback);
+    this._getProviderByClientId(aClientId).getCallBarring(aOptions, aCallback);
   },
 
   changeCallBarringPassword: function(aClientId, aOptions, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.changeCallBarringPassword(aOptions, aCallback);
+    this._getProviderByClientId(aClientId).changeCallBarringPassword(aOptions, aCallback);
   },
 
   setCallWaiting: function(aClientId, aEnabled, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.setCallWaiting(aEnabled, aCallback);
+    this._getProviderByClientId(aClientId).setCallWaiting(aEnabled, aCallback);
   },
 
   getCallWaiting: function(aClientId, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.getCallWaiting(aCallback);
+    this._getProviderByClientId(aClientId).getCallWaiting(aCallback);
   },
 
   setCallingLineIdRestriction: function(aClientId, aMode, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.setCallingLineIdRestriction(aMode, aCallback);
+    this._getProviderByClientId(aClientId).setCallingLineIdRestriction(aMode, aCallback);
   },
 
   getCallingLineIdRestriction: function(aClientId, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.getCallingLineIdRestriction(aCallback);
+    this._getProviderByClientId(aClientId).getCallingLineIdRestriction(aCallback);
   },
 
   exitEmergencyCbMode: function(aClientId, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.exitEmergencyCbMode(aCallback);
+    this._getProviderByClientId(aClientId).exitEmergencyCbMode(aCallback);
   },
 
   setRadioEnabled: function(aClientId, aEnabled, aCallback) {
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.setRadioEnabled(aEnabled, aCallback);
+    this._getProviderByClientId(aClientId).setRadioEnabled(aEnabled, aCallback);
   },
 
   /**
@@ -1279,12 +1104,7 @@ MobileConnectionService.prototype = {
             JSON.stringify(aVoiceInfo));
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.updateVoiceInfo(aVoiceInfo);
+    this._getProviderByClientId(aClientId).updateVoiceInfo(aVoiceInfo);
   },
 
   notifyDataInfoChanged: function(aClientId, aDataInfo) {
@@ -1293,12 +1113,7 @@ MobileConnectionService.prototype = {
             JSON.stringify(aDataInfo));
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.updateDataInfo(aDataInfo);
+    this._getProviderByClientId(aClientId).updateDataInfo(aDataInfo);
   },
 
   notifyUssdReceived: function(aClientId, aMessage, aSessionEnded) {
@@ -1307,13 +1122,9 @@ MobileConnectionService.prototype = {
             JSON.stringify(ussd));
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.deliverListenerEvent("notifyUssdReceived",
-                                [aMessage, aSessionEnded]);
+    this._getProviderByClientId(aClientId)
+        .deliverListenerEvent("notifyUssdReceived",
+                              [aMessage, aSessionEnded]);
 
     let info = {
       message: aMessage,
@@ -1329,12 +1140,8 @@ MobileConnectionService.prototype = {
       debug("notifyDataError for " + aClientId + ": " + aMessage);
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.deliverListenerEvent("notifyDataError", [aMessage]);
+    this._getProviderByClientId(aClientId)
+        .deliverListenerEvent("notifyDataError", [aMessage]);
   },
 
   notifyEmergencyCallbackModeChanged: function(aClientId, aActive, aTimeoutMs) {
@@ -1343,13 +1150,9 @@ MobileConnectionService.prototype = {
             JSON.stringify({active: aActive, timeoutMs: aTimeoutMs}));
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.deliverListenerEvent("notifyEmergencyCbModeChanged",
-                                [aActive, aTimeoutMs]);
+    this._getProviderByClientId(aClientId)
+        .deliverListenerEvent("notifyEmergencyCbModeChanged",
+                              [aActive, aTimeoutMs]);
   },
 
   notifyOtaStatusChanged: function(aClientId, aStatus) {
@@ -1357,12 +1160,8 @@ MobileConnectionService.prototype = {
       debug("notifyOtaStatusChanged for " + aClientId + ": " + aStatus);
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.deliverListenerEvent("notifyOtaStatusChanged", [aStatus]);
+    this._getProviderByClientId(aClientId)
+        .deliverListenerEvent("notifyOtaStatusChanged", [aStatus]);
   },
 
   notifyIccChanged: function(aClientId, aIccId) {
@@ -1370,12 +1169,7 @@ MobileConnectionService.prototype = {
       debug("notifyIccChanged for " + aClientId + ": " + aIccId);
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.updateIccId(aIccId);
+    this._getProviderByClientId(aClientId).updateIccId(aIccId);
   },
 
   notifyRadioStateChanged: function(aClientId, aRadioState) {
@@ -1383,12 +1177,7 @@ MobileConnectionService.prototype = {
       debug("notifyRadioStateChanged for " + aClientId + ": " + aRadioState);
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.updateRadioState(aRadioState);
+    this._getProviderByClientId(aClientId).updateRadioState(aRadioState);
   },
 
   notifyNetworkInfoChanged: function(aClientId, aNetworkInfo) {
@@ -1397,18 +1186,15 @@ MobileConnectionService.prototype = {
             JSON.stringify(aNetworkInfo));
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
+    let provider = this._getProviderByClientId(aClientId);
 
     let isVoiceUpdated = false;
     let isDataUpdated = false;
-    let operatorMessage = aNetworkInfo[RIL.NETWORK_INFO_OPERATOR];
-    let voiceMessage = aNetworkInfo[RIL.NETWORK_INFO_VOICE_REGISTRATION_STATE];
-    let dataMessage = aNetworkInfo[RIL.NETWORK_INFO_DATA_REGISTRATION_STATE];
-    let signalMessage = aNetworkInfo[RIL.NETWORK_INFO_SIGNAL];
-    let selectionMessage = aNetworkInfo[RIL.NETWORK_INFO_NETWORK_SELECTION_MODE];
+    let operatorMessage = aNetworkInfo.operator;
+    let voiceMessage = aNetworkInfo.voiceRegistrationState;
+    let dataMessage = aNetworkInfo.dataRegistrationState;
+    let signalMessage = aNetworkInfo.signal;
+    let selectionMessage = aNetworkInfo.networkSelectionMode;
 
     // Batch the *InfoChanged messages together
     if (operatorMessage) {
@@ -1446,12 +1232,7 @@ MobileConnectionService.prototype = {
             JSON.stringify(aSignal));
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.updateSignalInfo(aSignal);
+    this._getProviderByClientId(aClientId).updateSignalInfo(aSignal);
   },
 
   notifyOperatorChanged: function(aClientId, aOperator) {
@@ -1460,12 +1241,7 @@ MobileConnectionService.prototype = {
             JSON.stringify(aOperator));
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
-    provider.updateOperatorInfo(aOperator);
+    this._getProviderByClientId(aClientId).updateOperatorInfo(aOperator);
   },
 
   notifyNetworkSelectModeChanged: function(aClientId, aMode) {
@@ -1473,11 +1249,7 @@ MobileConnectionService.prototype = {
       debug("notifyNetworkSelectModeChanged for " + aClientId + ": " + aMode);
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
+    let provider = this._getProviderByClientId(aClientId);
     if (provider.networkSelectMode === aMode) {
       return;
     }
@@ -1491,10 +1263,7 @@ MobileConnectionService.prototype = {
       debug("notifySpnAvailable for " + aClientId);
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
+    let provider = this._getProviderByClientId(aClientId);
 
     // Update voice roaming state
     provider.updateVoiceInfo({});
@@ -1508,11 +1277,7 @@ MobileConnectionService.prototype = {
       debug("notifyLastHomeNetworkChanged for " + aClientId + ": " + aNetwork);
     }
 
-    let provider = this._providers[aClientId];
-    if (!provider) {
-      throw Cr.NS_ERROR_UNEXPECTED;
-    }
-
+    let provider = this._getProviderByClientId(aClientId);
     if (provider.lastKnownHomeNetwork === aNetwork) {
       return;
     }
@@ -1533,11 +1298,13 @@ MobileConnectionService.prototype = {
           provider.updateDataInfo({});
         }
         break;
+
       case NS_PREFBRANCH_PREFCHANGE_TOPIC_ID:
         if (aData === kPrefRilDebuggingEnabled) {
           this._updateDebugFlag();
         }
         break;
+
       case NS_XPCOM_SHUTDOWN_OBSERVER_ID:
         this._shutdown();
         break;
