@@ -1,0 +1,69 @@
+/* -*- Mode: idl; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "nsITelephonyService.idl"
+
+[scriptable, uuid(08dc6bb6-cd78-433c-8530-7c0eb8783b7f)]
+interface nsISimulatorTelephonyService : nsITelephonyService
+{
+  /**
+   * Simulate an incoming call.
+   *
+   * @param clientId
+   *        A numeric id for identifying the target modem instance.
+   * @param number
+   *        A phone number string.
+   * @param numberPresentation
+   *        One of the nsITelephonyService::CALL_PRESENTATION_* except
+   *        nsITelephonyService::CALL_PRESENTATION_PAYPHONE.
+   * @param name
+   *        A caller ID string.
+   * @param namePresentation
+   *        One of the nsITelephonyService::CALL_PRESENTATION_*.
+   */
+  void notifyRemoteIncoming(in unsigned long clientId,
+                            in AString number,
+                            in unsigned short numberPresentation,
+                            in AString name,
+                            in unsigned short namePresentation);
+
+  /**
+   * Simulate an outgoing call being accepted from remote side.
+   *
+   * @param clientId
+   *        A numeric id for identifying the target modem instance.
+   * @param callIndex
+   *        A numeric call index.
+   */
+  void notifyRemoteAccepted(in unsigned long clientId,
+                            in unsigned long callIndex);
+
+  /**
+   * Simulate an outgoing call being hang up from remote side.
+   *
+   * @param clientId
+   *        A numeric id for identifying the target modem instance.
+   * @param callIndex
+   *        A numeric call index.
+   * @param failCause
+   *        One of GECKO_CALL_ERROR_* defined in ril_consts.js. Use
+   *        "NormalCallClearingError" for normal call termination.
+   */
+  void notifyRemoteHangUp(in unsigned long clientId,
+                          in unsigned long callIndex,
+                          in AString failCause);
+
+  /**
+   * @param clientId
+   *        A numeric id for identifying the target modem instance.
+   * @param callIndex
+   *        A numeric call index.
+   * @param notification
+   *        nsITelephonyService::NOTIFICATION_*.
+   */
+  void notifySupplementaryService(in unsigned long clientId,
+                                  in unsigned long callIndex,
+                                  in unsigned short notification);
+};

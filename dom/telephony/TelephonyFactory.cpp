@@ -20,10 +20,14 @@ TelephonyFactory::CreateTelephonyService()
 
   if (XRE_GetProcessType() == GeckoProcessType_Content) {
     service = new TelephonyIPCService();
-#if defined(MOZ_WIDGET_GONK) && defined(MOZ_B2G_RIL)
   } else {
+#if defined(MOZ_B2G_RIL)
+#if defined(MOZ_WIDGET_GONK)
     service = do_CreateInstance(GONK_TELEPHONY_SERVICE_CONTRACTID);
+#elif defined(FXOS_SIMULATOR)
+    service = do_CreateInstance("@mozilla.org/telephony/simulatortelephonyservice;1");
 #endif
+#endif // !MOZ_B2G_RIL
   }
 
   return service.forget();

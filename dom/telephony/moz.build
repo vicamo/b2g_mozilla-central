@@ -43,14 +43,23 @@ IPDL_SOURCES += [
     'ipc/TelephonyTypes.ipdlh'
 ]
 
-if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk' and CONFIG['MOZ_B2G_RIL']:
-    XPIDL_SOURCES += [
-        'nsIGonkTelephonyService.idl',
-    ]
-    EXTRA_COMPONENTS += [
-        'gonk/TelephonyService.js',
-        'gonk/TelephonyService.manifest',
-    ]
+if CONFIG['MOZ_B2G_RIL']:
+    if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
+        XPIDL_SOURCES += [
+            'gonk/nsIGonkTelephonyService.idl',
+        ]
+        EXTRA_COMPONENTS += [
+            'gonk/TelephonyService.js',
+            'gonk/TelephonyService.manifest',
+        ]
+    elif CONFIG['FXOS_SIMULATOR']:
+        XPIDL_SOURCES += [
+            'simulator/nsISimulatorTelephonyService.idl',
+        ]
+        EXTRA_COMPONENTS += [
+            'simulator/TelephonyService.js',
+            'simulator/TelephonyService.manifest',
+        ]
 
 FAIL_ON_WARNINGS = True
 include('/ipc/chromium/chromium-config.mozbuild')

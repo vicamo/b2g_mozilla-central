@@ -432,19 +432,23 @@
 #endif // MOZ_WIDGET_GONK
 
 ; RIL
-#if defined(MOZ_WIDGET_GONK) && defined(MOZ_B2G_RIL)
+#if defined(MOZ_B2G_RIL)
+#if defined(MOZ_WIDGET_GONK)
 @BINPATH@/components/MmsService.js
 @BINPATH@/components/MmsService.manifest
+@BINPATH@/components/MobileConnectionGonkService.js
+@BINPATH@/components/MobileConnectionGonkService.manifest
 @BINPATH@/components/MobileMessageDatabaseService.js
 @BINPATH@/components/MobileMessageDatabaseService.manifest
 @BINPATH@/components/RadioInterfaceLayer.js
 @BINPATH@/components/RadioInterfaceLayer.manifest
 @BINPATH@/components/RILContentHelper.js
+#endif // MOZ_WIDGET_GONK
+#if defined(MOZ_WIDGET_GONK) || defined(FXOS_SIMULATOR)
 @BINPATH@/components/TelephonyService.js
 @BINPATH@/components/TelephonyService.manifest
-@BINPATH@/components/MobileConnectionGonkService.js
-@BINPATH@/components/MobileConnectionGonkService.manifest
-#endif // MOZ_WIDGET_GONK && MOZ_B2G_RIL
+#endif // MOZ_WIDGET_GONK || FXOS_SIMULATOR
+#endif // MOZ_B2G_RIL
 
 #ifndef MOZ_WIDGET_GONK
 @BINPATH@/components/extensions.manifest
