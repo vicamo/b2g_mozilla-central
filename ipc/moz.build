@@ -11,7 +11,7 @@ DIRS += [
     'testshell',
 ]
 
-if CONFIG['MOZ_B2G_RIL']:
+if CONFIG['MOZ_B2G_RIL'] and CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
     DIRS += ['ril']
 
 if CONFIG['MOZ_B2G_BT_BLUEZ']:
@@ -20,7 +20,7 @@ if CONFIG['MOZ_B2G_BT_BLUEZ']:
 if CONFIG['MOZ_NFC']:
     DIRS += ['nfc']
 
-if CONFIG['MOZ_B2G_RIL'] or CONFIG['MOZ_B2G_BT'] or CONFIG['MOZ_NFC'] or CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
+if CONFIG['MOZ_B2G_BT'] or CONFIG['MOZ_NFC'] or CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
     DIRS += ['unixfd', 'unixsocket']
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
