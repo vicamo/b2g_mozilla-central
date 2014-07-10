@@ -17,6 +17,9 @@ elif toolkit == 'android':
 elif toolkit == 'gonk':
     DIRS += ['gonk']
 
+if CONFIG['FXOS_SIMULATOR']:
+    DIRS += ['simulator']
+
 XPIDL_SOURCES += [
     'nsIOSFileConstantsService.idl',
 ]

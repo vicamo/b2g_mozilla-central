@@ -441,10 +441,10 @@
 @BINPATH@/components/MobileMessageDatabaseService.js
 @BINPATH@/components/MobileMessageDatabaseService.manifest
 @BINPATH@/components/RadioInterfaceLayer.js
-@BINPATH@/components/RadioInterfaceLayer.manifest
-@BINPATH@/components/RILContentHelper.js
 #endif // MOZ_WIDGET_GONK
 #if defined(MOZ_WIDGET_GONK) || defined(FXOS_SIMULATOR)
+@BINPATH@/components/RadioInterfaceLayer.manifest
+@BINPATH@/components/RILContentHelper.js
 @BINPATH@/components/TelephonyService.js
 @BINPATH@/components/TelephonyService.manifest
 #endif // MOZ_WIDGET_GONK || FXOS_SIMULATOR
