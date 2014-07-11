@@ -13,10 +13,12 @@ const {require} = devtools;
 const {ConnectionManager, Connection}
   = require("devtools/client/connection-manager");
 const {getDeviceFront} = require("devtools/server/actors/device");
+const {getVoicecallsFront} = require("devtools/server/actors/ril");
 const {getTargetForApp, launchApp, closeApp}
   = require("devtools/app-actor-front");
 const DeviceStore = require("devtools/app-manager/device-store");
 const WebappsStore = require("devtools/app-manager/webapps-store");
+const VoicecallsStore = require("devtools/app-manager/voicecalls-store");
 const promise = require("devtools/toolkit/deprecated-sync-thenables");
 const DEFAULT_APP_ICON = "chrome://browser/skin/devtools/app-manager/default-app-icon.png";
 
@@ -91,6 +93,7 @@ let UI = {
     this.store = Utils.mergeStores({
       "device": new DeviceStore(this.connection),
       "apps": new WebappsStore(this.connection),
+      "voicecalls": new VoicecallsStore(this.connection),
     });
 
     if (this.template) {
@@ -227,6 +230,47 @@ let UI = {
     return closeApp(this.connection.client,
                     this.listTabsResponse.webappsActor,
                     manifest);
+  },
+
+  dialVoicecall: function() {
+    if (!this.connected) {
+      return promise.reject();
+    }
+
+    let clientId = 0;
+    let number = document.getElementById('dial-voicecall-number').value;
+    let numberPresentation =
+      document.getElementById('dial-voicecall-number-presentation').value;
+    let name = document.getElementById('dial-voicecall-name').value;
+    let namePresentation =
+      document.getElementById('dial-voicecall-name-presentation').value;
+
+    let front = getVoicecallsFront(this.connection.client,
+                                   this.listTabsResponse);
+    return front.dialCall(clientId, number, numberPresentation, name,
+                          namePresentation);
+  },
+
+  acceptVoicecall: function(aElement) {
+    if (!this.connected) {
+      return promise.reject();
+    }
+
+    let [clientId, callIndex] = aElement.getAttribute('call-id').split('-');
+    let front = getVoicecallsFront(this.connection.client,
+                                   this.listTabsResponse);
+    return front.acceptCall(clientId, callIndex);
+  },
+
+  hangUpVoicecall: function(aElement) {
+    if (!this.connected) {
+      return promise.reject();
+    }
+
+    let [clientId, callIndex] = aElement.getAttribute('call-id').split('-');
+    let front = getVoicecallsFront(this.connection.client,
+                                   this.listTabsResponse);
+    return front.hangUpCall(clientId, callIndex, null);
   },
 }
 

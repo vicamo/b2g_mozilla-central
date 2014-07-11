@@ -249,8 +249,16 @@ button {
   content: '   !';
 }
 
+/*****************     Voice Calls     *****************/
 
+.voicecall-buttons > button {
+  display: none;
+}
 
+.voicecall > .voicecall-buttons > .button-hangup-voicecall,
+.voicecall[direction="outgoing"] > .voicecall-buttons[state="alerting"] > .button-accept-voicecall {
+  display: inline-block;
+}
 
 /*****************     SIDEBAR      *****************/
 

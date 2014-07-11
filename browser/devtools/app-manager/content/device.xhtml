@@ -45,6 +45,7 @@
                 <button class="help">&device.help;</button>
               </a>
             </div>
+            <div onclick="UI.setTab('voicecalls')" class="tab sidebar-item voicecalls" title="&device.voicecallsTooltip;">&device.voicecalls;</div>
             <div onclick="UI.setTab('browser-tabs')" class="tab sidebar-item browser-tabs" hidden="true" title="&device.browserTabsTooltip;">&device.browserTabs;</div>
           </div>
         </div>
@@ -68,6 +69,29 @@
               <div class="allow-label" title="&device.allowTooltip;">&device.allow;</div>
               <div class="prompt-label" title="&device.promptTooltip;">&device.prompt;</div>
               <div class="deny-label" title="&device.denyTooltip;">&device.deny;</div>
+            </div>
+          </div>
+          <div class="tabpanel voicecalls voicecall-table">
+            <div class="voicecall-table-header">
+              <div class="voicecall-label">&device.voicecallNumber;</div>
+              <input class="voicecall-text" id="dial-voicecall-number" type="text"/>
+              <select class="button-voicecall-call-presentation" id="dial-voicecall-number-presentation">
+                <option value="allowed" selected="true" title="&device.voicecallCallPresentationAllowedTooltip;">&device.voicecallCallPresentationAllowed;</option>
+                <option value="restricted" title="&device.voicecallCallPresentationRestrictedTooltip;">&device.voicecallCallPresentationRestricted;</option>
+                <option value="unknown" title="&device.voicecallCallPresentationUnknownTooltip;">&device.voicecallCallPresentationUnknown;</option>
+              </select>
+              <div class="voicecall-label">&device.voicecallName;</div>
+              <input class="voicecall-text" id="dial-voicecall-name" type="text"/>
+              <select class="button-voicecall-call-presentation" id="dial-voicecall-name-presentation">
+                <option value="allowed" selected="true" title="&device.voicecallCallPresentationAllowedTooltip;">&device.voicecallCallPresentationAllowed;</option>
+                <option value="restricted" title="&device.voicecallCallPresentationRestrictedTooltip;">&device.voicecallCallPresentationRestricted;</option>
+                <option value="unknown" title="&device.voicecallCallPresentationUnknownTooltip;">&device.voicecallCallPresentationUnknown;</option>
+                <option value="payphone" title="&device.voicecallCallPresentationPayPhoneTooltip;">&device.voicecallCallPresentationPayPhone;</option>
+              </select>
+              <button class="button-dial-voicecall" onclick="UI.dialVoicecall()" title="&device.dialVoicecallTooltip;">&device.dialVoicecall;</button>
+            </div>
+            <div class="voicecall-table-body" >
+              <section template-loop='{"arrayPath":"voicecalls.all","childSelector":"#voicecall-template"}'></section>
             </div>
           </div>
           <div class="tabpanel browser-tabs">
@@ -108,6 +132,19 @@
       <button class="button-debug" template='{"type":"attribute","path":"manifestURL","name":"data-manifest"}' onclick="UI.openToolboxForApp(this.dataset.manifest)" title="&device.debugAppTooltip;">&device.debugApp;</button>
       <button class="button-start" template='{"type":"attribute","path":"manifestURL","name":"data-manifest"}' onclick="UI.startApp(this.dataset.manifest)" title="&device.startAppTooltip;">&device.startApp;</button>
       <button class="button-stop" template='{"type":"attribute","path":"manifestURL","name":"data-manifest"}' onclick="UI.stopApp(this.dataset.manifest)" title="&device.stopAppTooltip;">&device.stopApp;</button>
+    </div>
+  </div>
+  </template>
+
+  <template id="voicecall-template">
+  <div class="voicecall" template='{"type":"attribute","path":"direction","name":"direction"}'>
+    <div class="voicecall-number" template='{"type":"textContent","path":"number"}'></div>
+    <div class="voicecall-state" template='{"type":"textContent","path":"state"}'></div>
+    <div class="voicecall-emergency" template='{"type":"attribute","path":"emergency","name":"emergency"}'></div>
+    <div class="voicecall-conference" template='{"type":"attribute","path":"conference","name":"conference"}'></div>
+    <div class="voicecall-buttons" template='{"type":"attribute","path":"state","name":"state"}'>
+      <button class="button-accept-voicecall" template='{"type":"attribute","path":"ui-id","name":"call-id"}' onclick="UI.acceptVoicecall(this)" title="&device.acceptVoicecallTooltip;">&device.acceptVoicecall;</button>
+      <button class="button-hangup-voicecall" template='{"type":"attribute","path":"ui-id","name":"call-id"}' onclick="UI.hangUpVoicecall(this)" title="&device.hangUpVoicecallTooltip;">&device.hangUpVoicecall;</button>
     </div>
   </div>
   </template>

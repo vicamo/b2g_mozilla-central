@@ -14,5 +14,6 @@ EXTRA_JS_MODULES.devtools["app-manager"] += [
     'connection-store.js',
     'device-store.js',
     'simulators-store.js',
+    'voicecalls-store.js',
     'webapps-store.js',
 ]

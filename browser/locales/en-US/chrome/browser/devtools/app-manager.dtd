@@ -38,6 +38,24 @@
 <!ENTITY device.browserTabsTooltip "View a list of tabs in the browser of the connected device">
 <!ENTITY device.debugBrowserTab "Debug">
 <!ENTITY device.debugBrowserTabTooltip "Open the Developer Tools connected to this browser tab on the device">
+<!ENTITY device.voicecalls "Voice Calls">
+<!ENTITY device.voicecallsTooltip "Manage voice calls.">
+<!ENTITY device.acceptVoicecall "Accept">
+<!ENTITY device.acceptVoicecallTooltip "Simulate accepting calls from remote.">
+<!ENTITY device.hangUpVoicecall "Hang Up">
+<!ENTITY device.hangUpVoicecallTooltip "Simulate hanging up calls from remote.">
+<!ENTITY device.dialVoicecall "Dial">
+<!ENTITY device.dialVoicecallTooltip "Simulate incoming call from remote.">
+<!ENTITY device.voicecallNumber "Number:">
+<!ENTITY device.voicecallName "Name:">
+<!ENTITY device.voicecallCallPresentationAllowed "Allowed">
+<!ENTITY device.voicecallCallPresentationAllowedTooltip "Allowed">
+<!ENTITY device.voicecallCallPresentationRestricted "Restricted">
+<!ENTITY device.voicecallCallPresentationRestrictedTooltip "Call number/name has been withheld by the calling party.">
+<!ENTITY device.voicecallCallPresentationPayPhone "Pay Phone">
+<!ENTITY device.voicecallCallPresentationPayPhoneTooltip "Call number is not available due to calling party being of type payphone.">
+<!ENTITY device.voicecallCallPresentationUnknown "Unknown">
+<!ENTITY device.voicecallCallPresentationUnknownTooltip "Call number/name is not available due to networking problems or other reason.">
 <!ENTITY device.help "Help">
 
 <!ENTITY connection.connectTooltip "Connect to the device">
