@@ -436,8 +436,8 @@
 #if defined(MOZ_WIDGET_GONK)
 @BINPATH@/components/MmsService.js
 @BINPATH@/components/MmsService.manifest
-@BINPATH@/components/MobileConnectionGonkService.js
-@BINPATH@/components/MobileConnectionGonkService.manifest
+@BINPATH@/components/MobileConnectionService.js
+@BINPATH@/components/MobileConnectionService.manifest
 @BINPATH@/components/MobileMessageDatabaseService.js
 @BINPATH@/components/MobileMessageDatabaseService.manifest
 @BINPATH@/components/RadioInterfaceLayer.js
