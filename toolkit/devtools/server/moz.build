@@ -49,6 +49,7 @@ EXTRA_JS_MODULES.devtools.server.actors += [
     'actors/preference.js',
     'actors/pretty-print-worker.js',
     'actors/profiler.js',
+    'actors/ril.js',
     'actors/root.js',
     'actors/script.js',
     'actors/storage.js',
