@@ -126,12 +126,9 @@ using mozilla::system::nsVolumeService;
 #endif
 
 #ifdef MOZ_B2G_RIL
+#include "mozilla/dom/mobileconnection/MobileConnectionFactory.h"
 #include "nsIMobileConnectionService.h"
-#include "mozilla/dom/mobileconnection/MobileConnectionIPCService.h"
-using mozilla::dom::mobileconnection::MobileConnectionIPCService;
-#ifdef MOZ_WIDGET_GONK
-#include "nsIGonkMobileConnectionService.h"
-#endif
+using namespace mozilla::dom::mobileconnection;
 #endif
 
 #include "AudioChannelAgent.h"
@@ -365,6 +362,10 @@ NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIMediaManagerService,
                                          MediaManager::GetInstance)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsITelephonyService,
                                          TelephonyFactory::CreateTelephonyService)
+#ifdef MOZ_B2G_RIL
+NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIMobileConnectionService,
+                                         MobileConnectionFactory::CreateMobileConnectionService)
+#endif
 
 //-----------------------------------------------------------------------------
 
@@ -938,31 +939,6 @@ nsEditingCommandTableConstructor(nsISupports *aOuter, REFNSIID aIID,
   return commandTable->QueryInterface(aIID, aResult);
 }
 
-#ifdef MOZ_B2G_RIL
-
-static nsresult
-nsIMobileConnectionServiceConstructor(nsISupports *aOuter, REFNSIID aIID,
-                                      void **aResult)
-{
-  nsCOMPtr<nsIMobileConnectionService> service;
-
-  if (XRE_GetProcessType() == GeckoProcessType_Content) {
-    service = MobileConnectionIPCService::GetSingleton();
-  } else {
-#ifdef MOZ_WIDGET_GONK
-    service = do_CreateInstance(GONK_MOBILECONNECTION_SERVICE_CONTRACTID);
-#endif
-  }
-
-  if (!service) {
-    return NS_ERROR_NOT_AVAILABLE;
-  }
-
-  return service->QueryInterface(aIID, aResult);
-}
-
-#endif
-
 static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   XPCONNECT_CIDENTRIES
 #ifdef DEBUG
@@ -1119,7 +1095,7 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
 #endif
   { &kTELEPHONY_SERVICE_CID, false, nullptr, nsITelephonyServiceConstructor },
 #ifdef MOZ_B2G_RIL
-  { &kNS_MOBILE_CONNECTION_SERVICE_CID, true, NULL, nsIMobileConnectionServiceConstructor },
+  { &kNS_MOBILE_CONNECTION_SERVICE_CID, true, nullptr, nsIMobileConnectionServiceConstructor },
 #endif
   { nullptr }
 };

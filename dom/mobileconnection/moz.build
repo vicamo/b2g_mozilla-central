@@ -20,6 +20,7 @@ EXPORTS.mozilla.dom.mobileconnection += [
     'ipc/MobileConnectionIPCSerializer.h',
     'ipc/MobileConnectionIPCService.h',
     'ipc/MobileConnectionParent.h',
+    'MobileConnectionFactory.h',
 ]
 
 XPIDL_SOURCES += [
@@ -40,6 +41,7 @@ SOURCES += [
     'MobileConnection.cpp',
     'MobileConnectionArray.cpp',
     'MobileConnectionCallback.cpp',
+    'MobileConnectionFactory.cpp',
     'MobileConnectionInfo.cpp',
     'MobileNetworkInfo.cpp',
 ]
