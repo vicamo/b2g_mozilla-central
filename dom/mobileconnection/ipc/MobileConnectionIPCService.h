@@ -6,7 +6,7 @@
 #define mozilla_dom_mobileconnection_MobileConnectionIPCService_h
 
 #include "nsCOMPtr.h"
-#include "MobileConnectionChild.h"
+#include "mozilla/dom/mobileconnection/MobileConnectionChild.h"
 #include "nsIMobileConnectionService.h"
 
 namespace mozilla {
