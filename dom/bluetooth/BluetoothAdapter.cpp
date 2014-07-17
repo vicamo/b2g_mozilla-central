@@ -285,7 +285,7 @@ BluetoothAdapter::SetPropertyByValue(const BluetoothNamedValue& aValue)
     nsCString warningMsg;
     warningMsg.AssignLiteral("Not handling adapter property: ");
     warningMsg.Append(NS_ConvertUTF16toUTF8(name));
-    BT_WARNING(warningMsg.get());
+    BT_WARNING("%s", warningMsg.get());
 #endif
   }
 }
@@ -374,7 +374,7 @@ BluetoothAdapter::Notify(const BluetoothSignal& aData)
     nsCString warningMsg;
     warningMsg.AssignLiteral("Not handling adapter signal: ");
     warningMsg.Append(NS_ConvertUTF16toUTF8(aData.name()));
-    BT_WARNING(warningMsg.get());
+    BT_WARNING("%s", warningMsg.get());
 #endif
   }
 }

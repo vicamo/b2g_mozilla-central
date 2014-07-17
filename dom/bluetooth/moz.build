@@ -77,8 +77,12 @@ if CONFIG['MOZ_B2G_BT']:
         CXXFLAGS += CONFIG['MOZ_DBUS_CFLAGS']
         CXXFLAGS += CONFIG['MOZ_DBUS_GLIB_CFLAGS']
         SOURCES += [
+            'bluez/BluetoothA2dpManager.cpp',
             'bluez/BluetoothDBusService.cpp',
             'bluez/BluetoothHfpManager.cpp',
+            'bluez/BluetoothSocket.cpp',
+            'bluez/BluetoothUnixSocketConnector.cpp',
+            'bluez/BluetoothUtils.cpp',
         ]
         LOCAL_INCLUDES += [
             'bluez',

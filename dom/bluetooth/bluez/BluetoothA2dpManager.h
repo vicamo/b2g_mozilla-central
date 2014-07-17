@@ -31,7 +31,6 @@ public:
   };
 
   static BluetoothA2dpManager* Get();
-  virtual ~BluetoothA2dpManager();
 
   // A2DP-specific functions
   void HandleSinkPropertyChanged(const BluetoothSignal& aSignal);
@@ -57,6 +56,8 @@ public:
 
 private:
   BluetoothA2dpManager();
+  virtual ~BluetoothA2dpManager();
+
   bool Init();
   void ResetA2dp();
   void ResetAvrcp();

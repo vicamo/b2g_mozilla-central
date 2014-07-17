@@ -13,7 +13,9 @@
 #include "BluetoothHfpManager.h"
 #include "BluetoothHidManager.h"
 #include "BluetoothManager.h"
+#if defined(MOZ_WIDGET_GONK)
 #include "BluetoothOppManager.h"
+#endif
 #include "BluetoothParent.h"
 #include "BluetoothReplyRunnable.h"
 #include "BluetoothServiceChildProcess.h"
@@ -175,7 +177,7 @@ BluetoothService::ToggleBtAck::Run()
   return NS_OK;
 }
 
-class BluetoothService::StartupTask : public nsISettingsServiceCallback
+class BluetoothService::StartupTask MOZ_FINAL : public nsISettingsServiceCallback
 {
 public:
   NS_DECL_ISUPPORTS
@@ -203,6 +205,9 @@ public:
     BT_WARNING("Unable to get value for '" BLUETOOTH_ENABLED_SETTING "'");
     return NS_OK;
   }
+
+private:
+  ~StartupTask() {}
 };
 
 NS_IMPL_ISUPPORTS(BluetoothService::StartupTask, nsISettingsServiceCallback);
@@ -378,7 +383,7 @@ BluetoothService::DistributeSignal(const BluetoothSignal& aSignal)
 #if DEBUG
     nsAutoCString msg("No observer registered for path ");
     msg.Append(NS_ConvertUTF16toUTF8(aSignal.path()));
-    BT_WARNING(msg.get());
+    BT_WARNING("%s", msg.get());
 #endif
     return;
   }
@@ -436,11 +441,13 @@ BluetoothService::StopBluetooth(bool aIsStartup)
     profile->Reset();
   }
 
+#if defined(MOZ_WIDGET_GONK)
   profile = BluetoothOppManager::Get();
   NS_ENSURE_TRUE(profile, NS_ERROR_FAILURE);
   if (profile->IsConnected()) {
     profile->Disconnect(nullptr);
   }
+#endif
 
   profile = BluetoothA2dpManager::Get();
   NS_ENSURE_TRUE(profile, NS_ERROR_FAILURE);
@@ -826,7 +833,7 @@ BluetoothService::Notify(const BluetoothSignal& aData)
     nsCString warningMsg;
     warningMsg.AssignLiteral("Not handling service signal: ");
     warningMsg.Append(NS_ConvertUTF16toUTF8(aData.name()));
-    BT_WARNING(warningMsg.get());
+    BT_WARNING("%s", warningMsg.get());
     return;
   }
 

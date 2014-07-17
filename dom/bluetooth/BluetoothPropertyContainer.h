@@ -38,11 +38,6 @@ public:
     return mPath;
   }
 
-  // Compatibility with nsRefPtr to make sure we don't hold a weakptr to
-  // ourselves
-  virtual nsrefcnt AddRef() = 0;
-  virtual nsrefcnt Release() = 0;
-
 protected:
   BluetoothPropertyContainer(BluetoothObjectType aType) :
     mObjectType(aType)

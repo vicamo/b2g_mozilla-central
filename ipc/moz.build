@@ -14,7 +14,7 @@ DIRS += [
 if CONFIG['MOZ_B2G_RIL']:
     DIRS += ['ril']
 
-if CONFIG['MOZ_B2G_BT_BLUEZ']:
+if CONFIG['MOZ_B2G_BT'] and (CONFIG['MOZ_B2G_BT_BLUEZ'] or CONFIG['MOZ_ENABLE_DBUS']):
     DIRS += ['dbus']
 
 if CONFIG['MOZ_NFC']:

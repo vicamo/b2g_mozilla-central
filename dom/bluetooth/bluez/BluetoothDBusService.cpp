@@ -21,7 +21,9 @@
 #include "BluetoothA2dpManager.h"
 #include "BluetoothHfpManager.h"
 #include "BluetoothHidManager.h"
+#if defined(MOZ_WIDGET_GONK)
 #include "BluetoothOppManager.h"
+#endif
 #include "BluetoothProfileController.h"
 #include "BluetoothReplyRunnable.h"
 #include "BluetoothUnixSocketConnector.h"
@@ -32,9 +34,10 @@
 #include <dbus/dbus.h>
 
 #include "nsAutoPtr.h"
-#include "nsThreadUtils.h"
 #include "nsDebug.h"
 #include "nsDataHashtable.h"
+#include "nsThreadUtils.h"
+#include "nsXULAppAPI.h" // for XRE_GetIOMessageLoop.
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/Atomics.h"
 #include "mozilla/dom/bluetooth/BluetoothTypes.h"
@@ -46,6 +49,7 @@
 #include "mozilla/Mutex.h"
 #include "mozilla/NullPtr.h"
 #include "mozilla/StaticMutex.h"
+#include "mozilla/StaticPtr.h"
 #include "mozilla/unused.h"
 
 #if defined(MOZ_WIDGET_GONK)
@@ -654,11 +658,13 @@ public:
       return NS_ERROR_FAILURE;
     }
 
+#if defined(MOZ_WIDGET_GONK)
     BluetoothOppManager* opp = BluetoothOppManager::Get();
     if (!opp || !opp->Listen()) {
       BT_WARNING("Failed to start listening for BluetoothOppManager!");
       return NS_ERROR_FAILURE;
     }
+#endif
 
     BluetoothA2dpManager* a2dp = BluetoothA2dpManager::Get();
     NS_ENSURE_TRUE(a2dp, NS_ERROR_FAILURE);
@@ -1447,7 +1453,7 @@ AgentEventFilter(DBusConnection *conn, DBusMessage *msg, void *data)
   }
 
   if (!errorStr.IsEmpty()) {
-    BT_WARNING(NS_ConvertUTF16toUTF8(errorStr).get());
+    BT_WARNING("%s", NS_ConvertUTF16toUTF8(errorStr).get());
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
   }
 
@@ -1470,7 +1476,7 @@ AgentEventFilter(DBusConnection *conn, DBusMessage *msg, void *data)
   return DBUS_HANDLER_RESULT_HANDLED;
 
 handle_error:
-  BT_WARNING(NS_ConvertUTF16toUTF8(errorStr).get());
+  BT_WARNING("%s", NS_ConvertUTF16toUTF8(errorStr).get());
   return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
@@ -1976,7 +1982,7 @@ EventFilter(DBusConnection* aConn, DBusMessage* aMsg, void* aData)
   }
 
   if (!errorStr.IsEmpty()) {
-    BT_WARNING(NS_ConvertUTF16toUTF8(errorStr).get());
+    BT_WARNING("%s", NS_ConvertUTF16toUTF8(errorStr).get());
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
   }
 
@@ -3814,6 +3820,7 @@ BluetoothDBusService::SendFile(const nsAString& aDeviceAddress,
 {
   MOZ_ASSERT(NS_IsMainThread());
 
+#if defined(MOZ_WIDGET_GONK)
   // Currently we only support one device sending one file at a time,
   // so we don't need aDeviceAddress here because the target device
   // has been determined when calling 'Connect()'. Nevertheless, keep
@@ -3823,6 +3830,10 @@ BluetoothDBusService::SendFile(const nsAString& aDeviceAddress,
   if (!opp || !opp->SendFile(aDeviceAddress, aBlobParent)) {
     errorStr.AssignLiteral("Calling SendFile() failed");
   }
+#else
+  nsAutoString errorStr;
+  errorStr.AssignLiteral("OPP not supported");
+#endif
 
   DispatchBluetoothReply(aRunnable, BluetoothValue(true), errorStr);
 }
@@ -3834,6 +3845,7 @@ BluetoothDBusService::SendFile(const nsAString& aDeviceAddress,
 {
   MOZ_ASSERT(NS_IsMainThread());
 
+#if defined(MOZ_WIDGET_GONK)
   // Currently we only support one device sending one file at a time,
   // so we don't need aDeviceAddress here because the target device
   // has been determined when calling 'Connect()'. Nevertheless, keep
@@ -3843,6 +3855,10 @@ BluetoothDBusService::SendFile(const nsAString& aDeviceAddress,
   if (!opp || !opp->SendFile(aDeviceAddress, aBlob)) {
     errorStr.AssignLiteral("Calling SendFile() failed");
   }
+#else
+  nsAutoString errorStr;
+  errorStr.AssignLiteral("OPP not supported");
+#endif
 
   DispatchBluetoothReply(aRunnable, BluetoothValue(true), errorStr);
 }
@@ -3853,6 +3869,7 @@ BluetoothDBusService::StopSendingFile(const nsAString& aDeviceAddress,
 {
   MOZ_ASSERT(NS_IsMainThread());
 
+#if defined(MOZ_WIDGET_GONK)
   // Currently we only support one device sending one file at a time,
   // so we don't need aDeviceAddress here because the target device
   // has been determined when calling 'Connect()'. Nevertheless, keep
@@ -3862,6 +3879,10 @@ BluetoothDBusService::StopSendingFile(const nsAString& aDeviceAddress,
   if (!opp || !opp->StopSendingFile()) {
     errorStr.AssignLiteral("Calling StopSendingFile() failed");
   }
+#else
+  nsAutoString errorStr;
+  errorStr.AssignLiteral("OPP not supported");
+#endif
 
   DispatchBluetoothReply(aRunnable, BluetoothValue(true), errorStr);
 }
@@ -3873,6 +3894,7 @@ BluetoothDBusService::ConfirmReceivingFile(const nsAString& aDeviceAddress,
 {
   MOZ_ASSERT(NS_IsMainThread(), "Must be called from main thread!");
 
+#if defined(MOZ_WIDGET_GONK)
   // Currently we only support one device sending one file at a time,
   // so we don't need aDeviceAddress here because the target device
   // has been determined when calling 'Connect()'. Nevertheless, keep
@@ -3882,6 +3904,10 @@ BluetoothDBusService::ConfirmReceivingFile(const nsAString& aDeviceAddress,
   if (!opp || !opp->ConfirmReceivingFile(aConfirm)) {
     errorStr.AssignLiteral("Calling ConfirmReceivingFile() failed");
   }
+#else
+  nsAutoString errorStr;
+  errorStr.AssignLiteral("OPP not supported");
+#endif
 
   DispatchBluetoothReply(aRunnable, BluetoothValue(true), errorStr);
 }
@@ -4219,7 +4245,7 @@ ControlCallback(DBusMessage* aMsg, void* aParam)
   nsAutoString replyError;
   UnpackVoidMessage(aMsg, nullptr, v, replyError);
   if (!v.get_bool()) {
-    BT_WARNING(NS_ConvertUTF16toUTF8(replyError).get());
+    BT_WARNING("%s", NS_ConvertUTF16toUTF8(replyError).get());
   }
 }
 

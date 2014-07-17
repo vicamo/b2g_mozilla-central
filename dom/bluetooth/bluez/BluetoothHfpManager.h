@@ -86,7 +86,6 @@ public:
   }
 
   static BluetoothHfpManager* Get();
-  ~BluetoothHfpManager();
 
   // The following functions are inherited from BluetoothSocketObserver
   virtual void ReceiveSocketData(
@@ -148,6 +147,8 @@ private:
   friend class BluetoothHfpManagerObserver;
 
   BluetoothHfpManager();
+  ~BluetoothHfpManager();
+
   void HandleShutdown();
   void HandleVolumeChanged(const nsAString& aData);
 

@@ -194,6 +194,9 @@ public:
     BT_WARNING("Unable to get value for '" AUDIO_VOLUME_BT_SCO_ID "'");
     return NS_OK;
   }
+
+private:
+  ~GetVolumeTask() {}
 };
 
 NS_IMPL_ISUPPORTS(BluetoothHfpManager::GetVolumeTask,
@@ -1070,7 +1073,7 @@ BluetoothHfpManager::ReceiveSocketData(BluetoothSocket* aSocket,
     warningMsg.AppendLiteral("Unsupported AT command: ");
     warningMsg.Append(msg);
     warningMsg.AppendLiteral(", reply with ERROR");
-    BT_WARNING(warningMsg.get());
+    BT_WARNING("%s", warningMsg.get());
 
     SendLine("ERROR");
     return;

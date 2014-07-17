@@ -9,7 +9,9 @@
 #include "BluetoothA2dpManager.h"
 #include "BluetoothHfpManager.h"
 #include "BluetoothHidManager.h"
+#if defined(MOZ_WIDGET_GONK)
 #include "BluetoothOppManager.h"
+#endif
 
 USING_BLUETOOTH_NAMESPACE
 
@@ -79,9 +81,11 @@ BluetoothUuidHelper::GetBluetoothProfileManager(uint16_t aServiceUuid)
     case BluetoothServiceClass::A2DP:
       profile = BluetoothA2dpManager::Get();
       break;
+#if defined(MOZ_WIDGET_GONK)
     case BluetoothServiceClass::OBJECT_PUSH:
       profile = BluetoothOppManager::Get();
       break;
+#endif
     default:
       profile = nullptr;
   }
