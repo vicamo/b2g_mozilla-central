@@ -41,7 +41,6 @@
 #include "cutils/properties.h"
 #endif
 
-#if defined(MOZ_B2G_BT)
 #if defined(MOZ_B2G_BT_BLUEZ)
 /**
  * B2G blueZ:
@@ -55,7 +54,6 @@
  *   MOZ_B2G_BLUEZ is not defined.
  */
 #include "BluetoothServiceBluedroid.h"
-#endif
 #elif defined(MOZ_BLUETOOTH_DBUS)
 /**
  * Desktop bluetooth:
@@ -242,7 +240,6 @@ RemoveObserversExceptBluetoothManager
 BluetoothService*
 BluetoothService::Create()
 {
-#if defined(MOZ_B2G_BT)
   if (!IsMainProcess()) {
     return BluetoothServiceChildProcess::Create();
   }
@@ -251,7 +248,6 @@ BluetoothService::Create()
   return new BluetoothDBusService();
 #elif defined(MOZ_B2G_BT_BLUEDROID)
   return new BluetoothServiceBluedroid();
-#endif
 #elif defined(MOZ_BLUETOOTH_DBUS)
   return new BluetoothDBusService();
 #endif
