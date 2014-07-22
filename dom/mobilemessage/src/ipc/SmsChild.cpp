@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <android/log.h>
 #include "SmsChild.h"
 #include "SmsMessage.h"
 #include "MmsMessage.h"
@@ -13,6 +14,8 @@
 #include "mozilla/dom/mobilemessage/Constants.h" // For MessageType
 #include "MobileMessageThread.h"
 #include "MainThreadUtils.h"
+
+#define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "Gecko" , ## args)
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -302,6 +305,7 @@ MobileMessageCursorChild::RecvNotifyResult(const MobileMessageCursorData& aData)
       result = new SmsMessage(aData.get_SmsMessageData());
       break;
     case MobileMessageCursorData::TThreadData:
+      LOG("MobileMessageCursorChild::RecvNotifyResult");
       result = new MobileMessageThread(aData.get_ThreadData());
       break;
     default:
@@ -316,6 +320,7 @@ bool
 MobileMessageCursorChild::Recv__delete__(const int32_t& aError)
 {
   MOZ_ASSERT(mCursorCallback);
+  LOG("MobileMessageCursorChild::Recv__delete__");
 
   if (aError != nsIMobileMessageCallback::SUCCESS_NO_ERROR) {
     mCursorCallback->NotifyCursorError(aError);

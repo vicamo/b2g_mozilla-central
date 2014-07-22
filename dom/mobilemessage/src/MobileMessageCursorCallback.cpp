@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <android/log.h>
 #include "MobileMessageCursorCallback.h"
 #include "mozilla/dom/ScriptSettings.h"
 #include "nsIDOMDOMRequest.h"
@@ -10,6 +11,8 @@
 #include "nsIMobileMessageCallback.h"
 #include "DOMCursor.h"
 #include "nsServiceManagerUtils.h"      // for do_GetService
+
+#define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "Gecko" , ## args)
 
 namespace mozilla {
 namespace dom {
@@ -58,6 +61,7 @@ NS_IMETHODIMP
 MobileMessageCursorCallback::NotifyCursorResult(nsISupports* aResult)
 {
   MOZ_ASSERT(mDOMCursor);
+  LOG("MobileMessageCursorCallback::NotifyCursorResult");
 
   AutoJSAPI jsapi;
   if (NS_WARN_IF(!jsapi.Init(mDOMCursor->GetOwner()))) {
@@ -69,7 +73,9 @@ MobileMessageCursorCallback::NotifyCursorResult(nsISupports* aResult)
   nsresult rv = nsContentUtils::WrapNative(cx, aResult, &wrappedResult);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  LOG("MobileMessageCursorCallback::NotifyCursorResult FireSuccess");
   mDOMCursor->FireSuccess(wrappedResult);
+  LOG("MobileMessageCursorCallback::NotifyCursorResult done");
   return NS_OK;
 }
 
@@ -77,10 +83,12 @@ NS_IMETHODIMP
 MobileMessageCursorCallback::NotifyCursorDone()
 {
   MOZ_ASSERT(mDOMCursor);
+  LOG("MobileMessageCursorCallback::NotifyCursorDone");
 
   nsRefPtr<DOMCursor> cursor = mDOMCursor.forget();
   cursor->FireDone();
 
+  LOG("MobileMessageCursorCallback::NotifyCursorDone done");
   return NS_OK;
 }
 

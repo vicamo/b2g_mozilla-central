@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <android/log.h>
 #include "SmsParent.h"
 #include "nsISmsService.h"
 #include "nsIMmsService.h"
@@ -27,6 +28,8 @@
 #include "xpcpublic.h"
 #include "nsServiceManagerUtils.h"
 #include "DeletedMessageInfo.h"
+
+#define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "Gecko" , ## args)
 
 namespace mozilla {
 namespace dom {
@@ -828,6 +831,7 @@ MobileMessageCursorParent::NotifyCursorResult(nsISupports* aResult)
   // case ActorDestroy() was called and mContinueCallback is now null. Return an
   // error here to avoid sending a message to the dead process.
   NS_ENSURE_TRUE(mContinueCallback, NS_ERROR_FAILURE);
+  LOG("MobileMessageCursorParent::NotifyCursorResult");
 
   nsCOMPtr<nsIDOMMozSmsMessage> iSms = do_QueryInterface(aResult);
   if (iSms) {
@@ -858,9 +862,17 @@ MobileMessageCursorParent::NotifyCursorResult(nsISupports* aResult)
   MOZ_CRASH("Received invalid response parameters!");
 }
 
+bool
+MobileMessageCursorParent::SendNotifyResult(const MobileMessageCursorData& aData)
+{
+  LOG("MobileMessageCursorParent::SendNotifyResult");
+  return PMobileMessageCursorParent::SendNotifyResult(aData);
+}
+
 NS_IMETHODIMP
 MobileMessageCursorParent::NotifyCursorDone()
 {
+  LOG("MobileMessageCursorParent::NotifyCursorDone");
   return NotifyCursorError(nsIMobileMessageCallback::SUCCESS_NO_ERROR);
 }
 

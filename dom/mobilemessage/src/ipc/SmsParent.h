@@ -154,6 +154,9 @@ protected:
 
   bool
   DoRequest(const CreateThreadCursorRequest& aRequest);
+
+  bool
+  SendNotifyResult(const MobileMessageCursorData& aData);
 };
 
 } // namespace mobilemessage

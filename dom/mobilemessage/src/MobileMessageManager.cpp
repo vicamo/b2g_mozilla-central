@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <android/log.h>
 #include "MobileMessageManager.h"
 
 #include "DeletedMessageInfo.h"
@@ -38,6 +39,8 @@
 #define READ_SUCCESS_EVENT_NAME     NS_LITERAL_STRING("readsuccess")
 #define READ_ERROR_EVENT_NAME       NS_LITERAL_STRING("readerror")
 #define DELETED_EVENT_NAME          NS_LITERAL_STRING("deleted")
+
+#define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "Gecko" , ## args)
 
 using namespace mozilla::dom::mobilemessage;
 
@@ -428,6 +431,7 @@ MobileMessageManager::MarkMessageRead(int32_t aId,
 already_AddRefed<DOMCursor>
 MobileMessageManager::GetThreads(ErrorResult& aRv)
 {
+  LOG("MobileMessageManager::GetThreads begin");
   nsCOMPtr<nsIMobileMessageDatabaseService> dbService =
     do_GetService(MOBILE_MESSAGE_DATABASE_SERVICE_CONTRACTID);
   if (!dbService) {
@@ -449,6 +453,7 @@ MobileMessageManager::GetThreads(ErrorResult& aRv)
   cursorCallback->mDOMCursor = new DOMCursor(GetOwner(), continueCallback);
 
   nsRefPtr<DOMCursor> cursor = cursorCallback->mDOMCursor;
+  LOG("MobileMessageManager::GetThreads end");
   return cursor.forget();
 }
 

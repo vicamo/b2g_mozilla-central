@@ -3190,10 +3190,11 @@ MobileMessageDB.prototype = {
   },
 
   createThreadCursor: function(callback) {
-    if (DEBUG) debug("Getting thread list");
+    debug("Getting thread list");
 
     let cursor = new GetThreadsCursor(this, callback);
     this.newTxn(READ_ONLY, function(error, txn, threadStore) {
+      debug("newTxn ready");
       let collector = cursor.collector;
       if (error) {
         collector.collect(null, COLLECT_ID_ERROR, COLLECT_TIMESTAMP_UNUSED);
@@ -3207,10 +3208,12 @@ MobileMessageDB.prototype = {
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor) {
+          debug("threadStore cursor.onsuccess");
           if (collector.collect(txn, cursor.primaryKey, cursor.key)) {
             cursor.continue();
           }
         } else {
+          debug("threadStore cursor.onsuccess done");
           collector.collect(txn, COLLECT_ID_END, COLLECT_TIMESTAMP_UNUSED);
         }
       };
@@ -3819,9 +3822,7 @@ GetThreadsCursor.prototype = {
     let self = this;
     getRequest.onsuccess = function onsuccess(event) {
       let threadRecord = event.target.result;
-      if (DEBUG) {
-        debug("notifyCursorResult: " + JSON.stringify(threadRecord));
-      }
+      debug("GetThreadsCursor::getThreadTxn createThread");
       let thread =
         gMobileMessageService.createThread(threadRecord.id,
                                            threadRecord.participantAddresses,
@@ -3830,6 +3831,7 @@ GetThreadsCursor.prototype = {
                                            threadRecord.body,
                                            threadRecord.unreadCount,
                                            threadRecord.lastMessageType);
+      debug("GetThreadsCursor::getThreadTxn notifyCursorResult");
       self.callback.notifyCursorResult(thread);
     };
     getRequest.onerror = function onerror(event) {
