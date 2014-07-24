@@ -336,20 +336,6 @@ NetworkStatsDB.prototype = {
     return stats;
   },
 
-  exportData: function exportData(aStats) {
-    let stats = { appId:        aStats.appId,
-                  serviceType:  aStats.serviceType,
-                  networkId:    aStats.network[0],
-                  networkType:  aStats.network[1],
-                  timestamp:    aStats.timestamp,
-                  rxBytes:      aStats.rxBytes,
-                  txBytes:      aStats.txBytes,
-                  rxTotalBytes: aStats.rxTotalBytes,
-                  txTotalBytes: aStats.txTotalBytes };
-
-    return stats;
-  },
-
   normalizeDate: function normalizeDate(aDate) {
     // Convert to UTC according to timezone and
     // filter timestamp to get SAMPLE_RATE precission
@@ -973,25 +959,6 @@ NetworkStatsDB.prototype = {
         if (cursor) {
           cursor.delete();
           cursor.continue();
-        }
-      }
-    }, aResultCb);
-  },
-
-  updateAlarm: function updateAlarm(aAlarm, aResultCb) {
-    let self = this;
-    this.dbNewTxn(ALARMS_STORE_NAME, "readwrite", function(txn, store) {
-      if (DEBUG) {
-        debug("Update alarm " + aAlarm.id);
-      }
-
-      let record = self.alarmToRecord(aAlarm);
-      store.openCursor(record.id).onsuccess = function onsuccess(event) {
-        let cursor = event.target.result;
-        txn.result = false;
-        if (cursor) {
-          cursor.update(record);
-          txn.result = true;
         }
       }
     }, aResultCb);

@@ -53,35 +53,6 @@ NetworkStatsServiceProxy.prototype = {
                                   aCallback);
   },
 
-  /*
-   * Function called in the points of different system services
-   * to pass the per-serive stats to NetworkStatsService.
-   */
-  saveServiceStats: function saveServiceStats(aServiceType, aNetwork,
-                                              aTimeStamp, aRxBytes, aTxBytes,
-                                              aIsAccumulative, aCallback) {
-    if (!aNetwork) {
-      if (DEBUG) {
-        debug("|aNetwork| is not specified. Failed to save stats. Returning.");
-      }
-      return;
-    }
-
-    if (DEBUG) {
-      debug("saveServiceStats: " + aServiceType + " " + aNetwork.type + " " +
-            aTimeStamp + " " + aRxBytes + " " + aTxBytes + " " +
-            aIsAccumulative);
-    }
-
-    if (aCallback) {
-      aCallback = aCallback.notify;
-    }
-
-    NetworkStatsService.saveStats(0, aServiceType ,aNetwork, aTimeStamp,
-                                  aRxBytes, aTxBytes, aIsAccumulative,
-                                  aCallback);
-  },
-
   classID : NETWORKSTATSSERVICEPROXY_CID,
   QueryInterface : XPCOMUtils.generateQI([nsINetworkStatsServiceProxy]),
 }
