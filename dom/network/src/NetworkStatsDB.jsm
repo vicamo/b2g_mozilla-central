@@ -53,12 +53,18 @@ NetworkStatsDB.prototype = {
     if (DEBUG) {
       debug("upgrade schema from: " + aOldVersion + " to " + aNewVersion + " called!");
     }
-    for (let currVersion = aOldVersion; currVersion < aNewVersion; currVersion++) {
-      if (currVersion == 0) {
-        /**
-         * Create the initial database schema.
-         */
 
+    (function step(aNextVersion) {
+      if (aNextVersion >= aNewVersion) {
+        return;
+      }
+
+      let func = this["_upgradeToVersion" + aNextVersion];
+      func.call(this, aTransaction, aDb, step.bind(this, aNextVersion + 1));
+    }).call(this, 1);
+  },
+
+  _upgradeToVersion1: function(aTransaction, aDb, aNextFunc) {
         let deprecatedNetworkStore1 =
           aDb.createObjectStore(DEPRECATED_NETWORK_STORE_NAME1,
                                 { keyPath: ["connectionType", "timestamp"] });
@@ -68,10 +74,23 @@ NetworkStatsDB.prototype = {
         deprecatedNetworkStore1.createIndex("txBytes", "txBytes");
         deprecatedNetworkStore1.createIndex("rxTotalBytes", "rxTotalBytes");
         deprecatedNetworkStore1.createIndex("txTotalBytes", "txTotalBytes");
+
         if (DEBUG) {
-          debug("Created object stores and indexes");
+          debug("Created object stores and indexes for version 1.");
         }
-      } else if (currVersion == 2) {
+
+        aNextFunc();
+  },
+
+  _upgradeToVersion2: function(aTransaction, aDb, aNextFunc) {
+        if (DEBUG) {
+          debug("Do nothing for version 2.");
+        }
+
+        aNextFunc();
+  },
+
+  _upgradeToVersion3: function(aTransaction, aDb, aNextFunc) {
         // In order to support per-app traffic data storage, the original
         // objectStore needs to be replaced by a new objectStore with new
         // key path ("appId") and new index ("appId").
@@ -84,7 +103,7 @@ NetworkStatsDB.prototype = {
         // In version 1.2 objectStore name was 'net_stats_v2', to avoid errors when
         // upgrading from 1.2 to 1.3 objectStore name should be checked.
         let stores = aDb.objectStoreNames;
-        if(stores.contains("net_stats_v2")) {
+        if (stores.contains("net_stats_v2")) {
           aDb.deleteObjectStore("net_stats_v2");
         } else {
           aDb.deleteObjectStore(DEPRECATED_NETWORK_STORE_NAME1);
@@ -105,7 +124,11 @@ NetworkStatsDB.prototype = {
         if (DEBUG) {
           debug("Created object stores and indexes for version 3");
         }
-      } else if (currVersion == 3) {
+
+        aNextFunc();
+  },
+
+  _upgradeToVersion4: function(aTransaction, aDb, aNextFunc) {
         // Delete redundent indexes (leave "network" only).
         let deprecatedNetworkStore1 =
           aTransaction.objectStore(DEPRECATED_NETWORK_STORE_NAME1);
@@ -134,7 +157,18 @@ NetworkStatsDB.prototype = {
         if (DEBUG) {
           debug("Deleted redundent indexes for version 4");
         }
-      } else if (currVersion == 4) {
+
+        aNextFunc();
+  },
+
+  _upgradeToVersion5: function(aTransaction, aDb, aNextFunc) {
+        // Create object store for alarms.
+        let alarmStore =
+          aDb.createObjectStore(ALARM_STORE_NAME,
+                                { keyPath: "id", autoIncrement: true });
+        alarmStore.createIndex("alarm", ['networkId', 'threshold']);
+        alarmStore.createIndex("manifestURL", "manifestURL");
+
         // In order to manage alarms, it is necessary to use a global counter
         // (totalBytes) that will increase regardless of the system reboot.
         let deprecatedNetworkStore1 =
@@ -148,6 +182,11 @@ NetworkStatsDB.prototype = {
         deprecatedNetworkStore1.openCursor().onsuccess = function(event) {
           let cursor = event.target.result;
           if (!cursor){
+            if (DEBUG) {
+              debug("Created alarms store for version 5");
+            }
+
+            aNextFunc();
             return;
           }
 
@@ -188,18 +227,9 @@ NetworkStatsDB.prototype = {
           cursor.update(cursor.value);
           cursor.continue();
         };
+  },
 
-        // Create object store for alarms.
-        let alarmStore =
-          aDb.createObjectStore(ALARM_STORE_NAME,
-                                { keyPath: "id", autoIncrement: true });
-        alarmStore.createIndex("alarm", ['networkId','threshold']);
-        alarmStore.createIndex("manifestURL", "manifestURL");
-
-        if (DEBUG) {
-          debug("Created alarms store for version 5");
-        }
-      } else if (currVersion == 5) {
+  _upgradeToVersion6: function(aTransaction, aDb, aNextFunc) {
         // In contrast to "per-app" traffic data, "system-only" traffic data
         // refers to data which can not be identified by any applications.
         // To further support "system-only" data storage, the data can be
@@ -217,6 +247,12 @@ NetworkStatsDB.prototype = {
           let cursor = event.target.result;
           if (!cursor) {
             aDb.deleteObjectStore(DEPRECATED_NETWORK_STORE_NAME1);
+
+            if (DEBUG) {
+              debug("Added new key 'serviceType' for version 6");
+            }
+
+            aNextFunc();
             return;
           }
 
@@ -225,11 +261,9 @@ NetworkStatsDB.prototype = {
           networkStore.put(newStats);
           cursor.continue();
         };
+  },
 
-        if (DEBUG) {
-          debug("Added new key 'serviceType' for version 6");
-        }
-      } else if (currVersion == 6) {
+  _upgradeToVersion7: function(aTransaction, aDb, aNextFunc) {
         // Replace threshold attribute of alarm index by relativeThreshold in alarms DB.
         // Now alarms are indexed by relativeThreshold, which is the threshold relative
         // to current system stats.
@@ -241,83 +275,102 @@ NetworkStatsDB.prototype = {
         }
 
         // Create new "alarm" index.
-        alarmStore.createIndex("alarm", ['networkId','relativeThreshold']);
+        alarmStore.createIndex("alarm", ['networkId', 'relativeThreshold']);
 
         // Populate new "alarm" index attributes.
         alarmStore.openCursor().onsuccess = function(event) {
           let cursor = event.target.result;
-          if (!cursor) {
-            return;
-          }
-
-          cursor.value.relativeThreshold = cursor.value.threshold;
-          cursor.value.absoluteThreshold = cursor.value.threshold;
-          delete cursor.value.threshold;
-
-          cursor.update(cursor.value);
-          cursor.continue();
-        }
-
-        // Previous versions save accumulative totalBytes, increasing althought the system
-        // reboots or resets stats. But is necessary to reset the total counters when reset
-        // through 'clearInterfaceStats'.
-        let networkStore = aTransaction.objectStore(NETWORK_STORE_NAME);
-        let networks = [];
-        // Find networks stored in the database.
-        networkStore.index("network").openKeyCursor(null, "nextunique").onsuccess = function(event) {
-          let cursor = event.target.result;
           if (cursor) {
-            networks.push(cursor.key);
+            cursor.value.relativeThreshold = cursor.value.threshold;
+            cursor.value.absoluteThreshold = cursor.value.threshold;
+            delete cursor.value.threshold;
+
+            cursor.update(cursor.value);
             cursor.continue();
             return;
           }
 
-          networks.forEach(function(network) {
-            let lowerFilter = [0, "", network, 0];
-            let upperFilter = [0, "", network, ""];
-            let range = IDBKeyRange.bound(lowerFilter, upperFilter, false, false);
+          // Processing for alarmStore has done.
 
-            // Find number of samples for a given network.
-            networkStore.count(range).onsuccess = function(event) {
-              // If there are more samples than the max allowed, there is no way to know
-              // when does reset take place.
-              if (event.target.result >= VALUES_MAX_LENGTH) {
+          // Previous versions save accumulative totalBytes, increasing althought
+          // the system reboots or resets stats. But is necessary to reset the total
+          // counters when reset through 'clearInterfaceStats'.
+          let networkStore = aTransaction.objectStore(NETWORK_STORE_NAME);
+          let networks = [];
+          // Find networks stored in the database.
+          networkStore.index("network")
+                      .openKeyCursor(null, "nextunique")
+                      .onsuccess = function(event) {
+            let cursor = event.target.result;
+            if (cursor) {
+              networks.push(cursor.key);
+              cursor.continue();
+              return;
+            }
+
+            (function processNetwork() {
+              if (!networks.length) {
+                if (DEBUG) {
+                  debug("Re-create alarm index and fix TX/RX total bytes for version 7");
+                }
+                aNextFunc();
                 return;
               }
 
-              let last = null;
-              // Reset detected if the first sample totalCounters are different than bytes
-              // counters. If so, the total counters should be recalculated.
-              networkStore.openCursor(range).onsuccess = function(event) {
-                let cursor = event.target.result;
-                if (!cursor) {
+              let network = networks.shift();
+              let lowerFilter = [0, "", network, 0];
+              let upperFilter = [0, "", network, ""];
+              let range = IDBKeyRange.bound(lowerFilter, upperFilter, false, false);
+
+              // Find number of samples for a given network.
+              networkStore.count(range).onsuccess = function(event) {
+                // If there are more samples than the max allowed, there is no way
+                // to know when does reset take place.
+                if (event.target.result >= VALUES_MAX_LENGTH) {
+                  processNetwork();
                   return;
                 }
-                if (!last) {
-                  if (cursor.value.rxTotalBytes == cursor.value.rxBytes &&
-                      cursor.value.txTotalBytes == cursor.value.txBytes) {
+
+                let last = null;
+                // Reset detected if the first sample totalCounters are different
+                // than bytes counters. If so, the total counters should be
+                // recalculated.
+                networkStore.openCursor(range).onsuccess = function(event) {
+                  let cursor = event.target.result;
+                  if (!cursor) {
+                    processNetwork();
                     return;
                   }
 
-                  cursor.value.rxTotalBytes = cursor.value.rxBytes;
-                  cursor.value.txTotalBytes = cursor.value.txBytes;
+                  if (!last) {
+                    if (cursor.value.rxTotalBytes == cursor.value.rxBytes &&
+                        cursor.value.txTotalBytes == cursor.value.txBytes) {
+                      processNetwork();
+                      return;
+                    }
+
+                    cursor.value.rxTotalBytes = cursor.value.rxBytes;
+                    cursor.value.txTotalBytes = cursor.value.txBytes;
+                    cursor.update(cursor.value);
+                    last = cursor.value;
+                    cursor.continue();
+                    return;
+                  }
+
+                  // Recalculate the total counter for last / current sample
+                  cursor.value.rxTotalBytes = last.rxTotalBytes + cursor.value.rxBytes;
+                  cursor.value.txTotalBytes = last.txTotalBytes + cursor.value.txBytes;
                   cursor.update(cursor.value);
                   last = cursor.value;
                   cursor.continue();
-                  return;
-                }
+                };
+              };
+            })(); // End of processNetwork().
+          }; // End of networkStore.index("network").openKeyCursor().
+        }; // End of alarmStore.openCursor().
+  }, // End of _upgradeToVersion7().
 
-                // Recalculate the total counter for last / current sample
-                cursor.value.rxTotalBytes = last.rxTotalBytes + cursor.value.rxBytes;
-                cursor.value.txTotalBytes = last.txTotalBytes + cursor.value.txBytes;
-                cursor.update(cursor.value);
-                last = cursor.value;
-                cursor.continue();
-              }
-            }
-          }, this);
-        };
-      } else if (currVersion == 7) {
+  _upgradeToVersion8: function(aTransaction, aDb, aNextFunc) {
         // Create index for 'ServiceType' in order to make it retrievable.
         let networkStore = aTransaction.objectStore(NETWORK_STORE_NAME);
         networkStore.createIndex("serviceType", "serviceType");
@@ -325,8 +378,8 @@ NetworkStatsDB.prototype = {
         if (DEBUG) {
           debug("Create index of 'serviceType' for version 8");
         }
-      }
-    }
+
+        aNextFunc();
   },
 
   _importData: function(aStats) {
