@@ -10,7 +10,7 @@ XPCOMUtils.defineLazyServiceGetter(this, "nssProxy",
                                    "nsINetworkStatsService");
 
 function mokConvertNetworkInterface() {
-  NetworkStatsService.convertNetworkInterface = function(aNetwork) {
+  NetworkStatsService._convertNetworkInterface = function(aNetwork) {
     if (aNetwork.type != Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE &&
         aNetwork.type != Ci.nsINetworkInterface.NETWORK_TYPE_WIFI) {
       return null;
@@ -21,7 +21,7 @@ function mokConvertNetworkInterface() {
       id = '1234'
     }
 
-    let netId = this.getNetworkId(id, aNetwork.type);
+    let netId = this._getNetworkId(id, aNetwork.type);
 
     if (!this._networks[netId]) {
       this._networks[netId] = Object.create(null);
@@ -44,7 +44,7 @@ add_test(function test_saveAppStats() {
   var mobile = {type: Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE, id: "1234"};
 
   // Insert fake mobile network interface in NetworkStatsService
-  var mobileNetId = NetworkStatsService.getNetworkId(mobile.id, mobile.type);
+  var mobileNetId = NetworkStatsService._getNetworkId(mobile.id, mobile.type);
 
   do_check_eq(Object.keys(cachedStats).length, 0);
 
@@ -53,7 +53,7 @@ add_test(function test_saveAppStats() {
     do_check_eq(success, true);
     nssProxy.saveAppStats(1, mobile, timestamp, 10, 20, false,
                           function (success, message) {
-      var key1 = 1 + "" + NetworkStatsService.getNetworkId(wifi.id, wifi.type);
+      var key1 = 1 + "" + NetworkStatsService._getNetworkId(wifi.id, wifi.type);
       var key2 = 1 + "" + mobileNetId + "";
 
       do_check_eq(Object.keys(cachedStats).length, 2);
@@ -85,7 +85,7 @@ add_test(function test_saveStatsWithDifferentDates() {
 
   var mobile = {type: Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE, id: "1234"};
 
-  NetworkStatsService.updateCachedStats(function (success, message) {
+  NetworkStatsService._updateCachedStats(function (success, message) {
     do_check_eq(success, true);
 
     do_check_eq(Object.keys(NetworkStatsService.cachedStats).length, 0);
@@ -98,7 +98,7 @@ add_test(function test_saveStatsWithDifferentDates() {
 
         var cachedStats = NetworkStatsService.cachedStats;
         var key = 2 + "" +
-                  NetworkStatsService.getNetworkId(mobile.id, mobile.type);
+                  NetworkStatsService._getNetworkId(mobile.id, mobile.type);
         do_check_eq(Object.keys(cachedStats).length, 1);
         do_check_eq(cachedStats[key].appId, 2);
         do_check_eq(cachedStats[key].networkId, mobile.id);
@@ -119,7 +119,7 @@ add_test(function test_saveStatsWithMaxCachedTraffic() {
   var maxtraffic = NetworkStatsService.maxCachedTraffic;
   var wifi = {type: Ci.nsINetworkInterface.NETWORK_TYPE_WIFI, id: "0"};
 
-  NetworkStatsService.updateCachedStats(function (success, message) {
+  NetworkStatsService._updateCachedStats(function (success, message) {
     do_check_eq(success, true);
 
     var cachedStats = NetworkStatsService.cachedStats;
@@ -144,7 +144,7 @@ function run_test() {
 
   Cu.import("resource://gre/modules/NetworkStatsService.jsm");
 
-  // Function convertNetworkInterface of NetworkStatsService causes errors when dealing
+  // Function _convertNetworkInterface of NetworkStatsService causes errors when dealing
   // with RIL to get the iccid, so overwrite it.
   mokConvertNetworkInterface();
 

@@ -178,8 +178,8 @@ NetworkStatsManager.prototype = {
                                   threshold: aThreshold,
                                   startTime: aOptions.startTime,
                                   data: aOptions.data,
-                                  manifestURL: this.manifestURL,
-                                  pageURL: this.pageURL}});
+                                  manifestURL: this._manifestURL,
+                                  pageURL: this._pageURL}});
     return request;
   },
 
@@ -193,7 +193,7 @@ NetworkStatsManager.prototype = {
     cpmm.sendAsyncMessage("NetworkStats:GetAlarms",
                           {id: this.getRequestId(request),
                            data: {network: network,
-                                  manifestURL: this.manifestURL}});
+                                  manifestURL: this._manifestURL}});
     return request;
   },
 
@@ -206,7 +206,7 @@ NetworkStatsManager.prototype = {
     cpmm.sendAsyncMessage("NetworkStats:RemoveAlarms",
                           {id: this.getRequestId(request),
                            data: {alarmId: aAlarmId,
-                                  manifestURL: this.manifestURL}});
+                                  manifestURL: this._manifestURL}});
 
     return request;
   },
@@ -353,14 +353,12 @@ NetworkStatsManager.prototype = {
     let appsService = Cc["@mozilla.org/AppsService;1"]
                         .getService(Ci.nsIAppsService);
 
-    this.manifestURL = appsService.getManifestURLByLocalId(principal.appId);
+    this._manifestURL = appsService.getManifestURLByLocalId(principal.appId);
 
-    let isApp = !!this.manifestURL.length;
+    let isApp = !!this._manifestURL.length;
     if (isApp) {
-      this.pageURL = principal.URI.spec;
+      this._pageURL = principal.URI.spec;
     }
-
-    this.window = aWindow;
   },
 
   // Called from DOMRequestIpcHelper
