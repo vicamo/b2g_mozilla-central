@@ -178,7 +178,7 @@ this.NetworkStatsService = {
     }
   },
 
-  observe: function observe(aSubject, aTopic, aData) {
+  observe: function(aSubject, aTopic, aData) {
     switch (aTopic) {
       case TOPIC_INTERFACE_REGISTERED:
       case TOPIC_INTERFACE_UNREGISTERED:
@@ -294,7 +294,7 @@ this.NetworkStatsService = {
     return netId;
   },
 
-  _getNetworkId: function _getNetworkId(aIccId, aNetworkType) {
+  _getNetworkId: function(aIccId, aNetworkType) {
     return aIccId + '' + aNetworkType;
   },
 
@@ -304,7 +304,7 @@ this.NetworkStatsService = {
    * The result is |netId| or null in case of a non-valid network
    * aCallback is signatured as |function(netId)|.
    */
-  _validateNetwork: function _validateNetwork(aNetwork, aCallback) {
+  _validateNetwork: function(aNetwork, aCallback) {
     let netId = this._getNetworkId(aNetwork.id, aNetwork.type);
 
     if (this._networks[netId]) {
@@ -339,10 +339,10 @@ this.NetworkStatsService = {
     }.bind(this));
   },
 
-  getAvailableNetworks: function getAvailableNetworks(mm, msg) {
+  getAvailableNetworks: function(mm, msg) {
     let self = this;
     let rilNetworks = this._getRilNetworks();
-    this._db.getAvailableNetworks(function onGetNetworks(aError, aResult) {
+    this._db.getAvailableNetworks(function(aError, aResult) {
 
       // Also return the networks that are valid but have not
       // established connections yet.
@@ -364,23 +364,23 @@ this.NetworkStatsService = {
     });
   },
 
-  getAvailableServiceTypes: function getAvailableServiceTypes(mm, msg) {
-    this._db.getAvailableServiceTypes(function onGetServiceTypes(aError, aResult) {
+  getAvailableServiceTypes: function(mm, msg) {
+    this._db.getAvailableServiceTypes(function(aError, aResult) {
       mm.sendAsyncMessage("NetworkStats:GetAvailableServiceTypes:Return",
                           { id: msg.id, error: aError, result: aResult });
     });
   },
 
-  _initAlarms: function _initAlarms() {
+  _initAlarms: function() {
     debug("Init usage alarms");
     let self = this;
 
     for (let netId in this._networks) {
       this._currentAlarms[netId] = Object.create(null);
 
-      this._db.getFirstAlarm(netId, function getResult(error, result) {
+      this._db.getFirstAlarm(netId, function(error, result) {
         if (!error && result) {
-          self._setAlarm(result, function onSet(error, success) {
+          self._setAlarm(result, function(error, success) {
             if (error == "InvalidStateError") {
               self._fireAlarm(result);
             }
@@ -398,7 +398,7 @@ this.NetworkStatsService = {
    * Then, depending on the request (stats per appId or total stats)
    * it retrieve them from database and return to the manager.
    */
-  getSamples: function getSamples(mm, msg) {
+  getSamples: function(mm, msg) {
     let network = msg.network;
     let netId = this._getNetworkId(network.id, network.type);
 
@@ -420,14 +420,14 @@ this.NetworkStatsService = {
     let start = new Date(msg.start);
     let end = new Date(msg.end);
 
-    let callback = (function (aError, aResult) {
-      this._db.find(function onStatsFound(aError, aResult) {
+    let callback = (function(aError, aResult) {
+      this._db.find(function(aError, aResult) {
         mm.sendAsyncMessage("NetworkStats:Get:Return",
                             { id: msg.id, error: aError, result: aResult });
       }, appId, serviceType, network, start, end, appManifestURL);
     }).bind(this);
 
-    this._validateNetwork(network, function onValidateNetwork(aNetId) {
+    this._validateNetwork(network, function(aNetId) {
       if (!aNetId) {
         mm.sendAsyncMessage("NetworkStats:Get:Return",
                             { id: msg.id, error: "Invalid connectionType", result: null });
@@ -446,27 +446,25 @@ this.NetworkStatsService = {
           return;
         }
 
-        this._updateStats(aNetId, function onStatsUpdated(aResult, aMessage) {
-          this._updateCachedStats(callback);
-        }.bind(this));
+        this._updateStats(aNetId, this._updateCachedStats.bind(this, callback));
         return;
       }
 
       // Network not active, so no need to update
-      this._db.find(function onStatsFound(aError, aResult) {
+      this._db.find(function(aError, aResult) {
         mm.sendAsyncMessage("NetworkStats:Get:Return",
                             { id: msg.id, error: aError, result: aResult });
       }, appId, serviceType, network, start, end, appManifestURL);
     }.bind(this));
   },
 
-  clearInterfaceStats: function clearInterfaceStats(mm, msg) {
+  clearInterfaceStats: function(mm, msg) {
     let self = this;
     let network = msg.network;
 
     debug("clear stats for network " + network.id + " of type " + network.type);
 
-    this._validateNetwork(network, function onValidateNetwork(aNetId) {
+    this._validateNetwork(network, function(aNetId) {
       if (!aNetId) {
         mm.sendAsyncMessage("NetworkStats:Clear:Return",
                             { id: msg.id, error: "Invalid connectionType", result: null });
@@ -474,14 +472,14 @@ this.NetworkStatsService = {
       }
 
       network = {network: network, networkId: aNetId};
-      self._updateStats(aNetId, function onUpdate(aResult, aMessage) {
+      self._updateStats(aNetId, function(aResult, aMessage) {
         if (!aResult) {
           mm.sendAsyncMessage("NetworkStats:Clear:Return",
                               { id: msg.id, error: aMessage, result: null });
           return;
         }
 
-        self._db.clearInterfaceStats(network, function onDBCleared(aError, aResult) {
+        self._db.clearInterfaceStats(network, function(aError, aResult) {
           self._updateCurrentAlarm(aNetId);
           mm.sendAsyncMessage("NetworkStats:Clear:Return",
                               { id: msg.id, error: aError, result: aResult });
@@ -490,9 +488,9 @@ this.NetworkStatsService = {
     });
   },
 
-  clearDB: function clearDB(mm, msg) {
+  clearDB: function(mm, msg) {
     let self = this;
-    this._db.getAvailableNetworks(function onGetNetworks(aError, aResult) {
+    this._db.getAvailableNetworks(function(aError, aResult) {
       if (aError) {
         mm.sendAsyncMessage("NetworkStats:ClearAll:Return",
                             { id: msg.id, error: aError, result: aResult });
@@ -507,14 +505,14 @@ this.NetworkStatsService = {
         };
       }, self);
 
-      self._updateAllStats(function onUpdate(aResult, aMessage){
+      self._updateAllStats(function(aResult, aMessage) {
         if (!aResult) {
           mm.sendAsyncMessage("NetworkStats:ClearAll:Return",
                               { id: msg.id, error: aMessage, result: null });
           return;
         }
 
-        self._db.clearStats(networks, function onDBCleared(aError, aResult) {
+        self._db.clearStats(networks, function(aError, aResult) {
           networks.forEach(function(network, index) {
             self._updateCurrentAlarm(network.networkId);
           }, self);
@@ -525,12 +523,10 @@ this.NetworkStatsService = {
     });
   },
 
-  _updateAllStats: function _updateAllStats(aCallback) {
+  _updateAllStats: function(aCallback) {
     let elements = [];
     let lastElement = null;
-    let callback = (function (success, message) {
-      this._updateCachedStats(aCallback);
-    }).bind(this);
+    let callback = this._updateCachedStats.bind(this, aCallback);
 
     // For each connectionType create an object containning the type
     // and the 'queueIndex', the 'queueIndex' is an integer representing
@@ -591,7 +587,7 @@ this.NetworkStatsService = {
     }
   },
 
-  _updateStats: function _updateStats(aNetId, aCallback) {
+  _updateStats: function(aNetId, aCallback) {
     // Check if the connection is in the main queue, push a new element
     // if it is not being processed or add a callback if it is.
     let index = this._updateQueueIndex(aNetId);
@@ -612,14 +608,14 @@ this.NetworkStatsService = {
    * Find if a connection is in the main queue array and return its
    * index, if it is not in the array return -1.
    */
-  _updateQueueIndex: function _updateQueueIndex(aNetId) {
+  _updateQueueIndex: function(aNetId) {
     return this._updateQueue.map(function(e) { return e.netId; }).indexOf(aNetId);
   },
 
   /*
    * Function responsible of process all requests in the queue.
    */
-  _processQueue: function _processQueue(aResult, aMessage) {
+  _processQueue: function(aResult, aMessage) {
     // If aResult is not undefined, the caller of the function is the result
     // of processing an element, so remove that element and call the callbacks
     // it has.
@@ -661,7 +657,7 @@ this.NetworkStatsService = {
     }
   },
 
-  _update: function _update(aNetId, aCallback) {
+  _update: function(aNetId, aCallback) {
     // Check if connection type is valid.
     if (!this._networks[aNetId]) {
       if (aCallback) {
@@ -689,9 +685,8 @@ this.NetworkStatsService = {
   /*
    * Callback of request stats. Store stats in database.
    */
-  _networkStatsAvailable: function _networkStatsAvailable(aCallback, aNetId,
-                                                          aResult, aRxBytes,
-                                                          aTxBytes, aTimestamp) {
+  _networkStatsAvailable: function(aCallback, aNetId, aResult, aRxBytes,
+                                   aTxBytes, aTimestamp) {
     if (!aResult) {
       if (aCallback) {
         aCallback(false, "Netd IPC error");
@@ -710,7 +705,7 @@ this.NetworkStatsService = {
 
     debug("Update stats for: " + JSON.stringify(stats));
 
-    this._db.saveStats(stats, function onSavedStats(aError, aResult) {
+    this._db.saveStats(stats, function(aError, aResult) {
       if (aCallback) {
         if (aError) {
           aCallback(false, aError);
@@ -725,9 +720,8 @@ this.NetworkStatsService = {
   /*
    * Function responsible for receiving stats which are not from netd.
    */
-  saveStats: function saveStats(aAppId, aServiceType, aNetwork, aTimeStamp,
-                                aRxBytes, aTxBytes, aIsAccumulative,
-                                aCallback) {
+  saveStats: function(aAppId, aServiceType, aNetwork, aTimeStamp, aRxBytes,
+                      aTxBytes, aIsAccumulative, aCallback) {
     let netId = this._convertNetworkInterface(aNetwork);
     if (!netId) {
       if (aCallback) {
@@ -763,7 +757,7 @@ this.NetworkStatsService = {
     this._processQueue();
   },
 
-  _writeCache: function _writeCache(aStats, aCallback) {
+  _writeCache: function(aStats, aCallback) {
     debug("saveStats: " + aStats.appId + " " + aStats.serviceType + " " +
           aStats.networkId + " " + aStats.networkType + " " + aStats.date + " "
           + aStats.date + " " + aStats.rxBytes + " " + aStats.txBytes);
@@ -780,7 +774,7 @@ this.NetworkStatsService = {
                 this._db.normalizeDate(this._cachedStatsDate)) /
                this._db.sampleRate;
     if (diff != 0) {
-      this._updateCache(function onUpdated(success, message) {
+      this._updateCache(function(success, message) {
         this._cachedStatsDate = aStats.date;
         this._cachedStats[key] = aStats;
 
@@ -811,7 +805,7 @@ this.NetworkStatsService = {
     // Then, the row will be removed from the cached.
     if (cachedStat.rxBytes > MAX_CACHED_TRAFFIC ||
         cachedStat.txBytes > MAX_CACHED_TRAFFIC) {
-      this._db.saveStats(cachedStat, function (error, result) {
+      this._db.saveStats(cachedStat, function(error, result) {
         debug("Application stats inserted in indexedDB");
         if (aCallback) {
           aCallback(true, "ok");
@@ -826,14 +820,14 @@ this.NetworkStatsService = {
     }
   },
 
-  _updateCachedStats: function _updateCachedStats(aCallback) {
+  _updateCachedStats: function(aCallback) {
     this._updateQueue.push({ callbacks: [aCallback],
                              queueType: QUEUE_TYPE_UPDATE_CACHE });
 
     this._processQueue();
   },
 
-  _updateCache: function _updateCache(aCallback) {
+  _updateCache: function(aCallback) {
     debug("_updateCache: " + this._cachedStatsDate);
 
     let stats = Object.keys(this._cachedStats);
@@ -867,12 +861,12 @@ this.NetworkStatsService = {
     }.bind(this));
   },
 
-  get maxCachedTraffic () {
+  get maxCachedTraffic() {
     return MAX_CACHED_TRAFFIC;
   },
 
-  logAllRecords: function logAllRecords() {
-    this._db.logAllRecords(function onResult(aError, aResult) {
+  logAllRecords: function() {
+    this._db.logAllRecords(function(aError, aResult) {
       if (aError) {
         debug("Error: " + aError);
         return;
@@ -884,13 +878,13 @@ this.NetworkStatsService = {
     });
   },
 
-  getAlarms: function getAlarms(mm, msg) {
+  getAlarms: function(mm, msg) {
     let self = this;
     let network = msg.data.network;
     let manifestURL = msg.data.manifestURL;
 
     if (network) {
-      this._validateNetwork(network, function onValidateNetwork(aNetId) {
+      this._validateNetwork(network, function(aNetId) {
         if (!aNetId) {
           mm.sendAsyncMessage("NetworkStats:GetAlarms:Return",
                               { id: msg.id, error: "InvalidInterface", result: null });
@@ -905,9 +899,9 @@ this.NetworkStatsService = {
     this._getAlarms(mm, msg, null, manifestURL);
   },
 
-  _getAlarms: function _getAlarms(mm, msg, aNetId, aManifestURL) {
+  _getAlarms: function(mm, msg, aNetId, aManifestURL) {
     let self = this;
-    this._db.getAlarms(aNetId, aManifestURL, function onCompleted(error, result) {
+    this._db.getAlarms(aNetId, aManifestURL, function(error, result) {
       if (error) {
         mm.sendAsyncMessage("NetworkStats:GetAlarms:Return",
                             { id: msg.id, error: error, result: result });
@@ -929,12 +923,12 @@ this.NetworkStatsService = {
     });
   },
 
-  removeAlarms: function removeAlarms(mm, msg) {
+  removeAlarms: function(mm, msg) {
     let alarmId = msg.data.alarmId;
     let manifestURL = msg.data.manifestURL;
 
     let self = this;
-    let callback = function onRemove(error, result) {
+    let callback = function(error, result) {
       if (error) {
         mm.sendAsyncMessage("NetworkStats:RemoveAlarms:Return",
                             { id: msg.id, error: error, result: result });
@@ -964,7 +958,7 @@ this.NetworkStatsService = {
   /*
    * Function called from manager to set an alarm.
    */
-  setAlarm: function setAlarm(mm, msg) {
+  setAlarm: function(mm, msg) {
     let options = msg.data;
     let network = options.network;
     let threshold = options.threshold;
@@ -978,7 +972,7 @@ this.NetworkStatsService = {
     }
 
     let self = this;
-    this._validateNetwork(network, function onValidateNetwork(aNetId) {
+    this._validateNetwork(network, function(aNetId) {
       if (!aNetId) {
         mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
                             { id: msg.id, error: "InvalidiConnectionType", result: null });
@@ -996,14 +990,14 @@ this.NetworkStatsService = {
         manifestURL: options.manifestURL
       };
 
-      self._getAlarmQuota(newAlarm, function onUpdate(error, quota) {
+      self._getAlarmQuota(newAlarm, function(error, quota) {
         if (error) {
           mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
                               { id: msg.id, error: error, result: null });
           return;
         }
 
-        self._db.addAlarm(newAlarm, function addSuccessCb(error, newId) {
+        self._db.addAlarm(newAlarm, function(error, newId) {
           if (error) {
             mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
                                 { id: msg.id, error: error, result: null });
@@ -1011,7 +1005,7 @@ this.NetworkStatsService = {
           }
 
           newAlarm.id = newId;
-          self._setAlarm(newAlarm, function onSet(error, success) {
+          self._setAlarm(newAlarm, function(error, success) {
             mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
                                 { id: msg.id, error: error, result: newId });
 
@@ -1024,7 +1018,7 @@ this.NetworkStatsService = {
     });
   },
 
-  _setAlarm: function _setAlarm(aAlarm, aCallback) {
+  _setAlarm: function(aAlarm, aCallback) {
     let currentAlarm = this._currentAlarms[aAlarm.networkId];
     if ((Object.getOwnPropertyNames(currentAlarm).length !== 0 &&
          aAlarm.relativeThreshold > currentAlarm.alarm.relativeThreshold) ||
@@ -1035,13 +1029,13 @@ this.NetworkStatsService = {
 
     let self = this;
 
-    this._getAlarmQuota(aAlarm, function onUpdate(aError, aQuota) {
+    this._getAlarmQuota(aAlarm, function(aError, aQuota) {
       if (aError) {
         aCallback(aError, null);
         return;
       }
 
-      let callback = function onAlarmSet(aError) {
+      let callback = function(aError) {
         if (aError) {
           debug("Set alarm error: " + aError);
           aCallback("netdError", null);
@@ -1066,12 +1060,12 @@ this.NetworkStatsService = {
     });
   },
 
-  _getAlarmQuota: function _getAlarmQuota(aAlarm, aCallback) {
+  _getAlarmQuota: function(aAlarm, aCallback) {
     let self = this;
-    this._updateStats(aAlarm.networkId, function onStatsUpdated(aResult, aMessage) {
+    this._updateStats(aAlarm.networkId, function(aResult, aMessage) {
       self._db.getCurrentStats(self._networks[aAlarm.networkId].network,
                                aAlarm.startTime,
-                               function onStatsFound(error, result) {
+                               function(error, result) {
         if (error) {
           debug("Error getting stats for " +
                 JSON.stringify(self._networks[aAlarm.networkId]) + ": " + error);
@@ -1096,11 +1090,11 @@ this.NetworkStatsService = {
     });
   },
 
-  _fireAlarm: function _fireAlarm(aAlarm) {
+  _fireAlarm: function(aAlarm) {
     debug("Fire alarm");
 
     let self = this;
-    this._db.removeAlarm(aAlarm.id, null, function onRemove(aError, aResult){
+    this._db.removeAlarm(aAlarm.id, null, function(aError, aResult){
       if (!aError && !aResult) {
         return;
       }
@@ -1110,11 +1104,11 @@ this.NetworkStatsService = {
     });
   },
 
-  _updateCurrentAlarm: function _updateCurrentAlarm(aNetworkId) {
+  _updateCurrentAlarm: function(aNetworkId) {
     this._currentAlarms[aNetworkId] = Object.create(null);
 
     let self = this;
-    this._db.getFirstAlarm(aNetworkId, function onGet(error, result){
+    this._db.getFirstAlarm(aNetworkId, function(error, result){
       if (error) {
         debug("Error getting the first alarm");
         return;
@@ -1123,11 +1117,11 @@ this.NetworkStatsService = {
       if (!result) {
         let interfaceName = self._networks[aNetworkId].interfaceName;
         networkService.setNetworkInterfaceAlarm(interfaceName, -1,
-                                                function onComplete(){});
+                                                function() {});
         return;
       }
 
-      self._setAlarm(result, function onSet(error, success){
+      self._setAlarm(result, function(error, success){
         if (error == "InvalidStateError") {
           self._fireAlarm(result);
           return;
@@ -1136,7 +1130,7 @@ this.NetworkStatsService = {
     });
   },
 
-  _fireSystemMessage: function _fireSystemMessage(aAlarm) {
+  _fireSystemMessage: function(aAlarm) {
     debug("Fire system message: " + JSON.stringify(aAlarm));
 
     let manifestURI = Services.io.newURI(aAlarm.manifestURL, null, null);

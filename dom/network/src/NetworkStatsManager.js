@@ -120,7 +120,7 @@ function NetworkStatsManager() {
 NetworkStatsManager.prototype = {
   __proto__: DOMRequestIpcHelper.prototype,
 
-  getSamples: function getSamples(aNetwork, aStart, aEnd, aOptions) {
+  getSamples: function(aNetwork, aStart, aEnd, aOptions) {
     if (aStart > aEnd) {
       throw Components.results.NS_ERROR_INVALID_ARG;
     }
@@ -151,7 +151,7 @@ NetworkStatsManager.prototype = {
     return request;
   },
 
-  clearStats: function clearStats(aNetwork) {
+  clearStats: function(aNetwork) {
     let request = this.createRequest();
     cpmm.sendAsyncMessage("NetworkStats:Clear",
                           { network: aNetwork.toJSON(),
@@ -159,14 +159,14 @@ NetworkStatsManager.prototype = {
     return request;
   },
 
-  clearAllStats: function clearAllStats() {
+  clearAllStats: function() {
     let request = this.createRequest();
     cpmm.sendAsyncMessage("NetworkStats:ClearAll",
                           {id: this.getRequestId(request)});
     return request;
   },
 
-  addAlarm: function addAlarm(aNetwork, aThreshold, aOptions) {
+  addAlarm: function(aNetwork, aThreshold, aOptions) {
     if (!aOptions) {
       aOptions = Object.create(null);
     }
@@ -183,7 +183,7 @@ NetworkStatsManager.prototype = {
     return request;
   },
 
-  getAllAlarms: function getAllAlarms(aNetwork) {
+  getAllAlarms: function(aNetwork) {
     let network = null;
     if (aNetwork) {
       network = aNetwork.toJSON();
@@ -197,7 +197,7 @@ NetworkStatsManager.prototype = {
     return request;
   },
 
-  removeAlarms: function removeAlarms(aAlarmId) {
+  removeAlarms: function(aAlarmId) {
     if (aAlarmId == 0) {
       aAlarmId = -1;
     }
@@ -211,14 +211,14 @@ NetworkStatsManager.prototype = {
     return request;
   },
 
-  getAvailableNetworks: function getAvailableNetworks() {
+  getAvailableNetworks: function() {
     let request = this.createRequest();
     cpmm.sendAsyncMessage("NetworkStats:GetAvailableNetworks",
                           { id: this.getRequestId(request) });
     return request;
   },
 
-  getAvailableServiceTypes: function getAvailableServiceTypes() {
+  getAvailableServiceTypes: function() {
     let request = this.createRequest();
     cpmm.sendAsyncMessage("NetworkStats:GetAvailableServiceTypes",
                           { id: this.getRequestId(request) });
@@ -362,7 +362,7 @@ NetworkStatsManager.prototype = {
   },
 
   // Called from DOMRequestIpcHelper
-  uninit: function uninit() {
+  uninit: function() {
     if (DEBUG) {
       debug("uninit call");
     }

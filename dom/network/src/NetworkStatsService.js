@@ -26,9 +26,8 @@ NetworkStatsServiceProxy.prototype = {
    * Function called in the protocol layer (HTTP, FTP, WebSocket ...etc)
    * to pass the per-app stats to NetworkStatsService.
    */
-  saveAppStats: function saveAppStats(aAppId, aNetwork, aTimeStamp,
-                                      aRxBytes, aTxBytes, aIsAccumulative,
-                                      aCallback) {
+  saveAppStats: function(aAppId, aNetwork, aTimeStamp, aRxBytes, aTxBytes,
+                         aIsAccumulative, aCallback) {
     if (!aNetwork) {
       if (DEBUG) {
         debug("|aNetwork| is not specified. Failed to save stats. Returning.");
