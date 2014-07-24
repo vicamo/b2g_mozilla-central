@@ -96,11 +96,15 @@ this.NetworkStatsService = {
     // There is no way to know a priori if wifi connection is available,
     // just when the wifi driver is loaded, but it is unloaded when
     // wifi is switched off. So wifi connection is hardcoded
-    let netId = this._getNetworkId('0', NET_TYPE_WIFI);
-    this._networks[netId] = { network:       { id: '0',
-                                               type: NET_TYPE_WIFI },
-                              interfaceName: null,
-                              status:        NETWORK_STATUS_STANDBY };
+    let networkId = this._getNetworkId('0', NET_TYPE_WIFI);
+    this._networks[networkId] = {
+      network: {
+        id: '0',
+        type: NET_TYPE_WIFI
+      },
+      interfaceName: null,
+      status: NETWORK_STATUS_STANDBY
+    };
 
     this._messages = ["NetworkStats:Get",
                       "NetworkStats:Clear",
@@ -141,33 +145,33 @@ this.NetworkStatsService = {
 
     debug("receiveMessage " + aMessage.name);
 
-    let mm = aMessage.target;
-    let msg = aMessage.json;
+    let target = aMessage.target;
+    let json = aMessage.json;
 
     switch (aMessage.name) {
       case "NetworkStats:Get":
-        this.getSamples(mm, msg);
+        this.getSamples(target, json);
         break;
       case "NetworkStats:Clear":
-        this.clearInterfaceStats(mm, msg);
+        this.clearInterfaceStats(target, json);
         break;
       case "NetworkStats:ClearAll":
-        this.clearDB(mm, msg);
+        this.clearDB(target, json);
         break;
       case "NetworkStats:SetAlarm":
-        this.setAlarm(mm, msg);
+        this.setAlarm(target, json);
         break;
       case "NetworkStats:GetAlarms":
-        this.getAlarms(mm, msg);
+        this.getAlarms(target, json);
         break;
       case "NetworkStats:RemoveAlarms":
-        this.removeAlarms(mm, msg);
+        this.removeAlarms(target, json);
         break;
       case "NetworkStats:GetAvailableNetworks":
-        this.getAvailableNetworks(mm, msg);
+        this.getAvailableNetworks(target, json);
         break;
       case "NetworkStats:GetAvailableServiceTypes":
-        this.getAvailableServiceTypes(mm, msg);
+        this.getAvailableServiceTypes(target, json);
         break;
       case "NetworkStats:SampleRate":
         // This message is sync.
@@ -187,18 +191,19 @@ this.NetworkStatsService = {
         // the stats are updated for the new interface without waiting to
         // complete the updating period.
 
-        let network = aSubject.QueryInterface(Ci.nsINetworkInterface);
-        debug("Network " + network.name + " of type " + network.type + " status change");
+        let networkInterface = aSubject.QueryInterface(Ci.nsINetworkInterface);
+        debug("Network " + networkInterface.name + " of type " +
+              networkInterface.type + " status change");
 
-        let netId = this._convertNetworkInterface(network);
-        if (!netId) {
+        let networkId = this._convertNetworkInterface(networkInterface);
+        if (!networkId) {
           break;
         }
 
-        this._updateCurrentAlarm(netId);
+        this._updateCurrentAlarm(networkId);
 
-        debug("NetId: " + netId);
-        this._updateStats(netId);
+        debug("NetworkId: " + networkId);
+        this._updateStats(networkId);
         break;
 
       case TOPIC_BANDWIDTH_CONTROL:
@@ -255,43 +260,50 @@ this.NetworkStatsService = {
     for (let i = 0; i < numRadioInterfaces; i++) {
       let radioInterface = gRil.getRadioInterface(i);
       if (radioInterface.rilContext.iccInfo) {
-        let netId = this._getNetworkId(radioInterface.rilContext.iccInfo.iccid,
-                                       NET_TYPE_MOBILE);
-        networks[netId] = { id : radioInterface.rilContext.iccInfo.iccid,
-                            type: NET_TYPE_MOBILE };
+        let networkId =
+          this._getNetworkId(radioInterface.rilContext.iccInfo.iccid,
+                             NET_TYPE_MOBILE);
+        networks[networkId] = {
+          id: radioInterface.rilContext.iccInfo.iccid,
+          type: NET_TYPE_MOBILE
+        };
       }
     }
     return networks;
   },
 
-  _convertNetworkInterface: function(aNetwork) {
-    if (aNetwork.type != NET_TYPE_MOBILE &&
-        aNetwork.type != NET_TYPE_WIFI) {
+  _convertNetworkInterface: function(aNetworkInterface) {
+    if (aNetworkInterface.type != NET_TYPE_MOBILE &&
+        aNetworkInterface.type != NET_TYPE_WIFI) {
       return null;
     }
 
     let id = '0';
-    if (aNetwork.type == NET_TYPE_MOBILE) {
-      if (!(aNetwork instanceof Ci.nsIRilNetworkInterface)) {
+    if (aNetworkInterface.type == NET_TYPE_MOBILE) {
+      if (!(aNetworkInterface instanceof Ci.nsIRilNetworkInterface)) {
         debug("Error! Mobile network should be an nsIRilNetworkInterface!");
         return null;
       }
 
-      let rilNetwork = aNetwork.QueryInterface(Ci.nsIRilNetworkInterface);
-      id = rilNetwork.iccId;
+      let rilNetworkInterface =
+        aNetworkInterface.QueryInterface(Ci.nsIRilNetworkInterface);
+      id = rilNetworkInterface.iccId;
     }
 
-    let netId = this._getNetworkId(id, aNetwork.type);
+    let networkId = this._getNetworkId(id, aNetworkInterface.type);
 
-    if (!this._networks[netId]) {
-      this._networks[netId] = {};
-      this._networks[netId].network = { id: id,
-                                        type: aNetwork.type };
+    if (!this._networks[networkId]) {
+      this._networks[networkId] = {
+        network: {
+          id: id,
+          type: aNetworkInterface.type
+        }
+      };
     }
 
-    this._networks[netId].status = NETWORK_STATUS_READY;
-    this._networks[netId].interfaceName = aNetwork.name;
-    return netId;
+    this._networks[networkId].status = NETWORK_STATUS_READY;
+    this._networks[networkId].interfaceName = aNetworkInterface.name;
+    return networkId;
   },
 
   _getNetworkId: function(aIccId, aNetworkType) {
@@ -301,37 +313,39 @@ this.NetworkStatsService = {
   /* Function to ensure that one network is valid. The network is valid if its status is
    * NETWORK_STATUS_READY, NETWORK_STATUS_STANDBY or NETWORK_STATUS_AWAY.
    *
-   * The result is |netId| or null in case of a non-valid network
-   * aCallback is signatured as |function(netId)|.
+   * The result is |networkId| or null in case of a non-valid network
+   * aCallback is signatured as |function(networkId)|.
    */
   _validateNetwork: function(aNetwork, aCallback) {
-    let netId = this._getNetworkId(aNetwork.id, aNetwork.type);
+    let networkId = this._getNetworkId(aNetwork.id, aNetwork.type);
 
-    if (this._networks[netId]) {
-      aCallback(netId);
+    if (this._networks[networkId]) {
+      aCallback(networkId);
       return;
     }
 
     // Check if network is valid (RIL entry) but has not established a connection yet.
     // If so add to networks list with empty interfaceName.
     let rilNetworks = this._getRilNetworks();
-    if (rilNetworks[netId]) {
-      this._networks[netId] = {};
-      this._networks[netId].network = rilNetworks[netId];
-      this._networks[netId].status = NETWORK_STATUS_STANDBY;
-      this._currentAlarms[netId] = {};
-      aCallback(netId);
+    if (rilNetworks[networkId]) {
+      this._networks[networkId] = {
+        network: rilNetworks[networkId],
+        status: NETWORK_STATUS_STANDBY,
+      };
+      this._currentAlarms[networkId] = {};
+      aCallback(networkId);
       return;
     }
 
     // Check if network is available in the DB.
-    this._db.isNetworkAvailable(aNetwork, function(aError, aResult) {
-      if (aResult) {
-        this._networks[netId] = {};
-        this._networks[netId].network = aNetwork;
-        this._networks[netId].status = NETWORK_STATUS_AWAY;
-        this._currentAlarms[netId] = {};
-        aCallback(netId);
+    this._db.isNetworkAvailable(aNetwork, function(aError, aAvailable) {
+      if (aAvailable) {
+        this._networks[networkId] = {
+          network: aNetwork,
+          status: NETWORK_STATUS_AWAY,
+        };
+        this._currentAlarms[networkId] = {};
+        aCallback(networkId);
         return;
       }
 
@@ -339,35 +353,42 @@ this.NetworkStatsService = {
     }.bind(this));
   },
 
-  getAvailableNetworks: function(mm, msg) {
+  getAvailableNetworks: function(aMsgTarget, aMsgJson) {
     let self = this;
     let rilNetworks = this._getRilNetworks();
-    this._db.getAvailableNetworks(function(aError, aResult) {
+    this._db.getAvailableNetworks(function(aError, aNetworksArray) {
 
       // Also return the networks that are valid but have not
       // established connections yet.
-      for (let netId in rilNetworks) {
+      for (let networkId in rilNetworks) {
         let found = false;
-        for (let i = 0; i < aResult.length; i++) {
-          if (netId == self._getNetworkId(aResult[i].id, aResult[i].type)) {
+        for (let i = 0; i < aNetworksArray.length; i++) {
+          if (networkId == self._getNetworkId(aNetworksArray[i].id,
+                                              aNetworksArray[i].type)) {
             found = true;
             break;
           }
         }
         if (!found) {
-          aResult.push(rilNetworks[netId]);
+          aNetworksArray.push(rilNetworks[networkId]);
         }
       }
 
-      mm.sendAsyncMessage("NetworkStats:GetAvailableNetworks:Return",
-                          { id: msg.id, error: aError, result: aResult });
+      aMsgTarget.sendAsyncMessage("NetworkStats:GetAvailableNetworks:Return", {
+        id: aMsgJson.id,
+        error: aError,
+        result: aNetworksArray
+      });
     });
   },
 
-  getAvailableServiceTypes: function(mm, msg) {
-    this._db.getAvailableServiceTypes(function(aError, aResult) {
-      mm.sendAsyncMessage("NetworkStats:GetAvailableServiceTypes:Return",
-                          { id: msg.id, error: aError, result: aResult });
+  getAvailableServiceTypes: function(aMsgTarget, aMsgJson) {
+    this._db.getAvailableServiceTypes(function(aError, aServiceTypesArray) {
+      aMsgTarget.sendAsyncMessage("NetworkStats:GetAvailableServiceTypes:Return", {
+        id: aMsgJson.id,
+        error: aError,
+        result: aServiceTypesArray
+      });
     });
   },
 
@@ -375,14 +396,14 @@ this.NetworkStatsService = {
     debug("Init usage alarms");
     let self = this;
 
-    for (let netId in this._networks) {
-      this._currentAlarms[netId] = {};
+    for (let networkId in this._networks) {
+      this._currentAlarms[networkId] = {};
 
-      this._db.getFirstAlarm(netId, function(error, result) {
-        if (!error && result) {
-          self._setAlarm(result, function(error) {
-            if (error == "InvalidStateError") {
-              self._fireAlarm(result);
+      this._db.getFirstAlarm(networkId, function(aError, aAlarmRecord) {
+        if (!aError && aAlarmRecord) {
+          self._setAlarm(aAlarmRecord, function(aError) {
+            if (aError == "InvalidStateError") {
+              self._fireAlarm(aAlarmRecord);
             }
           });
         }
@@ -398,47 +419,54 @@ this.NetworkStatsService = {
    * Then, depending on the request (stats per appId or total stats)
    * it retrieve them from database and return to the manager.
    */
-  getSamples: function(mm, msg) {
-    let network = msg.network;
-    let netId = this._getNetworkId(network.id, network.type);
+  getSamples: function(aMsgTarget, aMsgJson) {
+    let network = aMsgJson.network;
 
     let appId = 0;
-    let appManifestURL = msg.appManifestURL;
-    if (appManifestURL) {
-      appId = appsService.getAppLocalIdByManifestURL(appManifestURL);
+    let manifestURL = aMsgJson.manifestURL;
+    if (manifestURL) {
+      appId = appsService.getAppLocalIdByManifestURL(manifestURL);
 
       if (!appId) {
-        mm.sendAsyncMessage("NetworkStats:Get:Return",
-                            { id: msg.id,
-                              error: "Invalid appManifestURL", result: null });
+        aMsgTarget.sendAsyncMessage("NetworkStats:Get:Return", {
+          id: aMsgJson.id,
+          error: "Invalid appManifestURL",
+          result: null
+        });
         return;
       }
     }
 
-    let serviceType = msg.serviceType || "";
+    let serviceType = aMsgJson.serviceType || "";
 
-    let start = new Date(msg.start);
-    let end = new Date(msg.end);
+    let startDate = new Date(aMsgJson.startTimestamp);
+    let endDate = new Date(aMsgJson.endTimestamp);
 
-    let callback = (function(aError, aResult) {
+    let callback = (function() {
       this._db.find(function(aError, aResult) {
-        mm.sendAsyncMessage("NetworkStats:Get:Return",
-                            { id: msg.id, error: aError, result: aResult });
-      }, appId, serviceType, network, start, end, appManifestURL);
+        aMsgTarget.sendAsyncMessage("NetworkStats:Get:Return", {
+          id: aMsgJson.id,
+          error: aError,
+          result: aResult
+        });
+      }, appId, serviceType, network, startDate, endDate, manifestURL);
     }).bind(this);
 
-    this._validateNetwork(network, function(aNetId) {
-      if (!aNetId) {
-        mm.sendAsyncMessage("NetworkStats:Get:Return",
-                            { id: msg.id, error: "Invalid connectionType", result: null });
+    this._validateNetwork(network, function(aNetworkId) {
+      if (!aNetworkId) {
+        aMsgTarget.sendAsyncMessage("NetworkStats:Get:Return", {
+          id: aMsgJson.id,
+          error: "Invalid connectionType",
+          result: null
+        });
         return;
       }
 
       // If network is currently active we need to update the cached stats first before
       // retrieving stats from the DB.
-      if (this._networks[aNetId].status == NETWORK_STATUS_READY) {
+      if (this._networks[aNetworkId].status == NETWORK_STATUS_READY) {
         debug("getstats for network " + network.id + " of type " + network.type);
-        debug("appId: " + appId + " from appManifestURL: " + appManifestURL);
+        debug("appId: " + appId + " from manifestURL: " + manifestURL);
         debug("serviceType: " + serviceType);
 
         if (appId || serviceType) {
@@ -446,78 +474,85 @@ this.NetworkStatsService = {
           return;
         }
 
-        this._updateStats(aNetId, this._updateCachedStats.bind(this, callback));
+        this._updateStats(aNetworkId, this._updateCachedStats.bind(this, callback));
         return;
       }
 
       // Network not active, so no need to update
-      this._db.find(function(aError, aResult) {
-        mm.sendAsyncMessage("NetworkStats:Get:Return",
-                            { id: msg.id, error: aError, result: aResult });
-      }, appId, serviceType, network, start, end, appManifestURL);
+      callback();
     }.bind(this));
   },
 
-  clearInterfaceStats: function(mm, msg) {
+  clearInterfaceStats: function(aMsgTarget, aMsgJson) {
     let self = this;
-    let network = msg.network;
+    let network = aMsgJson.network;
 
     debug("clear stats for network " + network.id + " of type " + network.type);
 
-    this._validateNetwork(network, function(aNetId) {
-      if (!aNetId) {
-        mm.sendAsyncMessage("NetworkStats:Clear:Return",
-                            { id: msg.id, error: "Invalid connectionType", result: null });
+    this._validateNetwork(network, function(aNetworkId) {
+      if (!aNetworkId) {
+        aMsgTarget.sendAsyncMessage("NetworkStats:Clear:Return", {
+          id: aMsgJson.id,
+          error: "Invalid connectionType",
+          result: null
+        });
         return;
       }
 
-      network = {network: network, networkId: aNetId};
-      self._updateStats(aNetId, function(aResult, aMessage) {
-        if (!aResult) {
-          mm.sendAsyncMessage("NetworkStats:Clear:Return",
-                              { id: msg.id, error: aMessage, result: null });
+      self._updateStats(aNetworkId, function(aSuccess, aMessage) {
+        if (!aSuccess) {
+          aMsgTarget.sendAsyncMessage("NetworkStats:Clear:Return", {
+            id: aMsgJson.id,
+            error: aMessage,
+            result: null
+          });
           return;
         }
 
-        self._db.clearInterfaceStats(network, function(aError, aResult) {
-          self._updateCurrentAlarm(aNetId);
-          mm.sendAsyncMessage("NetworkStats:Clear:Return",
-                              { id: msg.id, error: aError, result: aResult });
+        self._db.clearInterfaceStats(network, function(aError, aUndefined) {
+          self._updateCurrentAlarm(aNetworkId);
+          aMsgTarget.sendAsyncMessage("NetworkStats:Clear:Return", {
+            id: aMsgJson.id,
+            error: aError,
+            result: null
+          });
         });
       });
     });
   },
 
-  clearDB: function(mm, msg) {
+  clearDB: function(aMsgTarget, aMsgJson) {
     let self = this;
-    this._db.getAvailableNetworks(function(aError, aResult) {
+    this._db.getAvailableNetworks(function(aError, aNetworksArray) {
       if (aError) {
-        mm.sendAsyncMessage("NetworkStats:ClearAll:Return",
-                            { id: msg.id, error: aError, result: aResult });
+        aMsgTarget.sendAsyncMessage("NetworkStats:ClearAll:Return", {
+          id: aMsgJson.id,
+          error: aError,
+          result: aNetworksArray
+        });
         return;
       }
 
-      let networks = aResult;
-      networks.forEach(function(network, index) {
-        networks[index] = {
-          network: network,
-          networkId: self._getNetworkId(network.id, network.type)
-        };
-      }, self);
-
       self._updateAllStats(function(aResult, aMessage) {
         if (!aResult) {
-          mm.sendAsyncMessage("NetworkStats:ClearAll:Return",
-                              { id: msg.id, error: aMessage, result: null });
+          aMsgTarget.sendAsyncMessage("NetworkStats:ClearAll:Return", {
+            id: aMsgJson.id,
+            error: aMessage,
+            result: null
+          });
           return;
         }
 
-        self._db.clearStats(networks, function(aError, aResult) {
-          networks.forEach(function(network, index) {
-            self._updateCurrentAlarm(network.networkId);
+        self._db.clearStats(aNetworksArray, function(aError, aUndefined) {
+          aNetworksArray.forEach(function(aNetwork) {
+            self._updateCurrentAlarm(self._getNetworkId(aNetwork.id,
+                                                        aNetwork.type));
           }, self);
-          mm.sendAsyncMessage("NetworkStats:ClearAll:Return",
-                              { id: msg.id, error: aError, result: aResult });
+          aMsgTarget.sendAsyncMessage("NetworkStats:ClearAll:Return", {
+            id: aMsgJson.id,
+            error: aError,
+            result: null
+          });
         });
       });
     });
@@ -534,18 +569,22 @@ this.NetworkStatsService = {
     // the connection type is already in the queue it is not appended again,
     // else it is pushed in 'elements' array, which later will be pushed to
     // the queue array.
-    for (let netId in this._networks) {
-      if (this._networks[netId].status != NETWORK_STATUS_READY) {
+    for (let networkId in this._networks) {
+      if (this._networks[networkId].status != NETWORK_STATUS_READY) {
         continue;
       }
 
-      lastElement = { netId: netId,
-                      queueIndex: this._updateQueueIndex(netId) };
+      lastElement = {
+        networkId: networkId,
+        queueIndex: this._updateQueueIndex(networkId)
+      };
 
       if (lastElement.queueIndex == -1) {
-        elements.push({ netId:     lastElement.netId,
-                        callbacks: [],
-                        queueType: QUEUE_TYPE_UPDATE_STATS });
+        elements.push({
+          networkId: lastElement.networkId,
+          callbacks: [],
+          queueType: QUEUE_TYPE_UPDATE_STATS
+        });
       }
     }
 
@@ -571,7 +610,7 @@ this.NetworkStatsService = {
       // be processed while generating 'elements' array.
       let element = this._updateQueue[lastElement.queueIndex];
       if (aCallback &&
-         (!element || element.netId != lastElement.netId)) {
+         (!element || element.networkId != lastElement.networkId)) {
         aCallback();
         return;
       }
@@ -587,14 +626,16 @@ this.NetworkStatsService = {
     }
   },
 
-  _updateStats: function(aNetId, aCallback) {
+  _updateStats: function(aNetworkId, aCallback) {
     // Check if the connection is in the main queue, push a new element
     // if it is not being processed or add a callback if it is.
-    let index = this._updateQueueIndex(aNetId);
+    let index = this._updateQueueIndex(aNetworkId);
     if (index == -1) {
-      this._updateQueue.push({ netId: aNetId,
-                              callbacks: [aCallback],
-                              queueType: QUEUE_TYPE_UPDATE_STATS });
+      this._updateQueue.push({
+       networkId: aNetworkId,
+       callbacks: [aCallback],
+       queueType: QUEUE_TYPE_UPDATE_STATS
+      });
     } else {
       this._updateQueue[index].callbacks.push(aCallback);
       return;
@@ -608,8 +649,10 @@ this.NetworkStatsService = {
    * Find if a connection is in the main queue array and return its
    * index, if it is not in the array return -1.
    */
-  _updateQueueIndex: function(aNetId) {
-    return this._updateQueue.map(function(e) { return e.netId; }).indexOf(aNetId);
+  _updateQueueIndex: function(aNetworkId) {
+    return this._updateQueue.map(function(aElement) {
+      return aElement.networkId;
+    }).indexOf(aNetworkId);
   },
 
   /*
@@ -646,34 +689,36 @@ this.NetworkStatsService = {
     // Call the update function for the next element.
     switch (this._updateQueue[0].queueType) {
       case QUEUE_TYPE_UPDATE_STATS:
-        this._update(this._updateQueue[0].netId, this._processQueue.bind(this));
+        this._update(this._updateQueue[0].networkId,
+                     this._processQueue.bind(this));
         break;
       case QUEUE_TYPE_UPDATE_CACHE:
         this._updateCache(this._processQueue.bind(this));
         break;
       case QUEUE_TYPE_WRITE_CACHE:
-        this._writeCache(this._updateQueue[0].stats, this._processQueue.bind(this));
+        this._writeCache(this._updateQueue[0].stats,
+                         this._processQueue.bind(this));
         break;
     }
   },
 
-  _update: function(aNetId, aCallback) {
+  _update: function(aNetworkId, aCallback) {
     // Check if connection type is valid.
-    if (!this._networks[aNetId]) {
+    if (!this._networks[aNetworkId]) {
       if (aCallback) {
-        aCallback(false, "Invalid network " + aNetId);
+        aCallback(false, "Invalid network " + aNetworkId);
       }
       return;
     }
 
-    let interfaceName = this._networks[aNetId].interfaceName;
+    let interfaceName = this._networks[aNetworkId].interfaceName;
     debug("Update stats for " + interfaceName);
 
     // Request stats to NetworkService, which will get stats from netd, passing
     // '_networkStatsAvailable' as a callback.
     if (interfaceName) {
       networkService.getNetworkInterfaceStats(interfaceName,
-                this._networkStatsAvailable.bind(this, aCallback, aNetId));
+                this._networkStatsAvailable.bind(this, aCallback, aNetworkId));
       return;
     }
 
@@ -685,7 +730,7 @@ this.NetworkStatsService = {
   /*
    * Callback of request stats. Store stats in database.
    */
-  _networkStatsAvailable: function(aCallback, aNetId, aResult, aRxBytes,
+  _networkStatsAvailable: function(aCallback, aNetworkId, aResult, aRxBytes,
                                    aTxBytes, aTimestamp) {
     if (!aResult) {
       if (aCallback) {
@@ -694,18 +739,20 @@ this.NetworkStatsService = {
       return;
     }
 
-    let stats = { appId:          0,
-                  serviceType:    "",
-                  networkId:      this._networks[aNetId].network.id,
-                  networkType:    this._networks[aNetId].network.type,
-                  date:           new Date(aTimestamp),
-                  rxBytes:        aTxBytes,
-                  txBytes:        aRxBytes,
-                  isAccumulative: true };
+    let stats = {
+      appId: 0,
+      serviceType: "",
+      networkId: this._networks[aNetworkId].network.id,
+      networkType: this._networks[aNetworkId].network.type,
+      date: new Date(aTimestamp),
+      rxBytes: aTxBytes,
+      txBytes: aRxBytes,
+      isAccumulative: true
+    };
 
     debug("Update stats for: " + JSON.stringify(stats));
 
-    this._db.saveStats(stats, function(aError, aResult) {
+    this._db.saveStats(stats, function(aError, aUndefined) {
       if (aCallback) {
         if (aError) {
           aCallback(false, aError);
@@ -720,10 +767,10 @@ this.NetworkStatsService = {
   /*
    * Function responsible for receiving stats which are not from netd.
    */
-  saveStats: function(aAppId, aServiceType, aNetwork, aTimeStamp, aRxBytes,
-                      aTxBytes, aIsAccumulative, aCallback) {
-    let netId = this._convertNetworkInterface(aNetwork);
-    if (!netId) {
+  saveStats: function(aAppId, aServiceType, aNetworkInterface, aTimeStamp,
+                      aRxBytes, aTxBytes, aIsAccumulative, aCallback) {
+    let networkId = this._convertNetworkInterface(aNetworkInterface);
+    if (!networkId) {
       if (aCallback) {
         aCallback(false, "Invalid network type");
       }
@@ -735,24 +782,28 @@ this.NetworkStatsService = {
     // |aServiceType|:
     // a. Both |aAppId| is non-zero and |aServiceType| is non-empty.
     // b. Both |aAppId| is zero and |aServiceType| is empty.
-    if (!this._networks[netId] || (aAppId && aServiceType) ||
+    if (!this._networks[networkId] || (aAppId && aServiceType) ||
         (!aAppId && !aServiceType)) {
       debug("Invalid network interface, appId or serviceType");
       return;
     }
 
-    let stats = { appId:          aAppId,
-                  serviceType:    aServiceType,
-                  networkId:      this._networks[netId].network.id,
-                  networkType:    this._networks[netId].network.type,
-                  date:           new Date(aTimeStamp),
-                  rxBytes:        aRxBytes,
-                  txBytes:        aTxBytes,
-                  isAccumulative: aIsAccumulative };
+    let stats = {
+      appId: aAppId,
+      serviceType: aServiceType,
+      networkId: this._networks[networkId].network.id,
+      networkType: this._networks[networkId].network.type,
+      date: new Date(aTimeStamp),
+      rxBytes: aRxBytes,
+      txBytes: aTxBytes,
+      isAccumulative: aIsAccumulative
+    };
 
-    this._updateQueue.push({ stats: stats,
-                             callbacks: [aCallback],
-                             queueType: QUEUE_TYPE_WRITE_CACHE });
+    this._updateQueue.push({
+      stats: stats,
+      callbacks: [aCallback],
+      queueType: QUEUE_TYPE_WRITE_CACHE
+    });
 
     this._processQueue();
   },
@@ -762,10 +813,10 @@ this.NetworkStatsService = {
           aStats.networkId + " " + aStats.networkType + " " + aStats.date + " "
           + aStats.date + " " + aStats.rxBytes + " " + aStats.txBytes);
 
-    // Generate an unique key from |appId|, |serviceType| and |netId|,
+    // Generate an unique key from |appId|, |serviceType| and |networkId|,
     // which is used to retrieve data in |_cachedStats|.
-    let netId = this._getNetworkId(aStats.networkId, aStats.networkType);
-    let key = aStats.appId + "" + aStats.serviceType + "" + netId;
+    let networkId = this._getNetworkId(aStats.networkId, aStats.networkType);
+    let key = aStats.appId + "" + aStats.serviceType + "" + networkId;
 
     // |_cachedStats| only keeps the data with the same date.
     // If the incoming date is different from |_cachedStatsDate|,
@@ -774,7 +825,7 @@ this.NetworkStatsService = {
                 this._db.normalizeDate(this._cachedStatsDate)) /
                this._db.sampleRate;
     if (diff != 0) {
-      this._updateCache(function(success, message) {
+      this._updateCache(function() {
         this._cachedStatsDate = aStats.date;
         this._cachedStats[key] = aStats;
 
@@ -805,7 +856,7 @@ this.NetworkStatsService = {
     // Then, the row will be removed from the cached.
     if (cachedStat.rxBytes > MAX_CACHED_TRAFFIC ||
         cachedStat.txBytes > MAX_CACHED_TRAFFIC) {
-      this._db.saveStats(cachedStat, function(error, result) {
+      this._db.saveStats(cachedStat, function(aError, aUndefined) {
         debug("Application stats inserted in indexedDB");
         if (aCallback) {
           aCallback(true, "ok");
@@ -841,7 +892,7 @@ this.NetworkStatsService = {
 
     let index = 0;
     this._db.saveStats(this._cachedStats[stats[index]],
-                       function onSavedStats(error, result) {
+                       function onSavedStats(aError, aUndefined) {
       debug("Application stats inserted in indexedDB");
 
       // Clean up the |_cachedStats| after updating.
@@ -857,7 +908,7 @@ this.NetworkStatsService = {
       // Update is not finished, keep updating.
       index += 1;
       this._db.saveStats(this._cachedStats[stats[index]],
-                         onSavedStats.bind(this, error, result));
+                         onSavedStats.bind(this));
     }.bind(this));
   },
 
@@ -866,72 +917,86 @@ this.NetworkStatsService = {
   },
 
   logAllRecords: function() {
-    this._db.logAllRecords(function(aError, aResult) {
+    this._db.logAllRecords(function(aError, aNetRecords) {
       if (aError) {
         debug("Error: " + aError);
         return;
       }
 
       debug("===== LOG =====");
-      debug("There are " + aResult.length + " items");
-      debug(JSON.stringify(aResult));
+      debug("There are " + aNetRecords.length + " items");
+      debug(JSON.stringify(aNetRecords));
     });
   },
 
-  getAlarms: function(mm, msg) {
+  getAlarms: function(aMsgTarget, aMsgJson) {
     let self = this;
-    let network = msg.data.network;
-    let manifestURL = msg.data.manifestURL;
+    let network = aMsgJson.data.network;
+    let manifestURL = aMsgJson.data.manifestURL;
 
     if (network) {
-      this._validateNetwork(network, function(aNetId) {
-        if (!aNetId) {
-          mm.sendAsyncMessage("NetworkStats:GetAlarms:Return",
-                              { id: msg.id, error: "InvalidInterface", result: null });
+      this._validateNetwork(network, function(aNetworkId) {
+        if (!aNetworkId) {
+          aMsgTarget.sendAsyncMessage("NetworkStats:GetAlarms:Return", {
+            id: aMsgJson.id,
+            error: "InvalidInterface",
+            result: null
+          });
           return;
         }
 
-        self._getAlarms(mm, msg, aNetId, manifestURL);
+        self._getAlarms(aMsgTarget, aMsgJson, aNetworkId, manifestURL);
       });
       return;
     }
 
-    this._getAlarms(mm, msg, null, manifestURL);
+    this._getAlarms(aMsgTarget, aMsgJson, null, manifestURL);
   },
 
-  _getAlarms: function(mm, msg, aNetId, aManifestURL) {
+  _getAlarms: function(aMsgTarget, aMsgJson, aNetworkId, aManifestURL) {
     let self = this;
-    this._db.getAlarms(aNetId, aManifestURL, function(error, result) {
-      if (error) {
-        mm.sendAsyncMessage("NetworkStats:GetAlarms:Return",
-                            { id: msg.id, error: error, result: result });
+    this._db.getAlarms(aNetworkId, aManifestURL, function(aError, aAlarmRecords) {
+      if (aError) {
+        aMsgTarget.sendAsyncMessage("NetworkStats:GetAlarms:Return", {
+          id: aMsgJson.id,
+          error: aError,
+          result: aAlarmRecords
+        });
         return;
       }
 
-      let alarms = []
+      let alarms = [];
       // NetworkStatsManager must return the network instead of the networkId.
-      for (let i = 0; i < result.length; i++) {
-        let alarm = result[i];
-        alarms.push({ id: alarm.id,
-                      network: self._networks[alarm.networkId].network,
-                      threshold: alarm.absoluteThreshold,
-                      data: alarm.data });
+      for (let i = 0; i < aAlarmRecords.length; i++) {
+        let alarm = aAlarmRecords[i];
+        alarms.push({
+          id: alarm.id,
+          network: self._networks[alarm.networkId].network,
+          threshold: alarm.absoluteThreshold,
+          data: alarm.data
+        });
       }
 
-      mm.sendAsyncMessage("NetworkStats:GetAlarms:Return",
-                          { id: msg.id, error: null, result: alarms });
+      aMsgTarget.sendAsyncMessage("NetworkStats:GetAlarms:Return", {
+        id: aMsgJson.id,
+        error: null,
+        result: alarms
+      });
     });
   },
 
-  removeAlarms: function(mm, msg) {
-    let alarmId = msg.data.alarmId;
-    let manifestURL = msg.data.manifestURL;
+  removeAlarms: function(aMsgTarget, aMsgJson) {
+    let alarmId = aMsgJson.data.alarmId;
+    let manifestURL = aMsgJson.data.manifestURL;
 
     let self = this;
-    let callback = function(error, result) {
-      if (error) {
-        mm.sendAsyncMessage("NetworkStats:RemoveAlarms:Return",
-                            { id: msg.id, error: error, result: result });
+    let callback = function(aError, aUnused) {
+      if (aError) {
+        aMsgTarget.sendAsyncMessage("NetworkStats:RemoveAlarms:Return", {
+          id: aMsgJson.id,
+          error: aError,
+          result: null
+        });
         return;
       }
 
@@ -944,8 +1009,11 @@ this.NetworkStatsService = {
         }
       }
 
-      mm.sendAsyncMessage("NetworkStats:RemoveAlarms:Return",
-                          { id: msg.id, error: error, result: true });
+      aMsgTarget.sendAsyncMessage("NetworkStats:RemoveAlarms:Return", {
+        id: aMsgJson.id,
+        error: aError,
+        result: true
+      });
     };
 
     if (alarmId == -1) {
@@ -958,58 +1026,73 @@ this.NetworkStatsService = {
   /*
    * Function called from manager to set an alarm.
    */
-  setAlarm: function(mm, msg) {
-    let options = msg.data;
+  setAlarm: function(aMsgTarget, aMsgJson) {
+    let options = aMsgJson.data;
     let network = options.network;
     let threshold = options.threshold;
 
     debug("Set alarm at " + threshold + " for " + JSON.stringify(network));
 
     if (threshold < 0) {
-      mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
-                          { id: msg.id, error: "InvalidThresholdValue", result: null });
+      aMsgTarget.sendAsyncMessage("NetworkStats:SetAlarm:Return", {
+        id: aMsgJson.id,
+        error: "InvalidThresholdValue",
+        result: null
+      });
       return;
     }
 
     let self = this;
-    this._validateNetwork(network, function(aNetId) {
-      if (!aNetId) {
-        mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
-                            { id: msg.id, error: "InvalidiConnectionType", result: null });
+    this._validateNetwork(network, function(aNetworkId) {
+      if (!aNetworkId) {
+        aMsgTarget.sendAsyncMessage("NetworkStats:SetAlarm:Return", {
+          id: aMsgJson.id,
+          error: "InvalidiConnectionType",
+          result: null
+        });
         return;
       }
 
       let newAlarm = {
         id: null,
-        networkId: aNetId,
+        networkId: aNetworkId,
         absoluteThreshold: threshold,
         relativeThreshold: null,
-        startTime: options.startTime,
+        startTime: options.startTimestamp,
         data: options.data,
         pageURL: options.pageURL,
         manifestURL: options.manifestURL
       };
 
-      self._getAlarmQuota(newAlarm, function(error, quota) {
-        if (error) {
-          mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
-                              { id: msg.id, error: error, result: null });
+      self._getAlarmQuota(newAlarm, function(aError, aAlarmQuota) {
+        if (aError) {
+          aMsgTarget.sendAsyncMessage("NetworkStats:SetAlarm:Return", {
+            id: aMsgJson.id,
+            error: aError,
+            result: null
+          });
           return;
         }
 
-        self._db.addAlarm(newAlarm, function(error, newId) {
-          if (error) {
-            mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
-                                { id: msg.id, error: error, result: null });
+        self._db.addAlarm(newAlarm, function(aError, aAlarmId) {
+          if (aError) {
+            aMsgTarget.sendAsyncMessage("NetworkStats:SetAlarm:Return", {
+              id: aMsgJson.id,
+              error: aError,
+              result: null
+            });
             return;
           }
 
-          newAlarm.id = newId;
-          self._setAlarm(newAlarm, function(error) {
-            mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
-                                { id: msg.id, error: error, result: newId });
+          newAlarm.id = aAlarmId;
+          self._setAlarm(newAlarm, function(aError) {
+            aMsgTarget.sendAsyncMessage("NetworkStats:SetAlarm:Return", {
+              id: aMsgJson.id,
+              error: aError,
+              result: aAlarmId
+            });
 
-            if (error == "InvalidStateError") {
+            if (aError == "InvalidStateError") {
               self._fireAlarm(newAlarm);
             }
           });
@@ -1029,7 +1112,7 @@ this.NetworkStatsService = {
 
     let self = this;
 
-    this._getAlarmQuota(aAlarm, function(aError, aQuota) {
+    this._getAlarmQuota(aAlarm, function(aError, aAlarmQuota) {
       if (aError) {
         aCallback(aError);
         return;
@@ -1062,18 +1145,18 @@ this.NetworkStatsService = {
 
   _getAlarmQuota: function(aAlarm, aCallback) {
     let self = this;
-    this._updateStats(aAlarm.networkId, function(aResult, aMessage) {
+    this._updateStats(aAlarm.networkId, function(aSuccess, aMessage) {
       self._db.getCurrentStats(self._networks[aAlarm.networkId].network,
                                aAlarm.startTime,
-                               function(error, result) {
-        if (error) {
+                               function(aError, aNetRecord) {
+        if (aError) {
           debug("Error getting stats for " +
-                JSON.stringify(self._networks[aAlarm.networkId]) + ": " + error);
-          aCallback(error, result);
+                JSON.stringify(self._networks[aAlarm.networkId]) + ": " + aError);
+          aCallback(aError, null);
           return;
         }
 
-        let quota = aAlarm.absoluteThreshold - result.rxBytes - result.txBytes;
+        let quota = aAlarm.absoluteThreshold - aNetRecord.rxBytes - aNetRecord.txBytes;
 
         // Alarm set to a threshold lower than current rx/tx bytes.
         if (quota <= 0) {
@@ -1082,7 +1165,7 @@ this.NetworkStatsService = {
         }
 
         aAlarm.relativeThreshold = aAlarm.startTime
-                                 ? result.rxTotalBytes + result.txTotalBytes + quota
+                                 ? aNetRecord.rxTotalBytes + aNetRecord.txTotalBytes + quota
                                  : aAlarm.absoluteThreshold;
 
         aCallback(null, quota);
@@ -1094,8 +1177,8 @@ this.NetworkStatsService = {
     debug("Fire alarm");
 
     let self = this;
-    this._db.removeAlarm(aAlarm.id, null, function(aError, aResult){
-      if (!aError && !aResult) {
+    this._db.removeAlarm(aAlarm.id, null, function(aError, aRemoved) {
+      if (!aError && !aRemoved) {
         return;
       }
 
@@ -1108,22 +1191,22 @@ this.NetworkStatsService = {
     this._currentAlarms[aNetworkId] = {};
 
     let self = this;
-    this._db.getFirstAlarm(aNetworkId, function(error, result){
-      if (error) {
+    this._db.getFirstAlarm(aNetworkId, function(aError, aAlarmRecord) {
+      if (aError) {
         debug("Error getting the first alarm");
         return;
       }
 
-      if (!result) {
+      if (!aAlarmRecord) {
         let interfaceName = self._networks[aNetworkId].interfaceName;
         networkService.setNetworkInterfaceAlarm(interfaceName, -1,
                                                 function() {});
         return;
       }
 
-      self._setAlarm(result, function(error){
-        if (error == "InvalidStateError") {
-          self._fireAlarm(result);
+      self._setAlarm(aAlarmRecord, function(aError) {
+        if (aError == "InvalidStateError") {
+          self._fireAlarm(aAlarmRecord);
           return;
         }
       });
@@ -1136,10 +1219,12 @@ this.NetworkStatsService = {
     let manifestURI = Services.io.newURI(aAlarm.manifestURL, null, null);
     let pageURI = Services.io.newURI(aAlarm.pageURL, null, null);
 
-    let alarm = { "id":        aAlarm.id,
-                  "threshold": aAlarm.absoluteThreshold,
-                  "data":      aAlarm.data };
-    messenger.sendMessage("networkstats-alarm", alarm, pageURI, manifestURI);
+    let message = {
+      "id": aAlarm.id,
+      "threshold": aAlarm.absoluteThreshold,
+      "data": aAlarm.data
+    };
+    messenger.sendMessage("networkstats-alarm", message, pageURI, manifestURI);
   }
 };
 

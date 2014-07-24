@@ -124,24 +124,14 @@ add_test(function test_fillResultSamples_noEmptyData() {
 });
 
 add_test(function test_clear() {
-  var networks = getNetworks();
-  networks.forEach(function(network, index) {
-    networks[index] = {network: network, networkId: getNetworkId(network.id, network.type)};
-  }, this);
-
-  netStatsDb.clearStats(networks, function (error, result) {
+  netStatsDb.clearStats(getNetworks(), function (error, result) {
     do_check_eq(error, null);
     run_next_test();
   });
 });
 
 add_test(function test_clear_interface() {
-  var networks = getNetworks();
-  networks.forEach(function(network, index) {
-    networks[index] = {network: network, networkId: getNetworkId(network.id, network.type)};
-  }, this);
-
-  netStatsDb.clearInterfaceStats(networks[0], function (error, result) {
+  netStatsDb.clearInterfaceStats(getNetworks()[0], function (error, result) {
     do_check_eq(error, null);
     run_next_test();
   });

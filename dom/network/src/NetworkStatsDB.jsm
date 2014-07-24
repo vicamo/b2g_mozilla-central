@@ -17,9 +17,9 @@ Cu.importGlobalProperties(["indexedDB"]);
 
 const DB_NAME = "net_stats";
 const DB_VERSION = 8;
-const DEPRECATED_STORE_NAME = "net_stats";
-const STATS_STORE_NAME = "net_stats_store";
-const ALARMS_STORE_NAME = "net_alarm";
+const DEPRECATED_NETWORK_STORE_NAME1 = "net_stats";
+const NETWORK_STORE_NAME = "net_stats_store";
+const ALARM_STORE_NAME = "net_alarm";
 
 // Constant defining the maximum values allowed per interface. If more, older
 // will be erased.
@@ -32,41 +32,42 @@ this.NetworkStatsDB = function NetworkStatsDB() {
   if (DEBUG) {
     debug("Constructor");
   }
-  this.initDBHelper(DB_NAME, DB_VERSION, [STATS_STORE_NAME, ALARMS_STORE_NAME]);
+  this.initDBHelper(DB_NAME, DB_VERSION,
+                    [NETWORK_STORE_NAME, ALARM_STORE_NAME]);
 }
 
 NetworkStatsDB.prototype = {
   __proto__: IndexedDBHelper.prototype,
 
-  _dbNewTxn: function(store_name, txn_type, callback, txnCb) {
-    function successCb(result) {
-      txnCb(null, result);
+  _dbNewTxn: function(aStoreName, aTransactionType, aCallback, aResultCb) {
+    function successCb(aResult) {
+      aResultCb(null, aResult);
     }
-    function errorCb(error) {
-      txnCb(error, null);
+    function errorCb(aError) {
+      aResultCb(aError, null);
     }
-    return this.newTxn(txn_type, store_name, callback, successCb, errorCb);
+    return this.newTxn(aTransactionType, aStoreName, aCallback, successCb, errorCb);
   },
 
   upgradeSchema: function(aTransaction, aDb, aOldVersion, aNewVersion) {
     if (DEBUG) {
       debug("upgrade schema from: " + aOldVersion + " to " + aNewVersion + " called!");
     }
-    let db = aDb;
-    let objectStore;
     for (let currVersion = aOldVersion; currVersion < aNewVersion; currVersion++) {
       if (currVersion == 0) {
         /**
          * Create the initial database schema.
          */
 
-        objectStore = db.createObjectStore(DEPRECATED_STORE_NAME, { keyPath: ["connectionType", "timestamp"] });
-        objectStore.createIndex("connectionType", "connectionType", { unique: false });
-        objectStore.createIndex("timestamp", "timestamp", { unique: false });
-        objectStore.createIndex("rxBytes", "rxBytes", { unique: false });
-        objectStore.createIndex("txBytes", "txBytes", { unique: false });
-        objectStore.createIndex("rxTotalBytes", "rxTotalBytes", { unique: false });
-        objectStore.createIndex("txTotalBytes", "txTotalBytes", { unique: false });
+        let deprecatedNetworkStore1 =
+          aDb.createObjectStore(DEPRECATED_NETWORK_STORE_NAME1,
+                                { keyPath: ["connectionType", "timestamp"] });
+        deprecatedNetworkStore1.createIndex("connectionType", "connectionType", { unique: false });
+        deprecatedNetworkStore1.createIndex("timestamp", "timestamp", { unique: false });
+        deprecatedNetworkStore1.createIndex("rxBytes", "rxBytes", { unique: false });
+        deprecatedNetworkStore1.createIndex("txBytes", "txBytes", { unique: false });
+        deprecatedNetworkStore1.createIndex("rxTotalBytes", "rxTotalBytes", { unique: false });
+        deprecatedNetworkStore1.createIndex("txTotalBytes", "txTotalBytes", { unique: false });
         if (DEBUG) {
           debug("Created object stores and indexes");
         }
@@ -82,49 +83,52 @@ NetworkStatsDB.prototype = {
 
         // In version 1.2 objectStore name was 'net_stats_v2', to avoid errors when
         // upgrading from 1.2 to 1.3 objectStore name should be checked.
-        let stores = db.objectStoreNames;
+        let stores = aDb.objectStoreNames;
         if(stores.contains("net_stats_v2")) {
-          db.deleteObjectStore("net_stats_v2");
+          aDb.deleteObjectStore("net_stats_v2");
         } else {
-          db.deleteObjectStore(DEPRECATED_STORE_NAME);
+          aDb.deleteObjectStore(DEPRECATED_NETWORK_STORE_NAME1);
         }
 
-        objectStore = db.createObjectStore(DEPRECATED_STORE_NAME, { keyPath: ["appId", "network", "timestamp"] });
-        objectStore.createIndex("appId", "appId", { unique: false });
-        objectStore.createIndex("network", "network", { unique: false });
-        objectStore.createIndex("networkType", "networkType", { unique: false });
-        objectStore.createIndex("timestamp", "timestamp", { unique: false });
-        objectStore.createIndex("rxBytes", "rxBytes", { unique: false });
-        objectStore.createIndex("txBytes", "txBytes", { unique: false });
-        objectStore.createIndex("rxTotalBytes", "rxTotalBytes", { unique: false });
-        objectStore.createIndex("txTotalBytes", "txTotalBytes", { unique: false });
+        let deprecatedNetworkStore1 =
+          aDb.createObjectStore(DEPRECATED_NETWORK_STORE_NAME1,
+                                { keyPath: ["appId", "network", "timestamp"] });
+        deprecatedNetworkStore1.createIndex("appId", "appId", { unique: false });
+        deprecatedNetworkStore1.createIndex("network", "network", { unique: false });
+        deprecatedNetworkStore1.createIndex("networkType", "networkType", { unique: false });
+        deprecatedNetworkStore1.createIndex("timestamp", "timestamp", { unique: false });
+        deprecatedNetworkStore1.createIndex("rxBytes", "rxBytes", { unique: false });
+        deprecatedNetworkStore1.createIndex("txBytes", "txBytes", { unique: false });
+        deprecatedNetworkStore1.createIndex("rxTotalBytes", "rxTotalBytes", { unique: false });
+        deprecatedNetworkStore1.createIndex("txTotalBytes", "txTotalBytes", { unique: false });
 
         if (DEBUG) {
           debug("Created object stores and indexes for version 3");
         }
       } else if (currVersion == 3) {
         // Delete redundent indexes (leave "network" only).
-        objectStore = aTransaction.objectStore(DEPRECATED_STORE_NAME);
-        if (objectStore.indexNames.contains("appId")) {
-          objectStore.deleteIndex("appId");
+        let deprecatedNetworkStore1 =
+          aTransaction.objectStore(DEPRECATED_NETWORK_STORE_NAME1);
+        if (deprecatedNetworkStore1.indexNames.contains("appId")) {
+          deprecatedNetworkStore1.deleteIndex("appId");
         }
-        if (objectStore.indexNames.contains("networkType")) {
-          objectStore.deleteIndex("networkType");
+        if (deprecatedNetworkStore1.indexNames.contains("networkType")) {
+          deprecatedNetworkStore1.deleteIndex("networkType");
         }
-        if (objectStore.indexNames.contains("timestamp")) {
-          objectStore.deleteIndex("timestamp");
+        if (deprecatedNetworkStore1.indexNames.contains("timestamp")) {
+          deprecatedNetworkStore1.deleteIndex("timestamp");
         }
-        if (objectStore.indexNames.contains("rxBytes")) {
-          objectStore.deleteIndex("rxBytes");
+        if (deprecatedNetworkStore1.indexNames.contains("rxBytes")) {
+          deprecatedNetworkStore1.deleteIndex("rxBytes");
         }
-        if (objectStore.indexNames.contains("txBytes")) {
-          objectStore.deleteIndex("txBytes");
+        if (deprecatedNetworkStore1.indexNames.contains("txBytes")) {
+          deprecatedNetworkStore1.deleteIndex("txBytes");
         }
-        if (objectStore.indexNames.contains("rxTotalBytes")) {
-          objectStore.deleteIndex("rxTotalBytes");
+        if (deprecatedNetworkStore1.indexNames.contains("rxTotalBytes")) {
+          deprecatedNetworkStore1.deleteIndex("rxTotalBytes");
         }
-        if (objectStore.indexNames.contains("txTotalBytes")) {
-          objectStore.deleteIndex("txTotalBytes");
+        if (deprecatedNetworkStore1.indexNames.contains("txTotalBytes")) {
+          deprecatedNetworkStore1.deleteIndex("txTotalBytes");
         }
 
         if (DEBUG) {
@@ -133,14 +137,15 @@ NetworkStatsDB.prototype = {
       } else if (currVersion == 4) {
         // In order to manage alarms, it is necessary to use a global counter
         // (totalBytes) that will increase regardless of the system reboot.
-        objectStore = aTransaction.objectStore(DEPRECATED_STORE_NAME);
+        let deprecatedNetworkStore1 =
+          aTransaction.objectStore(DEPRECATED_NETWORK_STORE_NAME1);
 
         // Now, systemBytes will hold the old totalBytes and totalBytes will
         // keep the increasing counter. |counters| will keep the track of
         // accumulated values.
         let counters = {};
 
-        objectStore.openCursor().onsuccess = function(event) {
+        deprecatedNetworkStore1.openCursor().onsuccess = function(event) {
           let cursor = event.target.result;
           if (!cursor){
             return;
@@ -150,9 +155,9 @@ NetworkStatsDB.prototype = {
           cursor.value.txSystemBytes = cursor.value.txTotalBytes;
 
           if (cursor.value.appId == 0) {
-            let netId = cursor.value.network[0] + '' + cursor.value.network[1];
-            if (!counters[netId]) {
-              counters[netId] = {
+            let networkId = cursor.value.network[0] + '' + cursor.value.network[1];
+            if (!counters[networkId]) {
+              counters[networkId] = {
                 rxCounter: 0,
                 txCounter: 0,
                 lastRx: 0,
@@ -160,21 +165,21 @@ NetworkStatsDB.prototype = {
               };
             }
 
-            let rxDiff = cursor.value.rxSystemBytes - counters[netId].lastRx;
-            let txDiff = cursor.value.txSystemBytes - counters[netId].lastTx;
+            let rxDiff = cursor.value.rxSystemBytes - counters[networkId].lastRx;
+            let txDiff = cursor.value.txSystemBytes - counters[networkId].lastTx;
             if (rxDiff < 0 || txDiff < 0) {
               // System reboot between samples, so take the current one.
               rxDiff = cursor.value.rxSystemBytes;
               txDiff = cursor.value.txSystemBytes;
             }
 
-            counters[netId].rxCounter += rxDiff;
-            counters[netId].txCounter += txDiff;
-            cursor.value.rxTotalBytes = counters[netId].rxCounter;
-            cursor.value.txTotalBytes = counters[netId].txCounter;
+            counters[networkId].rxCounter += rxDiff;
+            counters[networkId].txCounter += txDiff;
+            cursor.value.rxTotalBytes = counters[networkId].rxCounter;
+            cursor.value.txTotalBytes = counters[networkId].txCounter;
 
-            counters[netId].lastRx = cursor.value.rxSystemBytes;
-            counters[netId].lastTx = cursor.value.txSystemBytes;
+            counters[networkId].lastRx = cursor.value.rxSystemBytes;
+            counters[networkId].lastTx = cursor.value.txSystemBytes;
           } else {
             cursor.value.rxTotalBytes = cursor.value.rxSystemBytes;
             cursor.value.txTotalBytes = cursor.value.txSystemBytes;
@@ -185,9 +190,11 @@ NetworkStatsDB.prototype = {
         };
 
         // Create object store for alarms.
-        objectStore = db.createObjectStore(ALARMS_STORE_NAME, { keyPath: "id", autoIncrement: true });
-        objectStore.createIndex("alarm", ['networkId','threshold'], { unique: false });
-        objectStore.createIndex("manifestURL", "manifestURL", { unique: false });
+        let alarmStore =
+          aDb.createObjectStore(ALARM_STORE_NAME,
+                                { keyPath: "id", autoIncrement: true });
+        alarmStore.createIndex("alarm", ['networkId','threshold'], { unique: false });
+        alarmStore.createIndex("manifestURL", "manifestURL", { unique: false });
 
         if (DEBUG) {
           debug("Created alarms store for version 5");
@@ -198,23 +205,24 @@ NetworkStatsDB.prototype = {
         // To further support "system-only" data storage, the data can be
         // saved by service type (e.g., Tethering, OTA). Thus it's needed to
         // have a new key ("serviceType") for the ojectStore.
-        let newObjectStore;
-        newObjectStore = db.createObjectStore(STATS_STORE_NAME,
-                         { keyPath: ["appId", "serviceType", "network", "timestamp"] });
-        newObjectStore.createIndex("network", "network", { unique: false });
+        let networkStore =
+          aDb.createObjectStore(NETWORK_STORE_NAME,
+                                { keyPath: ["appId", "serviceType", "network", "timestamp"] });
+        networkStore.createIndex("network", "network", { unique: false });
 
         // Copy the data from the original objectStore to the new objectStore.
-        objectStore = aTransaction.objectStore(DEPRECATED_STORE_NAME);
-        objectStore.openCursor().onsuccess = function(event) {
+        let deprecatedNetworkStore1 =
+          aTransaction.objectStore(DEPRECATED_NETWORK_STORE_NAME1);
+        deprecatedNetworkStore1.openCursor().onsuccess = function(event) {
           let cursor = event.target.result;
           if (!cursor) {
-            db.deleteObjectStore(DEPRECATED_STORE_NAME);
+            aDb.deleteObjectStore(DEPRECATED_NETWORK_STORE_NAME1);
             return;
           }
 
           let newStats = cursor.value;
           newStats.serviceType = "";
-          newObjectStore.put(newStats);
+          networkStore.put(newStats);
           cursor.continue();
         };
 
@@ -225,18 +233,18 @@ NetworkStatsDB.prototype = {
         // Replace threshold attribute of alarm index by relativeThreshold in alarms DB.
         // Now alarms are indexed by relativeThreshold, which is the threshold relative
         // to current system stats.
-        let alarmsStore = aTransaction.objectStore(ALARMS_STORE_NAME);
+        let alarmStore = aTransaction.objectStore(ALARM_STORE_NAME);
 
         // Delete "alarm" index.
-        if (alarmsStore.indexNames.contains("alarm")) {
-          alarmsStore.deleteIndex("alarm");
+        if (alarmStore.indexNames.contains("alarm")) {
+          alarmStore.deleteIndex("alarm");
         }
 
         // Create new "alarm" index.
-        alarmsStore.createIndex("alarm", ['networkId','relativeThreshold'], { unique: false });
+        alarmStore.createIndex("alarm", ['networkId','relativeThreshold'], { unique: false });
 
         // Populate new "alarm" index attributes.
-        alarmsStore.openCursor().onsuccess = function(event) {
+        alarmStore.openCursor().onsuccess = function(event) {
           let cursor = event.target.result;
           if (!cursor) {
             return;
@@ -253,10 +261,10 @@ NetworkStatsDB.prototype = {
         // Previous versions save accumulative totalBytes, increasing althought the system
         // reboots or resets stats. But is necessary to reset the total counters when reset
         // through 'clearInterfaceStats'.
-        let statsStore = aTransaction.objectStore(STATS_STORE_NAME);
+        let networkStore = aTransaction.objectStore(NETWORK_STORE_NAME);
         let networks = [];
         // Find networks stored in the database.
-        statsStore.index("network").openKeyCursor(null, "nextunique").onsuccess = function(event) {
+        networkStore.index("network").openKeyCursor(null, "nextunique").onsuccess = function(event) {
           let cursor = event.target.result;
           if (cursor) {
             networks.push(cursor.key);
@@ -270,7 +278,7 @@ NetworkStatsDB.prototype = {
             let range = IDBKeyRange.bound(lowerFilter, upperFilter, false, false);
 
             // Find number of samples for a given network.
-            statsStore.count(range).onsuccess = function(event) {
+            networkStore.count(range).onsuccess = function(event) {
               // If there are more samples than the max allowed, there is no way to know
               // when does reset take place.
               if (event.target.result >= VALUES_MAX_LENGTH) {
@@ -280,7 +288,7 @@ NetworkStatsDB.prototype = {
               let last = null;
               // Reset detected if the first sample totalCounters are different than bytes
               // counters. If so, the total counters should be recalculated.
-              statsStore.openCursor(range).onsuccess = function(event) {
+              networkStore.openCursor(range).onsuccess = function(event) {
                 let cursor = event.target.result;
                 if (!cursor) {
                   return;
@@ -311,8 +319,8 @@ NetworkStatsDB.prototype = {
         };
       } else if (currVersion == 7) {
         // Create index for 'ServiceType' in order to make it retrievable.
-        let statsStore = aTransaction.objectStore(STATS_STORE_NAME);
-        statsStore.createIndex("serviceType", "serviceType", { unique: false });
+        let networkStore = aTransaction.objectStore(NETWORK_STORE_NAME);
+        networkStore.createIndex("serviceType", "serviceType", { unique: false });
 
         if (DEBUG) {
           debug("Create index of 'serviceType' for version 8");
@@ -362,7 +370,8 @@ NetworkStatsDB.prototype = {
 
     stats = this._importData(stats);
 
-    this._dbNewTxn(STATS_STORE_NAME, "readwrite", function(aTxn, aStore) {
+    this._dbNewTxn(NETWORK_STORE_NAME, "readwrite",
+                   function(aTransaction, aNetworkStore) {
       if (DEBUG) {
         debug("Filtered time: " + new Date(timestamp));
         debug("New stats: " + JSON.stringify(stats));
@@ -372,7 +381,7 @@ NetworkStatsDB.prototype = {
       let upperFilter = [stats.appId, stats.serviceType, stats.network, ""];
       let range = IDBKeyRange.bound(lowerFilter, upperFilter, false, false);
 
-      let request = aStore.openCursor(range, 'prev');
+      let request = aNetworkStore.openCursor(range, 'prev');
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (!cursor) {
@@ -387,7 +396,7 @@ NetworkStatsDB.prototype = {
             stats.txBytes = stats.txTotalBytes;
           }
 
-          this._saveStats(aStore, stats);
+          this._saveStats(aNetworkStore, stats);
           return;
         }
 
@@ -397,11 +406,11 @@ NetworkStatsDB.prototype = {
         }
 
         // Remove stats previous to now - VALUE_MAX_LENGTH
-        this._removeOldStats(aStore, stats.appId, stats.serviceType,
+        this._removeOldStats(aNetworkStore, stats.appId, stats.serviceType,
                              stats.network, stats.timestamp);
 
         // Process stats before save
-        this._processSamplesDiff(aStore, cursor, stats, isAccumulative);
+        this._processSamplesDiff(aNetworkStore, cursor, stats, isAccumulative);
       }.bind(this);
     }.bind(this), aResultCb);
   },
@@ -410,7 +419,7 @@ NetworkStatsDB.prototype = {
    * This function check that stats are saved in the database following the sample rate.
    * In this way is easier to find elements when stats are requested.
    */
-  _processSamplesDiff: function(aStore, aLastSampleCursor, aNewSample,
+  _processSamplesDiff: function(aNetworkStore, aLastSampleCursor, aNewSample,
                                 aIsAccumulative) {
     let lastSample = aLastSampleCursor.value;
 
@@ -462,7 +471,7 @@ NetworkStatsDB.prototype = {
         aNewSample.txTotalBytes = aNewSample.txBytes + lastSample.txTotalBytes;
       }
 
-      this._saveStats(aStore, aNewSample);
+      this._saveStats(aNetworkStore, aNewSample);
       return;
     }
     if (diff > 1) {
@@ -491,7 +500,7 @@ NetworkStatsDB.prototype = {
       }
 
       data.push(aNewSample);
-      this._saveStats(aStore, data);
+      this._saveStats(aNetworkStore, data);
       return;
     }
     if (diff == 0 || diff < 0) {
@@ -516,7 +525,7 @@ NetworkStatsDB.prototype = {
     }
   },
 
-  _saveStats: function(aStore, aNetworkStats) {
+  _saveStats: function(aNetworkStore, aNetworkStats) {
     if (DEBUG) {
       debug("_saveStats: " + JSON.stringify(aNetworkStats));
     }
@@ -524,23 +533,24 @@ NetworkStatsDB.prototype = {
     if (Array.isArray(aNetworkStats)) {
       let len = aNetworkStats.length - 1;
       for (let i = 0; i <= len; i++) {
-        aStore.put(aNetworkStats[i]);
+        aNetworkStore.put(aNetworkStats[i]);
       }
     } else {
-      aStore.put(aNetworkStats);
+      aNetworkStore.put(aNetworkStats);
     }
   },
 
-  _removeOldStats: function(aStore, aAppId, aServiceType, aNetwork, aDate) {
+  _removeOldStats: function(aNetworkStore, aAppId, aServiceType, aNetwork,
+                            aTimestamp) {
     // Callback function to remove old items when new ones are added.
-    let filterDate = aDate - (SAMPLE_RATE * VALUES_MAX_LENGTH - 1);
+    let filterTimestamp = aTimestamp - (SAMPLE_RATE * VALUES_MAX_LENGTH - 1);
     let lowerFilter = [aAppId, aServiceType, aNetwork, 0];
-    let upperFilter = [aAppId, aServiceType, aNetwork, filterDate];
+    let upperFilter = [aAppId, aServiceType, aNetwork, filterTimestamp];
     let range = IDBKeyRange.bound(lowerFilter, upperFilter, false, false);
     let lastSample = null;
     let self = this;
 
-    aStore.openCursor(range).onsuccess = function(event) {
+    aNetworkStore.openCursor(range).onsuccess = function(event) {
       var cursor = event.target.result;
       if (cursor) {
         lastSample = cursor.value;
@@ -554,7 +564,7 @@ NetworkStatsDB.prototype = {
       // future samples because system counters are not set to 0.
       // Thus, if there are no samples left, the last sample removed
       // will be saved again after setting its bytes to 0.
-      let request = aStore.index("network").openCursor(aNetwork);
+      let request = aNetworkStore.index("network").openCursor(aNetwork);
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (!cursor && lastSample != null) {
@@ -563,20 +573,20 @@ NetworkStatsDB.prototype = {
           lastSample.timestamp = timestamp;
           lastSample.rxBytes = 0;
           lastSample.txBytes = 0;
-          self._saveStats(aStore, lastSample);
+          self._saveStats(aNetworkStore, lastSample);
         }
       };
     };
   },
 
   clearInterfaceStats: function(aNetwork, aResultCb) {
-    let network = [aNetwork.network.id, aNetwork.network.type];
     let self = this;
 
     // Clear and save an empty sample to keep sync with system counters
-    this._dbNewTxn(STATS_STORE_NAME, "readwrite", function(aTxn, aStore) {
+    this._dbNewTxn(NETWORK_STORE_NAME, "readwrite",
+                   function(aTransaction, aNetworkStore) {
       let sample = null;
-      let request = aStore.index("network").openCursor(network, "prev");
+      let request = aNetworkStore.index("network").openCursor(aNetwork, "prev");
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor) {
@@ -600,10 +610,10 @@ NetworkStatsDB.prototype = {
           sample.rxTotalBytes = 0;
           sample.txTotalBytes = 0;
 
-          self._saveStats(aStore, sample);
+          self._saveStats(aNetworkStore, sample);
         }
       };
-    }, this._resetAlarms.bind(this, aNetwork.networkId, aResultCb));
+    }, this._resetAlarms.bind(this, aNetwork.id + '' + aNetwork.type, aResultCb));
   },
 
   clearStats: function(aNetworks, aResultCb) {
@@ -611,7 +621,7 @@ NetworkStatsDB.prototype = {
     let stats = [];
     let self = this;
 
-    let callback = function(aError, aResult) {
+    let callback = function(aError, aUndefined) {
       index++;
 
       if (!aError && index < aNetworks.length) {
@@ -619,7 +629,7 @@ NetworkStatsDB.prototype = {
         return;
       }
 
-      aResultCb(aError, aResult);
+      aResultCb(aError, null);
     };
 
     if (!aNetworks[index]) {
@@ -629,14 +639,15 @@ NetworkStatsDB.prototype = {
     this.clearInterfaceStats(aNetworks[index], callback);
   },
 
-  getCurrentStats: function(aNetwork, aDate, aResultCb) {
+  getCurrentStats: function(aNetwork, aTimestamp, aResultCb) {
     if (DEBUG) {
-      debug("Get current stats for " + JSON.stringify(aNetwork) + " since " + aDate);
+      debug("Get current stats for " + JSON.stringify(aNetwork) +
+            " since " + aTimestamp);
     }
 
     let network = [aNetwork.id, aNetwork.type];
-    if (aDate) {
-      this._getCurrentStatsFromDate(network, aDate, aResultCb);
+    if (aTimestamp) {
+      this._getCurrentStatsFromTimestamp(network, aTimestamp, aResultCb);
       return;
     }
 
@@ -644,11 +655,12 @@ NetworkStatsDB.prototype = {
   },
 
   _getCurrentStats: function(aNetwork, aResultCb) {
-    this._dbNewTxn(STATS_STORE_NAME, "readonly", function(txn, store) {
+    this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
+                   function(aTransaction, aNetworkStore) {
       let request = null;
       let upperFilter = [0, "", aNetwork, Date.now()];
       let range = IDBKeyRange.upperBound(upperFilter, false);
-      request = store.openCursor(range, "prev");
+      request = aNetworkStore.openCursor(range, "prev");
 
       let result = { rxBytes:      0, txBytes:      0,
                      rxTotalBytes: 0, txTotalBytes: 0 };
@@ -660,17 +672,17 @@ NetworkStatsDB.prototype = {
           result.txBytes = result.txTotalBytes = cursor.value.txTotalBytes;
         }
 
-        txn.result = result;
+        aTransaction.result = result;
       };
     }.bind(this), aResultCb);
   },
 
-  _getCurrentStatsFromDate: function(aNetwork, aDate, aResultCb) {
-    aDate = new Date(aDate);
-    this._dbNewTxn(STATS_STORE_NAME, "readonly", function(txn, store) {
+  _getCurrentStatsFromTimestamp: function(aNetwork, aTimestamp, aResultCb) {
+    this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
+                   function(aTransaction, aNetworkStore) {
       let request = null;
-      let start = this.normalizeDate(aDate);
-      let lowerFilter = [0, "", aNetwork, start];
+      let startTimestamp = this.normalizeDate(new Date(aTimestamp));
+      let lowerFilter = [0, "", aNetwork, startTimestamp];
       let upperFilter = [0, "", aNetwork, Date.now()];
 
       let range = IDBKeyRange.upperBound(upperFilter, false);
@@ -678,7 +690,7 @@ NetworkStatsDB.prototype = {
       let result = { rxBytes:      0, txBytes:      0,
                      rxTotalBytes: 0, txTotalBytes: 0 };
 
-      request = store.openCursor(range, "prev");
+      request = aNetworkStore.openCursor(range, "prev");
 
       request.onsuccess = function(event) {
         let cursor = event.target.result;
@@ -689,7 +701,7 @@ NetworkStatsDB.prototype = {
 
         let timestamp = cursor.value.timestamp;
         let range = IDBKeyRange.lowerBound(lowerFilter, false);
-        request = store.openCursor(range);
+        request = aNetworkStore.openCursor(range);
 
         request.onsuccess = function(event) {
           let cursor = event.target.result;
@@ -704,39 +716,40 @@ NetworkStatsDB.prototype = {
             }
           }
 
-          txn.result = result;
+          aTransaction.result = result;
         };
       };
     }.bind(this), aResultCb);
   },
 
-  find: function(aResultCb, aAppId, aServiceType, aNetwork, aStart, aEnd,
-                 aAppManifestURL) {
+  find: function(aResultCb, aAppId, aServiceType, aNetwork, aStartDate, aEndDate,
+                 aManifestURL) {
     let offset = (new Date()).getTimezoneOffset() * 60 * 1000;
-    let start = this.normalizeDate(aStart);
-    let end = this.normalizeDate(aEnd);
+    let startTimestamp = this.normalizeDate(aStartDate);
+    let endTimestamp = this.normalizeDate(aEndDate);
 
     if (DEBUG) {
       debug("Find samples for appId: " + aAppId + " serviceType: " +
             aServiceType + " network: " + JSON.stringify(aNetwork) + " from " +
-            start + " until " + end);
-      debug("Start time: " + new Date(start));
-      debug("End time: " + new Date(end));
+            startTimestamp + " until " + endTimestamp);
+      debug("Start time: " + new Date(startTimestamp));
+      debug("End time: " + new Date(endTimestamp));
     }
 
-    this._dbNewTxn(STATS_STORE_NAME, "readonly", function(aTxn, aStore) {
+    this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
+                   function(aTransaction, aNetworkStore) {
       let network = [aNetwork.id, aNetwork.type];
-      let lowerFilter = [aAppId, aServiceType, network, start];
-      let upperFilter = [aAppId, aServiceType, network, end];
+      let lowerFilter = [aAppId, aServiceType, network, startTimestamp];
+      let upperFilter = [aAppId, aServiceType, network, endTimestamp];
       let range = IDBKeyRange.bound(lowerFilter, upperFilter, false, false);
 
       let data = [];
 
-      if (!aTxn.result) {
-        aTxn.result = {};
+      if (!aTransaction.result) {
+        aTransaction.result = {};
       }
 
-      let request = aStore.openCursor(range).onsuccess = function(event) {
+      let request = aNetworkStore.openCursor(range).onsuccess = function(event) {
         var cursor = event.target.result;
         if (cursor){
           data.push({ rxBytes: cursor.value.rxBytes,
@@ -748,14 +761,17 @@ NetworkStatsDB.prototype = {
 
         // When requested samples (start / end) are not in the range of now and
         // now - VALUES_MAX_LENGTH, fill with empty samples.
-        this._fillResultSamples(start + offset, end + offset, data);
+        this._fillResultSamples(startTimestamp + offset,
+                                endTimestamp + offset, data);
 
-        aTxn.result.appManifestURL = aAppManifestURL;
-        aTxn.result.serviceType = aServiceType;
-        aTxn.result.network = aNetwork;
-        aTxn.result.start = aStart;
-        aTxn.result.end = aEnd;
-        aTxn.result.data = data;
+        aTransaction.result = {
+          manifestURL: aManifestURL,
+          serviceType: aServiceType,
+          network: aNetwork,
+          startDate: aStartDate,
+          endDate: aEndDate,
+          data: data,
+	};
       }.bind(this);
     }.bind(this), aResultCb);
   },
@@ -764,20 +780,20 @@ NetworkStatsDB.prototype = {
    * Fill data array (samples from database) with empty samples to match
    * requested start / end dates.
    */
-  _fillResultSamples: function(aStart, aEnd, aData) {
+  _fillResultSamples: function(aStartTimestamp, aEndTimestamp, aData) {
     if (aData.length == 0) {
       aData.push({ rxBytes: undefined,
-                  txBytes: undefined,
-                  date: new Date(aStart) });
+                   txBytes: undefined,
+                   date: new Date(aStartTimestamp) });
     }
 
-    while (aStart < aData[0].date.getTime()) {
+    while (aStartTimestamp < aData[0].date.getTime()) {
       aData.unshift({ rxBytes: undefined,
                       txBytes: undefined,
                       date: new Date(aData[0].date.getTime() - SAMPLE_RATE) });
     }
 
-    while (aEnd > aData[aData.length - 1].date.getTime()) {
+    while (aEndTimestamp > aData[aData.length - 1].date.getTime()) {
       aData.push({ rxBytes: undefined,
                    txBytes: undefined,
                    date: new Date(aData[aData.length - 1].date.getTime() + SAMPLE_RATE) });
@@ -785,17 +801,18 @@ NetworkStatsDB.prototype = {
   },
 
   getAvailableNetworks: function(aResultCb) {
-    this._dbNewTxn(STATS_STORE_NAME, "readonly", function(aTxn, aStore) {
-      if (!aTxn.result) {
-        aTxn.result = [];
+    this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
+                   function(aTransaction, aNetworkStore) {
+      if (!aTransaction.result) {
+        aTransaction.result = [];
       }
 
-      let request = aStore.index("network").openKeyCursor(null, "nextunique");
+      let request = aNetworkStore.index("network").openKeyCursor(null, "nextunique");
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor) {
-          aTxn.result.push({ id: cursor.key[0],
-                             type: cursor.key[1] });
+          aTransaction.result.push({ id: cursor.key[0],
+                                     type: cursor.key[1] });
           cursor.continue();
           return;
         }
@@ -804,32 +821,34 @@ NetworkStatsDB.prototype = {
   },
 
   isNetworkAvailable: function(aNetwork, aResultCb) {
-    this._dbNewTxn(STATS_STORE_NAME, "readonly", function(aTxn, aStore) {
-      if (!aTxn.result) {
-        aTxn.result = false;
+    this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
+                   function(aTransaction, aNetworkStore) {
+      if (!aTransaction.result) {
+        aTransaction.result = false;
       }
 
       let network = [aNetwork.id, aNetwork.type];
-      let request = aStore.index("network").openKeyCursor(IDBKeyRange.only(network));
+      let request = aNetworkStore.index("network").openKeyCursor(IDBKeyRange.only(network));
       request.onsuccess = function(event) {
         if (event.target.result) {
-          aTxn.result = true;
+          aTransaction.result = true;
         }
       };
     }, aResultCb);
   },
 
   getAvailableServiceTypes: function(aResultCb) {
-    this._dbNewTxn(STATS_STORE_NAME, "readonly", function(aTxn, aStore) {
-      if (!aTxn.result) {
-        aTxn.result = [];
+    this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
+                   function(aTransaction, aNetworkStore) {
+      if (!aTransaction.result) {
+        aTransaction.result = [];
       }
 
-      let request = aStore.index("serviceType").openKeyCursor(null, "nextunique");
+      let request = aNetworkStore.index("serviceType").openKeyCursor(null, "nextunique");
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor && cursor.key != "") {
-          aTxn.result.push({ serviceType: cursor.key });
+          aTransaction.result.push({ serviceType: cursor.key });
           cursor.continue();
           return;
         }
@@ -846,65 +865,33 @@ NetworkStatsDB.prototype = {
   },
 
   logAllRecords: function(aResultCb) {
-    this._dbNewTxn(STATS_STORE_NAME, "readonly", function(aTxn, aStore) {
-      aStore.mozGetAll().onsuccess = function(event) {
-        aTxn.result = event.target.result;
+    this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
+                   function(aTransaction, aNetworkStore) {
+      aNetworkStore.mozGetAll().onsuccess = function(event) {
+        aTransaction.result = event.target.result;
       };
     }, aResultCb);
   },
 
-  _alarmToRecord: function(aAlarm) {
-    let record = { networkId: aAlarm.networkId,
-                   absoluteThreshold: aAlarm.absoluteThreshold,
-                   relativeThreshold: aAlarm.relativeThreshold,
-                   startTime: aAlarm.startTime,
-                   data: aAlarm.data,
-                   manifestURL: aAlarm.manifestURL,
-                   pageURL: aAlarm.pageURL };
-
-    if (aAlarm.id) {
-      record.id = aAlarm.id;
-    }
-
-    return record;
-  },
-
-  _recordToAlarm: function(aRecord) {
-    let alarm = { networkId: aRecord.networkId,
-                  absoluteThreshold: aRecord.absoluteThreshold,
-                  relativeThreshold: aRecord.relativeThreshold,
-                  startTime: aRecord.startTime,
-                  data: aRecord.data,
-                  manifestURL: aRecord.manifestURL,
-                  pageURL: aRecord.pageURL };
-
-    if (aRecord.id) {
-      alarm.id = aRecord.id;
-    }
-
-    return alarm;
-  },
-
-  addAlarm: function(aAlarm, aResultCb) {
-    this._dbNewTxn(ALARMS_STORE_NAME, "readwrite", function(txn, store) {
+  addAlarm: function(aAlarmRecord, aResultCb) {
+    this._dbNewTxn(ALARM_STORE_NAME, "readwrite",
+                   function(aTransaction, aAlarmStore) {
       if (DEBUG) {
-        debug("Going to add " + JSON.stringify(aAlarm));
+        debug("Going to add " + JSON.stringify(aAlarmRecord));
       }
 
-      let record = this._alarmToRecord(aAlarm);
-      store.put(record).onsuccess = function(aEvent) {
-        txn.result = aEvent.target.result;
+      aAlarmStore.put(aAlarmRecord).onsuccess = function(aEvent) {
+        aTransaction.result = aEvent.target.result;
         if (DEBUG) {
-          debug("Request successful. New record ID: " + txn.result);
+          debug("Request successful. New record ID: " + aTransaction.result);
         }
       };
     }.bind(this), aResultCb);
   },
 
   getFirstAlarm: function(aNetworkId, aResultCb) {
-    let self = this;
-
-    this._dbNewTxn(ALARMS_STORE_NAME, "readonly", function(txn, store) {
+    this._dbNewTxn(ALARM_STORE_NAME, "readonly",
+                   function(aTransaction, aAlarmStore) {
       if (DEBUG) {
         debug("Get first alarm for network " + aNetworkId);
       }
@@ -913,43 +900,46 @@ NetworkStatsDB.prototype = {
       let upperFilter = [aNetworkId, ""];
       let range = IDBKeyRange.bound(lowerFilter, upperFilter);
 
-      store.index("alarm").openCursor(range).onsuccess = function(event) {
+      aAlarmStore.index("alarm").openCursor(range).onsuccess = function(event) {
         let cursor = event.target.result;
-        txn.result = null;
+        aTransaction.result = null;
         if (cursor) {
-          txn.result = self._recordToAlarm(cursor.value);
+          aTransaction.result = cursor.value;
         }
       };
     }, aResultCb);
   },
 
   removeAlarm: function(aAlarmId, aManifestURL, aResultCb) {
-    this._dbNewTxn(ALARMS_STORE_NAME, "readwrite", function(txn, store) {
+    this._dbNewTxn(ALARM_STORE_NAME, "readwrite",
+                   function(aTransaction, aAlarmStore) {
       if (DEBUG) {
         debug("Remove alarm " + aAlarmId);
       }
 
-      store.get(aAlarmId).onsuccess = function(event) {
-        let record = event.target.result;
-        txn.result = false;
-        if (!record || (aManifestURL && record.manifestURL != aManifestURL)) {
+      aAlarmStore.get(aAlarmId).onsuccess = function(event) {
+        let alarmRecord = event.target.result;
+        aTransaction.result = false;
+        if (!alarmRecord ||
+            (aManifestURL && alarmRecord.manifestURL != aManifestURL)) {
           return;
         }
 
-        store.delete(aAlarmId);
-        txn.result = true;
+        aAlarmStore.delete(aAlarmId);
+        aTransaction.result = true;
       }
     }, aResultCb);
   },
 
   removeAlarms: function(aManifestURL, aResultCb) {
-    this._dbNewTxn(ALARMS_STORE_NAME, "readwrite", function(txn, store) {
+    this._dbNewTxn(ALARM_STORE_NAME, "readwrite",
+                   function(aTransaction, aAlarmStore) {
       if (DEBUG) {
         debug("Remove alarms of " + aManifestURL);
       }
 
-      store.index("manifestURL").openCursor(aManifestURL)
-                                .onsuccess = function(event) {
+      aAlarmStore.index("manifestURL").openCursor(aManifestURL)
+                                      .onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor) {
           cursor.delete();
@@ -960,22 +950,22 @@ NetworkStatsDB.prototype = {
   },
 
   getAlarms: function(aNetworkId, aManifestURL, aResultCb) {
-    let self = this;
-    this._dbNewTxn(ALARMS_STORE_NAME, "readonly", function(txn, store) {
+    this._dbNewTxn(ALARM_STORE_NAME, "readonly",
+                   function(aTransaction, aAlarmStore) {
       if (DEBUG) {
         debug("Get alarms for " + aManifestURL);
       }
 
-      txn.result = [];
-      store.index("manifestURL").openCursor(aManifestURL)
-                                .onsuccess = function(event) {
+      aTransaction.result = [];
+      aAlarmStore.index("manifestURL").openCursor(aManifestURL)
+                                      .onsuccess = function(event) {
         let cursor = event.target.result;
         if (!cursor) {
           return;
         }
 
         if (!aNetworkId || cursor.value.networkId == aNetworkId) {
-          txn.result.push(self._recordToAlarm(cursor.value));
+          aTransaction.result.push(cursor.value);
         }
 
         cursor.continue();
@@ -984,7 +974,8 @@ NetworkStatsDB.prototype = {
   },
 
   _resetAlarms: function(aNetworkId, aResultCb) {
-    this._dbNewTxn(ALARMS_STORE_NAME, "readwrite", function(txn, store) {
+    this._dbNewTxn(ALARM_STORE_NAME, "readwrite",
+                   function(aTransaction, aAlarmStore) {
       if (DEBUG) {
         debug("Reset alarms for network " + aNetworkId);
       }
@@ -993,7 +984,7 @@ NetworkStatsDB.prototype = {
       let upperFilter = [aNetworkId, ""];
       let range = IDBKeyRange.bound(lowerFilter, upperFilter);
 
-      store.index("alarm").openCursor(range).onsuccess = function(event) {
+      aAlarmStore.index("alarm").openCursor(range).onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor) {
           if (cursor.value.startTime) {

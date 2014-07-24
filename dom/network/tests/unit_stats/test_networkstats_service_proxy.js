@@ -21,15 +21,18 @@ function mokConvertNetworkInterface() {
       id = '1234'
     }
 
-    let netId = this._getNetworkId(id, aNetwork.type);
+    let networkId = this._getNetworkId(id, aNetwork.type);
 
-    if (!this._networks[netId]) {
-      this._networks[netId] = {};
-      this._networks[netId].network = { id: id,
-                                        type: aNetwork.type };
+    if (!this._networks[networkId]) {
+      this._networks[networkId] = {
+        network: {
+          id: id,
+          type: aNetwork.type
+        }
+      };
     }
 
-    return netId;
+    return networkId;
   };
 }
 

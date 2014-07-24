@@ -71,11 +71,11 @@ function NetworkStats(aWindow, aStats) {
   if (DEBUG) {
     debug("NetworkStats Constructor");
   }
-  this.appManifestURL = aStats.appManifestURL || null;
+  this.appManifestURL = aStats.manifestURL || null;
   this.serviceType = aStats.serviceType || null;
   this.network = new aWindow.MozNetworkStatsInterface(aStats.network);
-  this.start = aStats.start ? new aWindow.Date(aStats.start.getTime()) : null;
-  this.end = aStats.end ? new aWindow.Date(aStats.end.getTime()) : null;
+  this.start = aStats.startDate ? new aWindow.Date(aStats.startDate.getTime()) : null;
+  this.end = aStats.endDate ? new aWindow.Date(aStats.endDate.getTime()) : null;
 
   let samples = this.data = new aWindow.Array();
   for (let i = 0; i < aStats.data.length; i++) {
@@ -120,32 +120,27 @@ function NetworkStatsManager() {
 NetworkStatsManager.prototype = {
   __proto__: DOMRequestIpcHelper.prototype,
 
-  getSamples: function(aNetwork, aStart, aEnd, aOptions) {
-    if (aStart > aEnd) {
+  getSamples: function(aNetwork, aStartDate, aEndDate, aOptions) {
+    if (aStartDate > aEndDate) {
       throw Components.results.NS_ERROR_INVALID_ARG;
     }
 
-    let appManifestURL = null;
+    let manifestURL = null;
     let serviceType = null;
     if (aOptions) {
       if (aOptions.appManifestURL && aOptions.serviceType) {
         throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
       }
-      appManifestURL = aOptions.appManifestURL;
+      manifestURL = aOptions.manifestURL;
       serviceType = aOptions.serviceType;
     }
-
-    // TODO Bug 929410 Date object cannot correctly pass through cpmm/ppmm IPC
-    // This is just a work-around by passing timestamp numbers.
-    aStart = aStart.getTime();
-    aEnd = aEnd.getTime();
 
     let request = this.createRequest();
     cpmm.sendAsyncMessage("NetworkStats:Get",
                           { network: aNetwork.toJSON(),
-                            start: aStart,
-                            end: aEnd,
-                            appManifestURL: appManifestURL,
+                            startTimestamp: aStartDate.getTime(),
+                            endTimestamp: aEndDate.getTime(),
+                            manifestURL: manifestURL,
                             serviceType: serviceType,
                             id: this.getRequestId(request) });
     return request;
@@ -176,7 +171,7 @@ NetworkStatsManager.prototype = {
                           {id: this.getRequestId(request),
                            data: {network: aNetwork.toJSON(),
                                   threshold: aThreshold,
-                                  startTime: aOptions.startTime,
+                                  startTimestamp: aOptions.startTime,
                                   data: aOptions.data,
                                   manifestURL: this._manifestURL,
                                   pageURL: this._pageURL}});

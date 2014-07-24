@@ -35,30 +35,28 @@ add_test(function test_clearDB() {
 function getNetworkId(callback) {
   getNetworks(function onGetNetworks(error, result) {
     do_check_eq(error, null);
-    var netId = NetworkStatsService._getNetworkId(result[0].id, result[0].type);
-    callback(null, netId);
+    var networkId = NetworkStatsService._getNetworkId(result[0].id, result[0].type);
+    callback(null, networkId);
   });
 }
 
 add_test(function test_networkStatsAvailable_ok() {
-  getNetworkId(function onGetId(error, result) {
+  getNetworkId(function onGetId(error, networkId) {
     do_check_eq(error, null);
-    var netId = result;
     NetworkStatsService._networkStatsAvailable(function (success, msg) {
       do_check_eq(success, true);
       run_next_test();
-    }, netId, true, 1234, 4321, Date.now());
+    }, networkId, true, 1234, 4321, Date.now());
   });
 });
 
 add_test(function test_networkStatsAvailable_failure() {
-  getNetworkId(function onGetId(error, result) {
+  getNetworkId(function onGetId(error, networkId) {
     do_check_eq(error, null);
-    var netId = result;
     NetworkStatsService._networkStatsAvailable(function (success, msg) {
       do_check_eq(success, false);
       run_next_test();
-    }, netId, false, 1234, 4321, Date.now());
+    }, networkId, false, 1234, 4321, Date.now());
   });
 });
 
@@ -71,10 +69,9 @@ add_test(function test_update_invalidNetwork() {
 });
 
 add_test(function test_update() {
-  getNetworkId(function onGetId(error, result) {
+  getNetworkId(function onGetId(error, networkId) {
     do_check_eq(error, null);
-    var netId = result;
-    NetworkStatsService._update(netId, function (success, msg) {
+    NetworkStatsService._update(networkId, function (success, msg) {
       do_check_eq(success, true);
       run_next_test();
     });
@@ -83,11 +80,11 @@ add_test(function test_update() {
 
 add_test(function test_updateQueueIndex() {
   NetworkStatsService._updateQueue = [
-    {netId: 0, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
-    {netId: 1, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
-    {netId: 2, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
-    {netId: 3, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
-    {netId: 4, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS}
+    {networkId: 0, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
+    {networkId: 1, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
+    {networkId: 2, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
+    {networkId: 3, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
+    {networkId: 4, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS}
   ];
   var index = NetworkStatsService._updateQueueIndex(3);
   do_check_eq(index, 3);
@@ -115,10 +112,9 @@ add_test(function test_updateAllStats() {
 });
 
 add_test(function test_updateStats_ok() {
-  getNetworkId(function onGetId(error, result) {
+  getNetworkId(function onGetId(error, networkId) {
     do_check_eq(error, null);
-    var netId = result;
-    NetworkStatsService._updateStats(netId, function(success, msg){
+    NetworkStatsService._updateStats(networkId, function(success, msg){
       do_check_eq(success, true);
       run_next_test();
     });
@@ -151,7 +147,7 @@ add_test(function test_queue() {
   // test.
   var updateFunctionBackup = NetworkStatsService._update;
 
-  NetworkStatsService._update = function update(aNetId, aCallback) {
+  NetworkStatsService._update = function update(aNetworkId, aCallback) {
     MockNetdRequest(function () {
       if (aCallback) {
         aCallback(true, "ok");
@@ -161,17 +157,17 @@ add_test(function test_queue() {
 
   // Fill networks with fake network interfaces to enable netd async requests.
   var network = {id: "1234", type: Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE};
-  var netId1 = NetworkStatsService._getNetworkId(network.id, network.type);
-  NetworkStatsService._networks[netId1] = { network: network,
-                                            interfaceName: "net1" };
+  var networkId1 = NetworkStatsService._getNetworkId(network.id, network.type);
+  NetworkStatsService._networks[networkId1] = { network: network,
+                                                interfaceName: "net1" };
 
   network = {id: "5678", type: Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE};
-  var netId2 = NetworkStatsService._getNetworkId(network.id, network.type);
-  NetworkStatsService._networks[netId2] = { network: network,
-                                            interfaceName: "net2" };
+  var networkId2 = NetworkStatsService._getNetworkId(network.id, network.type);
+  NetworkStatsService._networks[networkId2] = { network: network,
+                                                interfaceName: "net2" };
 
-  NetworkStatsService._updateStats(netId1);
-  NetworkStatsService._updateStats(netId2);
+  NetworkStatsService._updateStats(networkId1);
+  NetworkStatsService._updateStats(networkId2);
   do_check_eq(NetworkStatsService._updateQueue.length, 2);
   do_check_eq(NetworkStatsService._updateQueue[0].callbacks.length, 1);
 
@@ -185,9 +181,9 @@ add_test(function test_queue() {
     }
   };
 
-  NetworkStatsService._updateStats(netId1, callback);
+  NetworkStatsService._updateStats(networkId1, callback);
   updateCount++;
-  NetworkStatsService._updateStats(netId2, callback);
+  NetworkStatsService._updateStats(networkId2, callback);
   updateCount++;
 
   do_check_eq(NetworkStatsService._updateQueue.length, 2);
