@@ -22,7 +22,7 @@ add_test(function test_clearDB() {
     do_check_eq(error, null);
     var networks = result;
     networks.forEach(function(network, index) {
-      networks[index] = {network: network, networkId: NetworkStatsService.getNetworkId(network.id, network.type)};
+      networks[index] = {network: network, networkId: NetworkStatsService._getNetworkId(network.id, network.type)};
     }, this);
 
     NetworkStatsService._db.clearStats(networks, function onDBCleared(error, result) {
@@ -35,7 +35,7 @@ add_test(function test_clearDB() {
 function getNetworkId(callback) {
   getNetworks(function onGetNetworks(error, result) {
     do_check_eq(error, null);
-    var netId = NetworkStatsService.getNetworkId(result[0].id, result[0].type);
+    var netId = NetworkStatsService._getNetworkId(result[0].id, result[0].type);
     callback(null, netId);
   });
 }
@@ -44,7 +44,7 @@ add_test(function test_networkStatsAvailable_ok() {
   getNetworkId(function onGetId(error, result) {
     do_check_eq(error, null);
     var netId = result;
-    NetworkStatsService.networkStatsAvailable(function (success, msg) {
+    NetworkStatsService._networkStatsAvailable(function (success, msg) {
       do_check_eq(success, true);
       run_next_test();
     }, netId, true, 1234, 4321, Date.now());
@@ -55,7 +55,7 @@ add_test(function test_networkStatsAvailable_failure() {
   getNetworkId(function onGetId(error, result) {
     do_check_eq(error, null);
     var netId = result;
-    NetworkStatsService.networkStatsAvailable(function (success, msg) {
+    NetworkStatsService._networkStatsAvailable(function (success, msg) {
       do_check_eq(success, false);
       run_next_test();
     }, netId, false, 1234, 4321, Date.now());
@@ -63,7 +63,7 @@ add_test(function test_networkStatsAvailable_failure() {
 });
 
 add_test(function test_update_invalidNetwork() {
-  NetworkStatsService.update(-1, function (success, msg) {
+  NetworkStatsService._update(-1, function (success, msg) {
     do_check_eq(success, false);
     do_check_eq(msg, "Invalid network -1");
     run_next_test();
@@ -74,7 +74,7 @@ add_test(function test_update() {
   getNetworkId(function onGetId(error, result) {
     do_check_eq(error, null);
     var netId = result;
-    NetworkStatsService.update(netId, function (success, msg) {
+    NetworkStatsService._update(netId, function (success, msg) {
       do_check_eq(success, true);
       run_next_test();
     });
@@ -82,29 +82,31 @@ add_test(function test_update() {
 });
 
 add_test(function test_updateQueueIndex() {
-  NetworkStatsService.updateQueue = [{netId: 0, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
-                                     {netId: 1, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
-                                     {netId: 2, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
-                                     {netId: 3, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
-                                     {netId: 4, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS}];
-  var index = NetworkStatsService.updateQueueIndex(3);
+  NetworkStatsService._updateQueue = [
+    {netId: 0, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
+    {netId: 1, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
+    {netId: 2, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
+    {netId: 3, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS},
+    {netId: 4, callbacks: null, queueType: QUEUE_TYPE_UPDATE_STATS}
+  ];
+  var index = NetworkStatsService._updateQueueIndex(3);
   do_check_eq(index, 3);
-  index = NetworkStatsService.updateQueueIndex(10);
+  index = NetworkStatsService._updateQueueIndex(10);
   do_check_eq(index, -1);
 
-  NetworkStatsService.updateQueue = [];
+  NetworkStatsService._updateQueue = [];
   run_next_test();
 });
 
 add_test(function test_updateAllStats() {
   NetworkStatsService._networks[wifiId].status = NETWORK_STATUS_READY;
-  NetworkStatsService.updateAllStats(function(success, msg) {
+  NetworkStatsService._updateAllStats(function(success, msg) {
     do_check_eq(success, true);
     NetworkStatsService._networks[wifiId].status = NETWORK_STATUS_STANDBY;
-    NetworkStatsService.updateAllStats(function(success, msg) {
+    NetworkStatsService._updateAllStats(function(success, msg) {
       do_check_eq(success, true);
       NetworkStatsService._networks[wifiId].status = NETWORK_STATUS_AWAY;
-      NetworkStatsService.updateAllStats(function(success, msg) {
+      NetworkStatsService._updateAllStats(function(success, msg) {
         do_check_eq(success, true);
         run_next_test();
       });
@@ -116,7 +118,7 @@ add_test(function test_updateStats_ok() {
   getNetworkId(function onGetId(error, result) {
     do_check_eq(error, null);
     var netId = result;
-    NetworkStatsService.updateStats(netId, function(success, msg){
+    NetworkStatsService._updateStats(netId, function(success, msg){
       do_check_eq(success, true);
       run_next_test();
     });
@@ -124,7 +126,7 @@ add_test(function test_updateStats_ok() {
 });
 
 add_test(function test_updateStats_failure() {
-  NetworkStatsService.updateStats(-1, function(success, msg){
+  NetworkStatsService._updateStats(-1, function(success, msg){
     do_check_eq(success, false);
     run_next_test();
   });
@@ -147,9 +149,9 @@ add_test(function test_queue() {
   // Overwrite update function of NetworkStatsService to avoid netd errors due to use
   // fake interfaces. First, original function is stored to restore it at the end of the
   // test.
-  var updateFunctionBackup = NetworkStatsService.update;
+  var updateFunctionBackup = NetworkStatsService._update;
 
-  NetworkStatsService.update = function update(aNetId, aCallback) {
+  NetworkStatsService._update = function update(aNetId, aCallback) {
     MockNetdRequest(function () {
       if (aCallback) {
         aCallback(true, "ok");
@@ -159,39 +161,39 @@ add_test(function test_queue() {
 
   // Fill networks with fake network interfaces to enable netd async requests.
   var network = {id: "1234", type: Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE};
-  var netId1 = NetworkStatsService.getNetworkId(network.id, network.type);
+  var netId1 = NetworkStatsService._getNetworkId(network.id, network.type);
   NetworkStatsService._networks[netId1] = { network: network,
                                             interfaceName: "net1" };
 
   network = {id: "5678", type: Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE};
-  var netId2 = NetworkStatsService.getNetworkId(network.id, network.type);
+  var netId2 = NetworkStatsService._getNetworkId(network.id, network.type);
   NetworkStatsService._networks[netId2] = { network: network,
                                             interfaceName: "net2" };
 
-  NetworkStatsService.updateStats(netId1);
-  NetworkStatsService.updateStats(netId2);
-  do_check_eq(NetworkStatsService.updateQueue.length, 2);
-  do_check_eq(NetworkStatsService.updateQueue[0].callbacks.length, 1);
+  NetworkStatsService._updateStats(netId1);
+  NetworkStatsService._updateStats(netId2);
+  do_check_eq(NetworkStatsService._updateQueue.length, 2);
+  do_check_eq(NetworkStatsService._updateQueue[0].callbacks.length, 1);
 
   var i = 0;
   var updateCount = 0;
   var callback = function(success, msg) {
     i++;
     if (i >= updateCount) {
-      NetworkStatsService.update = updateFunctionBackup;
+      NetworkStatsService._update = updateFunctionBackup;
       run_next_test();
     }
   };
 
-  NetworkStatsService.updateStats(netId1, callback);
+  NetworkStatsService._updateStats(netId1, callback);
   updateCount++;
-  NetworkStatsService.updateStats(netId2, callback);
+  NetworkStatsService._updateStats(netId2, callback);
   updateCount++;
 
-  do_check_eq(NetworkStatsService.updateQueue.length, 2);
-  do_check_eq(NetworkStatsService.updateQueue[0].callbacks.length, 2);
-  do_check_eq(NetworkStatsService.updateQueue[0].callbacks[0], null);
-  do_check_neq(NetworkStatsService.updateQueue[0].callbacks[1], null);
+  do_check_eq(NetworkStatsService._updateQueue.length, 2);
+  do_check_eq(NetworkStatsService._updateQueue[0].callbacks.length, 2);
+  do_check_eq(NetworkStatsService._updateQueue[0].callbacks[0], null);
+  do_check_neq(NetworkStatsService._updateQueue[0].callbacks[1], null);
 });
 
 add_test(function test_getAlarmQuota() {

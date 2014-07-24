@@ -8,7 +8,7 @@ Cu.import("resource://gre/modules/NetworkStatsDB.jsm");
 const netStatsDb = new NetworkStatsDB();
 
 function clearStore(store, callback) {
-  netStatsDb.dbNewTxn(store, "readwrite", function(aTxn, aStore) {
+  netStatsDb._dbNewTxn(store, "readwrite", function(aTxn, aStore) {
     aStore.openCursor().onsuccess = function (event) {
       let cursor = event.target.result;
       if (cursor){
@@ -74,7 +74,7 @@ add_test(function test_fillResultSamples_emptyData() {
   var start = filterTimestamp(new Date());
   var sampleRate = netStatsDb.sampleRate;
   var end = start + (sampleRate * samples);
-  netStatsDb.fillResultSamples(start, end, data);
+  netStatsDb._fillResultSamples(start, end, data);
   do_check_eq(data.length, samples + 1);
 
   var aux = start;
@@ -99,7 +99,7 @@ add_test(function test_fillResultSamples_noEmptyData() {
   var data = [{date: new Date(start + sampleRate),
                rxBytes: 0,
                txBytes: 0}];
-  netStatsDb.fillResultSamples(start, end, data);
+  netStatsDb._fillResultSamples(start, end, data);
   do_check_eq(data.length, samples + 1);
 
   var aux = start;
@@ -161,7 +161,7 @@ add_test(function test_internalSaveStats_singleSample() {
                 rxTotalBytes:  1234,
                 txTotalBytes:  1234 };
 
-  netStatsDb.dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
+  netStatsDb._dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
     netStatsDb._saveStats(txn, store, stats);
   }, function(error, result) {
     do_check_eq(error, null);
@@ -204,7 +204,7 @@ add_test(function test_internalSaveStats_arraySamples() {
                    txTotalBytes:  1234 });
     }
 
-    netStatsDb.dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
+    netStatsDb._dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
       netStatsDb._saveStats(txn, store, stats);
     }, function(error, result) {
       do_check_eq(error, null);
@@ -256,7 +256,7 @@ add_test(function test_internalRemoveOldStats() {
                  rxSystemBytes:    1234, txSystemBytes: 1234,
                  rxTotalBytes:     1234, txTotalBytes:  1234 });
 
-    netStatsDb.dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
+    netStatsDb._dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
       netStatsDb._saveStats(txn, store, stats);
       var date = stats[stats.length - 1].timestamp
                  + (netStatsDb.sampleRate * netStatsDb.maxStorageSamples - 1) - 1;
@@ -276,10 +276,10 @@ add_test(function test_internalRemoveOldStats() {
 
 function processSamplesDiff(networks, lastStat, newStat, callback) {
   clearStore('net_stats_store', function() {
-    netStatsDb.dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
+    netStatsDb._dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
       netStatsDb._saveStats(txn, store, lastStat);
     }, function(error, result) {
-      netStatsDb.dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
+      netStatsDb._dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
         let request = store.index("network").openCursor(newStat.network, "prev");
         request.onsuccess = function onsuccess(event) {
           let cursor = event.target.result;
@@ -511,7 +511,7 @@ add_test(function test_saveServiceStats() {
 
 function prepareFind(stats, callback) {
   clearStore('net_stats_store', function() {
-    netStatsDb.dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
+    netStatsDb._dbNewTxn("net_stats_store", "readwrite", function(txn, store) {
       netStatsDb._saveStats(txn, store, stats);
     }, function(error, result) {
         callback(error, result);
