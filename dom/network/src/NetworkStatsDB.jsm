@@ -62,12 +62,12 @@ NetworkStatsDB.prototype = {
         let deprecatedNetworkStore1 =
           aDb.createObjectStore(DEPRECATED_NETWORK_STORE_NAME1,
                                 { keyPath: ["connectionType", "timestamp"] });
-        deprecatedNetworkStore1.createIndex("connectionType", "connectionType", { unique: false });
-        deprecatedNetworkStore1.createIndex("timestamp", "timestamp", { unique: false });
-        deprecatedNetworkStore1.createIndex("rxBytes", "rxBytes", { unique: false });
-        deprecatedNetworkStore1.createIndex("txBytes", "txBytes", { unique: false });
-        deprecatedNetworkStore1.createIndex("rxTotalBytes", "rxTotalBytes", { unique: false });
-        deprecatedNetworkStore1.createIndex("txTotalBytes", "txTotalBytes", { unique: false });
+        deprecatedNetworkStore1.createIndex("connectionType", "connectionType");
+        deprecatedNetworkStore1.createIndex("timestamp", "timestamp");
+        deprecatedNetworkStore1.createIndex("rxBytes", "rxBytes");
+        deprecatedNetworkStore1.createIndex("txBytes", "txBytes");
+        deprecatedNetworkStore1.createIndex("rxTotalBytes", "rxTotalBytes");
+        deprecatedNetworkStore1.createIndex("txTotalBytes", "txTotalBytes");
         if (DEBUG) {
           debug("Created object stores and indexes");
         }
@@ -93,14 +93,14 @@ NetworkStatsDB.prototype = {
         let deprecatedNetworkStore1 =
           aDb.createObjectStore(DEPRECATED_NETWORK_STORE_NAME1,
                                 { keyPath: ["appId", "network", "timestamp"] });
-        deprecatedNetworkStore1.createIndex("appId", "appId", { unique: false });
-        deprecatedNetworkStore1.createIndex("network", "network", { unique: false });
-        deprecatedNetworkStore1.createIndex("networkType", "networkType", { unique: false });
-        deprecatedNetworkStore1.createIndex("timestamp", "timestamp", { unique: false });
-        deprecatedNetworkStore1.createIndex("rxBytes", "rxBytes", { unique: false });
-        deprecatedNetworkStore1.createIndex("txBytes", "txBytes", { unique: false });
-        deprecatedNetworkStore1.createIndex("rxTotalBytes", "rxTotalBytes", { unique: false });
-        deprecatedNetworkStore1.createIndex("txTotalBytes", "txTotalBytes", { unique: false });
+        deprecatedNetworkStore1.createIndex("appId", "appId");
+        deprecatedNetworkStore1.createIndex("network", "network");
+        deprecatedNetworkStore1.createIndex("networkType", "networkType");
+        deprecatedNetworkStore1.createIndex("timestamp", "timestamp");
+        deprecatedNetworkStore1.createIndex("rxBytes", "rxBytes");
+        deprecatedNetworkStore1.createIndex("txBytes", "txBytes");
+        deprecatedNetworkStore1.createIndex("rxTotalBytes", "rxTotalBytes");
+        deprecatedNetworkStore1.createIndex("txTotalBytes", "txTotalBytes");
 
         if (DEBUG) {
           debug("Created object stores and indexes for version 3");
@@ -193,8 +193,8 @@ NetworkStatsDB.prototype = {
         let alarmStore =
           aDb.createObjectStore(ALARM_STORE_NAME,
                                 { keyPath: "id", autoIncrement: true });
-        alarmStore.createIndex("alarm", ['networkId','threshold'], { unique: false });
-        alarmStore.createIndex("manifestURL", "manifestURL", { unique: false });
+        alarmStore.createIndex("alarm", ['networkId','threshold']);
+        alarmStore.createIndex("manifestURL", "manifestURL");
 
         if (DEBUG) {
           debug("Created alarms store for version 5");
@@ -208,7 +208,7 @@ NetworkStatsDB.prototype = {
         let networkStore =
           aDb.createObjectStore(NETWORK_STORE_NAME,
                                 { keyPath: ["appId", "serviceType", "network", "timestamp"] });
-        networkStore.createIndex("network", "network", { unique: false });
+        networkStore.createIndex("network", "network");
 
         // Copy the data from the original objectStore to the new objectStore.
         let deprecatedNetworkStore1 =
@@ -241,7 +241,7 @@ NetworkStatsDB.prototype = {
         }
 
         // Create new "alarm" index.
-        alarmStore.createIndex("alarm", ['networkId','relativeThreshold'], { unique: false });
+        alarmStore.createIndex("alarm", ['networkId','relativeThreshold']);
 
         // Populate new "alarm" index attributes.
         alarmStore.openCursor().onsuccess = function(event) {
@@ -320,7 +320,7 @@ NetworkStatsDB.prototype = {
       } else if (currVersion == 7) {
         // Create index for 'ServiceType' in order to make it retrievable.
         let networkStore = aTransaction.objectStore(NETWORK_STORE_NAME);
-        networkStore.createIndex("serviceType", "serviceType", { unique: false });
+        networkStore.createIndex("serviceType", "serviceType");
 
         if (DEBUG) {
           debug("Create index of 'serviceType' for version 8");
