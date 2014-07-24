@@ -79,59 +79,6 @@ add_test(function test_saveAppStats() {
   });
 });
 
-add_test(function test_saveServiceStats() {
-  var timestamp = NetworkStatsService.cachedStatsDate.getTime();
-
-  // Create to fake nsINetworkInterfaces. As nsINetworkInterface can not
-  // be instantiated, these two vars will emulate it by filling the properties
-  // that will be used.
-  var wifi = {type: Ci.nsINetworkInterface.NETWORK_TYPE_WIFI, id: "0"};
-  var mobile = {type: Ci.nsINetworkInterface.NETWORK_TYPE_MOBILE, id: "1234"};
-
-  // Insert fake mobile network interface in NetworkStatsService
-  var mobileNetId = NetworkStatsService.getNetworkId(mobile.id, mobile.type);
-
-  NetworkStatsService.updateCachedStats(function (success, msg) {
-    do_check_eq(success, true);
-
-    var cachedStats = NetworkStatsService.cachedStats;
-    do_check_eq(Object.keys(cachedStats).length, 0);
-
-    var serviceType = 'FakeType';
-    nssProxy.saveServiceStats(serviceType, wifi, timestamp, 10, 20, false,
-                              function (success, message) {
-      do_check_eq(success, true);
-      nssProxy.saveServiceStats(serviceType, mobile, timestamp, 10, 20, false,
-                                function (success, message) {
-        do_check_eq(success, true);
-        var key1 = 0 + "" + serviceType +
-                   NetworkStatsService.getNetworkId(wifi.id, wifi.type);
-        var key2 = 0 + "" + serviceType + mobileNetId + "";
-
-        do_check_eq(Object.keys(cachedStats).length, 2);
-        do_check_eq(cachedStats[key1].appId, 0);
-        do_check_eq(cachedStats[key1].serviceType, serviceType);
-        do_check_eq(cachedStats[key1].networkId, wifi.id);
-        do_check_eq(cachedStats[key1].networkType, wifi.type);
-        do_check_eq(new Date(cachedStats[key1].date).getTime() / 1000,
-                    Math.floor(timestamp / 1000));
-        do_check_eq(cachedStats[key1].rxBytes, 10);
-        do_check_eq(cachedStats[key1].txBytes, 20);
-        do_check_eq(cachedStats[key2].appId, 0);
-        do_check_eq(cachedStats[key1].serviceType, serviceType);
-        do_check_eq(cachedStats[key2].networkId, mobile.id);
-        do_check_eq(cachedStats[key2].networkType, mobile.type);
-        do_check_eq(new Date(cachedStats[key2].date).getTime() / 1000,
-                    Math.floor(timestamp / 1000));
-        do_check_eq(cachedStats[key2].rxBytes, 10);
-        do_check_eq(cachedStats[key2].txBytes, 20);
-
-        run_next_test();
-      });
-    });
-  });
-});
-
 add_test(function test_saveStatsWithDifferentDates() {
   var today = NetworkStatsService.cachedStatsDate;
   var tomorrow = new Date(today.getTime() + (24 * 60 * 60 * 1000));

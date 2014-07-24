@@ -903,29 +903,6 @@ add_test(function test_removeAppAllAlarms() {
   });
 });
 
-add_test(function test_updateAlarm() {
-  // Update alarms[3] (id: 6) -> DB: [ alarms[3]* (id: 6) ]
-
-  var updatedAlarm = alarms[1];
-  updatedAlarm.id = alarmsDbId;
-  updatedAlarm.threshold = 10;
-
-  netStatsDb.updateAlarm(updatedAlarm, function (error, result) {
-    do_check_eq(error, null);
-    netStatsDb.getFirstAlarm(networkWifi, function(error, result) {
-      do_check_eq(error, null);
-      do_check_eq(result.id, updatedAlarm.id);
-      do_check_eq(result.networkId, updatedAlarm.networkId);
-      do_check_eq(result.absoluteThreshold, updatedAlarm.absoluteThreshold);
-      do_check_eq(result.relativeThreshold, updatedAlarm.relativeThreshold);
-      do_check_eq(result.data.foo, updatedAlarm.data.foo);
-      do_check_eq(result.pageURL, updatedAlarm.pageURL);
-      do_check_eq(result.manifestURL, updatedAlarm.manifestURL);
-      run_next_test();
-    });
-  });
-});
-
 function run_test() {
   do_get_profile();
   run_next_test();
