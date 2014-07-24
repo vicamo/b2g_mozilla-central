@@ -16,10 +16,13 @@ Cu.import("resource://gre/modules/IndexedDBHelper.jsm");
 Cu.importGlobalProperties(["indexedDB"]);
 
 const DB_NAME = "net_stats";
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 const DEPRECATED_NETWORK_STORE_NAME1 = "net_stats";
-const NETWORK_STORE_NAME = "net_stats_store";
-const ALARM_STORE_NAME = "net_alarm";
+const DEPRECATED_NETWORK_STORE_NAME2 = "net_stats_store";
+const NETWORK_STORE_NAME = "network";
+const DEPRECATED_ALARM_STORE_NAME = "net_alarm";
+const ALARM_STORE_NAME = "alarm";
+const POWER_STORE_NAME = "power";
 
 // Constant defining the maximum values allowed per interface. If more, older
 // will be erased.
@@ -28,12 +31,18 @@ const VALUES_MAX_LENGTH = 6 * 30;
 // Constant defining the rate of the samples. Daily.
 const SAMPLE_RATE = 1000 * 60 * 60 * 24;
 
+const COMPONENT_TYPE_ALL = "__all__";
+
+const SERVICE_TYPE_UNSPECIFIED = null;
+
+const APP_ID_UNSPECIFIED = Ci.nsIScriptSecurityManager.NO_APP_ID;
+
 this.NetworkStatsDB = function NetworkStatsDB() {
   if (DEBUG) {
     debug("Constructor");
   }
   this.initDBHelper(DB_NAME, DB_VERSION,
-                    [NETWORK_STORE_NAME, ALARM_STORE_NAME]);
+                    [NETWORK_STORE_NAME, ALARM_STORE_NAME, POWER_STORE_NAME]);
 }
 
 NetworkStatsDB.prototype = {
@@ -163,11 +172,11 @@ NetworkStatsDB.prototype = {
 
   _upgradeToVersion5: function(aTransaction, aDb, aNextFunc) {
     // Create object store for alarms.
-    let alarmStore =
-      aDb.createObjectStore(ALARM_STORE_NAME,
+    let deprecatedAlarmStore =
+      aDb.createObjectStore(DEPRECATED_ALARM_STORE_NAME,
                             { keyPath: "id", autoIncrement: true });
-    alarmStore.createIndex("alarm", ['networkId', 'threshold']);
-    alarmStore.createIndex("manifestURL", "manifestURL");
+    deprecatedAlarmStore.createIndex("alarm", ['networkId', 'threshold']);
+    deprecatedAlarmStore.createIndex("manifestURL", "manifestURL");
 
     // In order to manage alarms, it is necessary to use a global counter
     // (totalBytes) that will increase regardless of the system reboot.
@@ -235,10 +244,10 @@ NetworkStatsDB.prototype = {
     // To further support "system-only" data storage, the data can be
     // saved by service type (e.g., Tethering, OTA). Thus it's needed to
     // have a new key ("serviceType") for the ojectStore.
-    let networkStore =
-      aDb.createObjectStore(NETWORK_STORE_NAME,
+    let deprecatedNetworkStore2 =
+      aDb.createObjectStore(DEPRECATED_NETWORK_STORE_NAME2,
                             { keyPath: ["appId", "serviceType", "network", "timestamp"] });
-    networkStore.createIndex("network", "network");
+    deprecatedNetworkStore2.createIndex("network", "network");
 
     // Copy the data from the original objectStore to the new objectStore.
     let deprecatedNetworkStore1 =
@@ -258,7 +267,7 @@ NetworkStatsDB.prototype = {
 
       let newStats = cursor.value;
       newStats.serviceType = "";
-      networkStore.put(newStats);
+      deprecatedNetworkStore2.put(newStats);
       cursor.continue();
     };
   },
@@ -267,18 +276,19 @@ NetworkStatsDB.prototype = {
     // Replace threshold attribute of alarm index by relativeThreshold in alarms DB.
     // Now alarms are indexed by relativeThreshold, which is the threshold relative
     // to current system stats.
-    let alarmStore = aTransaction.objectStore(ALARM_STORE_NAME);
+    let deprecatedAlarmStore =
+      aTransaction.objectStore(DEPRECATED_ALARM_STORE_NAME);
 
     // Delete "alarm" index.
-    if (alarmStore.indexNames.contains("alarm")) {
-      alarmStore.deleteIndex("alarm");
+    if (deprecatedAlarmStore.indexNames.contains("alarm")) {
+      deprecatedAlarmStore.deleteIndex("alarm");
     }
 
     // Create new "alarm" index.
-    alarmStore.createIndex("alarm", ['networkId', 'relativeThreshold']);
+    deprecatedAlarmStore.createIndex("alarm", ['networkId', 'relativeThreshold']);
 
     // Populate new "alarm" index attributes.
-    alarmStore.openCursor().onsuccess = function(event) {
+    deprecatedAlarmStore.openCursor().onsuccess = function(event) {
       let cursor = event.target.result;
       if (cursor) {
         cursor.value.relativeThreshold = cursor.value.threshold;
@@ -290,17 +300,18 @@ NetworkStatsDB.prototype = {
         return;
       }
 
-      // Processing for alarmStore has done.
+      // Processing for deprecatedAlarmStore has done.
 
       // Previous versions save accumulative totalBytes, increasing althought
       // the system reboots or resets stats. But is necessary to reset the total
       // counters when reset through 'clearInterfaceStats'.
-      let networkStore = aTransaction.objectStore(NETWORK_STORE_NAME);
+      let deprecatedNetworkStore2 =
+        aTransaction.objectStore(DEPRECATED_NETWORK_STORE_NAME2);
       let networks = [];
       // Find networks stored in the database.
-      networkStore.index("network")
-                  .openKeyCursor(null, "nextunique")
-                  .onsuccess = function(event) {
+      deprecatedNetworkStore2.index("network")
+                             .openKeyCursor(null, "nextunique")
+                             .onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor) {
           networks.push(cursor.key);
@@ -323,7 +334,7 @@ NetworkStatsDB.prototype = {
           let range = IDBKeyRange.bound(lowerFilter, upperFilter, false, false);
 
           // Find number of samples for a given network.
-          networkStore.count(range).onsuccess = function(event) {
+          deprecatedNetworkStore2.count(range).onsuccess = function(event) {
             // If there are more samples than the max allowed, there is no way
             // to know when does reset take place.
             if (event.target.result >= VALUES_MAX_LENGTH) {
@@ -335,7 +346,7 @@ NetworkStatsDB.prototype = {
             // Reset detected if the first sample totalCounters are different
             // than bytes counters. If so, the total counters should be
             // recalculated.
-            networkStore.openCursor(range).onsuccess = function(event) {
+            deprecatedNetworkStore2.openCursor(range).onsuccess = function(event) {
               let cursor = event.target.result;
               if (!cursor) {
                 processNetwork();
@@ -366,20 +377,128 @@ NetworkStatsDB.prototype = {
             };
           };
         })(); // End of processNetwork().
-      }; // End of networkStore.index("network").openKeyCursor().
-    }; // End of alarmStore.openCursor().
+      }; // End of deprecatedNetworkStore2.index("network").openKeyCursor().
+    }; // End of deprecatedAlarmStore.openCursor().
   }, // End of _upgradeToVersion7().
 
   _upgradeToVersion8: function(aTransaction, aDb, aNextFunc) {
     // Create index for 'ServiceType' in order to make it retrievable.
-    let networkStore = aTransaction.objectStore(NETWORK_STORE_NAME);
-    networkStore.createIndex("serviceType", "serviceType");
+    let deprecatedNetworkStore2 =
+      aTransaction.objectStore(DEPRECATED_NETWORK_STORE_NAME2);
+    deprecatedNetworkStore2.createIndex("serviceType", "serviceType");
 
     if (DEBUG) {
       debug("Create index of 'serviceType' for version 8");
     }
 
     aNextFunc();
+  },
+
+  _upgradeToVersion9: function(aTransaction, aDb, aNextFunc) {
+    // Create power stats store.
+    //
+    // {
+    //   "id": <unique numeric key>,
+    //   "component": <component name>,
+    //
+    //   "serviceType": <service name>,
+    //   "appId": <numeric local app id>,
+    //   "timestamp": <numeric num ms since 1970/01/01 00:00:00 UTC+0>,
+    //   "consumedPower": <numeric>,
+    // }
+    let powerStore =
+      aDb.createObjectStore(POWER_STORE_NAME,
+                            { keyPath: "id", autoIncrement: true });
+    powerStore.createIndex("component", "component");
+    powerStore.createIndex("target",
+                           ["appId", "serviceType", "component", "timestamp"]);
+
+    // Re-create network stats store.
+    //
+    // {
+    //   "id": <unique numeric key>,
+    //   "component": <component name>,
+    //
+    //   "serviceType": <service name>,
+    //   "appId": <numeric local app id>,
+    //   "timestamp": <numeric num ms since 1970/01/01 00:00:00 UTC+0>,
+    //   "receivedBytes": <numeric>,
+    //   "sentBytes": <numeric>,
+    // }
+    let networkStore =
+      aDb.createObjectStore(NETWORK_STORE_NAME,
+                            { keyPath: "id", autoIncrement: true });
+    networkStore.createIndex("component", "component");
+    networkStore.createIndex("target",
+                             ["appId", "serviceType", "component", "timestamp"]);
+
+    // Re-create alarm store.
+    //
+    // {
+    //   "id": <unique numeric key>,
+    //   "type": <"network" or "power">,
+    //
+    //   "component": <component name>,
+    //   "serviceType": <service name>,
+    //   "manifestURL": <app manifest URL>,
+    //   "threshold": <numeric>,
+    //   "data": <any>,
+    // }
+    let alarmStore =
+      aDb.createObjectStore(ALARM_STORE_NAME,
+                            { keyPath: "id", autoIncrement: true });
+    alarmStore.createIndex("type", "type");
+    alarmStore.createIndex("target",
+                           ["type", "manifestURL", "serviceType", "component"]);
+
+    let deprecatedNetworkStore2 =
+      aTransaction.objectStore(DEPRECATED_NETWORK_STORE_NAME2);
+    deprecatedNetworkStore2.openCursor().onsuccess = function(event) {
+      let cursor = event.target.result;
+      if (cursor) {
+        // Converting from:
+        //
+        //   {
+        //     appId: <numeric local app id>,
+        //     serviceType: <serviceType>,
+        //     network: <[<string>, <numeric>]>,
+        //     timestamp: <numeric>,
+        //     rxBytes: <numeric>,
+        //     txBytes: <numeric>,
+        //     rxSystemBytes: <numeric>,
+        //     txSystemBytes: <numeric>,
+        //     rxTotalBytes: <numeric>,
+        //     txTotalBytes: <numeric>,
+        //   }
+        cursor.continue();
+        return;
+      }
+
+      // Network statistics records convertion is done.
+
+      let deprecatedAlarmStore =
+        aTransaction.objectStore(DEPRECATED_ALARM_STORE_NAME);
+      deprecatedAlarmStore.openCursor().onsuccess = function(event) {
+        let cursor = event.target.result;
+        if (!cursor) {
+          aNextFunc();
+          return;
+        }
+
+        // Converting from:
+        //
+        //   {
+        //     "networkId": aAlarm.networkId,
+        //     "absoluteThreshold: aAlarm.absoluteThreshold,
+        //     "relativeThreshold: aAlarm.relativeThreshold,
+        //     "startTime": <numeric num ms since 1970/01/01 00:00:00 UTC+0>,
+        //     "data: <any>,
+        //     "manifestURL: <string>,
+        //     "pageURL: <string>
+        //   }
+        cursor.continue();
+      }; // End of deprecatedAlarmStore.openCursor().
+    }; // End of deprecatedNetworkStore2.openCursor().
   },
 
   _importData: function(aStats) {
