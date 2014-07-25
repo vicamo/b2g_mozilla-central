@@ -18,12 +18,6 @@ dictionary NetworkStatsGetOptions
   DOMString serviceType;
 };
 
-dictionary NetworkStatsAlarmOptions
-{
-  Date startTime;
-  Date data;
-};
-
 [JSImplementation="@mozilla.org/networkstats;1",
  ChromeOnly,
  CheckPermissions="networkstats-manage",

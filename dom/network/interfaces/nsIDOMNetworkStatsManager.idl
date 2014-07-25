@@ -41,7 +41,7 @@ interface nsIDOMMozNetworkStatsManager : nsISupports
    */
   nsIDOMDOMRequest addAlarm(in nsISupports network,
                             in long threshold,
-                            [optional] in jsval options /* NetworkStatsAlarmOptions */);
+                            [optional] in jsval options /* ResourceStatsAlarmOptions */);
 
   /**
    * Obtain all alarms for those networks returned by getAvailableNetworks().
