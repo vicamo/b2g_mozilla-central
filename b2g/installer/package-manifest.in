@@ -409,8 +409,8 @@
 @BINPATH@/components/NetworkService.manifest
 @BINPATH@/components/NetworkStatsManager.js
 @BINPATH@/components/NetworkStatsManager.manifest
-@BINPATH@/components/NetworkStatsServiceProxy.js
-@BINPATH@/components/NetworkStatsServiceProxy.manifest
+@BINPATH@/components/NetworkStatsService.js
+@BINPATH@/components/NetworkStatsService.manifest
 @BINPATH@/components/WifiWorker.js
 @BINPATH@/components/WifiWorker.manifest
 #endif // MOZ_WIDGET_GONK

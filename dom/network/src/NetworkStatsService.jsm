@@ -19,9 +19,6 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/NetworkStatsDB.jsm");
 
-const NET_NETWORKSTATSSERVICE_CONTRACTID = "@mozilla.org/network/netstatsservice;1";
-const NET_NETWORKSTATSSERVICE_CID = Components.ID("{18725604-e9ac-488a-8aa0-2471e7f6c0a4}");
-
 const TOPIC_BANDWIDTH_CONTROL = "netd-bandwidth-control"
 
 const TOPIC_INTERFACE_REGISTERED   = "network-interface-registered";

@@ -6,8 +6,8 @@ const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 XPCOMUtils.defineLazyServiceGetter(this, "nssProxy",
-                                   "@mozilla.org/networkstatsServiceProxy;1",
-                                   "nsINetworkStatsServiceProxy");
+                                   "@mozilla.org/netstatsservice;1",
+                                   "nsINetworkStatsService");
 
 function mokConvertNetworkInterface() {
   NetworkStatsService.convertNetworkInterface = function(aNetwork) {

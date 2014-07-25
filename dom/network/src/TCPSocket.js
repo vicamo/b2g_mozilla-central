@@ -346,7 +346,7 @@ TCPSocket.prototype = {
       return;
     }
 
-    // If "enforce" is false, the traffic amount is saved to NetworkStatsServiceProxy
+    // If "enforce" is false, the traffic amount is saved to NetworkStatsService
     // only when the total amount exceeds the predefined threshold value.
     // The purpose is to avoid too much overhead for collecting statistics.
     let totalBytes = this._txBytes + this._rxBytes;
@@ -354,16 +354,16 @@ TCPSocket.prototype = {
       return;
     }
 
-    let nssProxy = Cc["@mozilla.org/networkstatsServiceProxy;1"]
-                     .getService(Ci.nsINetworkStatsServiceProxy);
-    if (!nssProxy) {
-      LOG("Error: Ci.nsINetworkStatsServiceProxy service is not available.");
+    let nss = Cc["@mozilla.org/netstatsservice;1"]
+              .getService(Ci.nsINetworkStatsService);
+    if (!nss) {
+      LOG("Error: Ci.nsINetworkStatsService service is not available.");
       return;
     }
-    nssProxy.saveAppStats(this._appId, this._activeNetwork, Date.now(),
-                          this._rxBytes, this._txBytes, false);
+    nss.saveAppStats(this._appId, this._activeNetwork, Date.now(),
+                     this._rxBytes, this._txBytes, false);
 
-    // Reset the counters once the statistics is saved to NetworkStatsServiceProxy.
+    // Reset the counters once the statistics is saved to NetworkStatsService.
     this._txBytes = this._rxBytes = 0;
   },
   // End of helper method for network statistics.
@@ -593,7 +593,7 @@ TCPSocket.prototype = {
 
 #ifdef MOZ_WIDGET_GONK
     // Set _activeNetwork, which is only required for network statistics.
-    // Note that nsINetworkManager, as well as nsINetworkStatsServiceProxy, is
+    // Note that nsINetworkManager, as well as nsINetworkStatsService, is
     // Gonk-specific.
     let networkManager = Cc["@mozilla.org/network/manager;1"].getService(Ci.nsINetworkManager);
     if (networkManager) {

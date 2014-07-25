@@ -12,7 +12,7 @@
 #include "nsCOMPtr.h"
 #include "nsError.h"
 #include "nsINetworkManager.h"
-#include "nsINetworkStatsServiceProxy.h"
+#include "nsINetworkStatsService.h"
 #include "nsThreadUtils.h"
 #include "nsProxyRelease.h"
 
@@ -64,20 +64,20 @@ public:
     MOZ_ASSERT(NS_IsMainThread());
 
     nsresult rv;
-    nsCOMPtr<nsINetworkStatsServiceProxy> mNetworkStatsServiceProxy =
-      do_GetService("@mozilla.org/networkstatsServiceProxy;1", &rv);
+    nsCOMPtr<nsINetworkStatsService> mNetworkStatsService =
+      do_GetService("@mozilla.org/netstatsservice;1", &rv);
     if (NS_FAILED(rv)) {
       return rv;
     }
 
-    // save the network stats through NetworkStatsServiceProxy
-    mNetworkStatsServiceProxy->SaveAppStats(mAppId,
-                                            mActiveNetwork,
-                                            PR_Now() / 1000,
-                                            mCountRecv,
-                                            mCountSent,
-                                            mIsAccumulative,
-                                            nullptr);
+    // save the network stats through NetworkStatsService
+    mNetworkStatsService->SaveAppStats(mAppId,
+                                       mActiveNetwork,
+                                       PR_Now() / 1000,
+                                       mCountRecv,
+                                       mCountSent,
+                                       mIsAccumulative,
+                                       nullptr);
 
     return NS_OK;
   }
