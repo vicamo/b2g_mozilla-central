@@ -5,22 +5,19 @@
 "use strict";
 
 const DEBUG = false;
-function debug(s) { dump("-*- NetworkStatsServiceProxy: " + s + "\n"); }
+function debug(s) { dump("-*- NetworkStatsService: " + s + "\n"); }
 
 const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
-
-this.EXPORTED_SYMBOLS = ["NetworkStatsServiceProxy"];
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/NetworkStatsService.jsm");
 
-const NETWORKSTATSSERVICEPROXY_CONTRACTID = "@mozilla.org/networkstatsServiceProxy;1";
-const NETWORKSTATSSERVICEPROXY_CID = Components.ID("705c01d6-8574-464c-8ec9-ac1522a45546");
-const nsINetworkStatsServiceProxy = Ci.nsINetworkStatsServiceProxy;
+const NETWORKSTATSSERVICE_CONTRACTID = "@mozilla.org/netstatsservice;1";
+const NETWORKSTATSSERVICE_CID = Components.ID("18725604-e9ac-488a-8aa0-2471e7f6c0a4");
 
 function NetworkStatsServiceProxy() {
   if (DEBUG) {
-    debug("Proxy started");
+    debug("started");
   }
 }
 
@@ -53,8 +50,8 @@ NetworkStatsServiceProxy.prototype = {
                                   aCallback);
   },
 
-  classID : NETWORKSTATSSERVICEPROXY_CID,
-  QueryInterface : XPCOMUtils.generateQI([nsINetworkStatsServiceProxy]),
+  classID : NETWORKSTATSSERVICE_CID,
+  QueryInterface : XPCOMUtils.generateQI([Ci.nsINetworkStatsService]),
 }
 
 this.NSGetFactory = XPCOMUtils.generateNSGetFactory([NetworkStatsServiceProxy]);

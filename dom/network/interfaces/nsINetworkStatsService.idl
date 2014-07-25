@@ -6,8 +6,8 @@
 
 interface nsINetworkInterface;
 
-[scriptable, function, uuid(5f821529-1d80-4ab5-a933-4e1b3585b6bc)]
-interface nsINetworkStatsServiceProxyCallback : nsISupports
+[scriptable, function, uuid(e7de41f5-0e49-441b-897d-6e85c0dae045)]
+interface nsINetworkStatsServiceCallback : nsISupports
 {
   /*
    * @param aResult callback result with boolean value
@@ -16,8 +16,8 @@ interface nsINetworkStatsServiceProxyCallback : nsISupports
   void notify(in boolean aResult, in jsval aMessage);
 };
 
-[scriptable, uuid(9825352c-388b-4c35-9862-144a477bf314)]
-interface nsINetworkStatsServiceProxy : nsISupports
+[scriptable, uuid(8077efb2-4c98-4e82-868e-45b62c1a9cd9)]
+interface nsINetworkStatsService : nsISupports
 {
   /*
    * An interface used to record per-app traffic data.
@@ -35,5 +35,5 @@ interface nsINetworkStatsServiceProxy : nsISupports
                     in unsigned long long aRxBytes,
                     in unsigned long long aTxBytes,
                     in boolean aIsAccumulative,
-         [optional] in nsINetworkStatsServiceProxyCallback aCallback);
+         [optional] in nsINetworkStatsServiceCallback aCallback);
 };
