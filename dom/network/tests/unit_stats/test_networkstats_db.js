@@ -660,7 +660,7 @@ add_test(function test_saveMultipleAppStats () {
   var networkMobile = networks[1]; // Fake mobile interface
 
   var saveDate = filterTimestamp(new Date());
-  var cached = Object.create(null);
+  var cached = {};
   var serviceType = "FakeType";
   var wifiNetId = networkWifi.id + '' + networkWifi.type;
   var mobileNetId = networkMobile.id + '' + networkMobile.type;
