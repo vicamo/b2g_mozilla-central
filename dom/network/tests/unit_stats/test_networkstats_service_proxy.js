@@ -24,7 +24,7 @@ function mokConvertNetworkInterface() {
     let netId = this._getNetworkId(id, aNetwork.type);
 
     if (!this._networks[netId]) {
-      this._networks[netId] = Object.create(null);
+      this._networks[netId] = {};
       this._networks[netId].network = { id: id,
                                         type: aNetwork.type };
     }

@@ -168,7 +168,7 @@ NetworkStatsManager.prototype = {
 
   addAlarm: function(aNetwork, aThreshold, aOptions) {
     if (!aOptions) {
-      aOptions = Object.create(null);
+      aOptions = {};
     }
 
     let request = this.createRequest();

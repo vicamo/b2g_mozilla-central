@@ -91,7 +91,7 @@ this.NetworkStatsService = {
     // networkInterface per network but can't exist a networkInterface not
     // being mapped to a network.
 
-    this._networks = Object.create(null);
+    this._networks = {};
 
     // There is no way to know a priori if wifi connection is available,
     // just when the wifi driver is loaded, but it is unloaded when
@@ -124,7 +124,7 @@ this.NetworkStatsService = {
                                 Ci.nsITimer.TYPE_REPEATING_PRECISE);
 
     // Stats not from netd are firstly stored in the cached.
-    this._cachedStats = Object.create(null);
+    this._cachedStats = {};
     this._cachedStatsDate = new Date();
 
     this._updateQueue = [];
@@ -284,7 +284,7 @@ this.NetworkStatsService = {
     let netId = this._getNetworkId(id, aNetwork.type);
 
     if (!this._networks[netId]) {
-      this._networks[netId] = Object.create(null);
+      this._networks[netId] = {};
       this._networks[netId].network = { id: id,
                                         type: aNetwork.type };
     }
@@ -316,10 +316,10 @@ this.NetworkStatsService = {
     // If so add to networks list with empty interfaceName.
     let rilNetworks = this._getRilNetworks();
     if (rilNetworks[netId]) {
-      this._networks[netId] = Object.create(null);
+      this._networks[netId] = {};
       this._networks[netId].network = rilNetworks[netId];
       this._networks[netId].status = NETWORK_STATUS_STANDBY;
-      this._currentAlarms[netId] = Object.create(null);
+      this._currentAlarms[netId] = {};
       aCallback(netId);
       return;
     }
@@ -327,10 +327,10 @@ this.NetworkStatsService = {
     // Check if network is available in the DB.
     this._db.isNetworkAvailable(aNetwork, function(aError, aResult) {
       if (aResult) {
-        this._networks[netId] = Object.create(null);
+        this._networks[netId] = {};
         this._networks[netId].network = aNetwork;
         this._networks[netId].status = NETWORK_STATUS_AWAY;
-        this._currentAlarms[netId] = Object.create(null);
+        this._currentAlarms[netId] = {};
         aCallback(netId);
         return;
       }
@@ -376,7 +376,7 @@ this.NetworkStatsService = {
     let self = this;
 
     for (let netId in this._networks) {
-      this._currentAlarms[netId] = Object.create(null);
+      this._currentAlarms[netId] = {};
 
       this._db.getFirstAlarm(netId, function(error, result) {
         if (!error && result) {
@@ -846,7 +846,7 @@ this.NetworkStatsService = {
 
       // Clean up the |_cachedStats| after updating.
       if (index == stats.length - 1) {
-        this._cachedStats = Object.create(null);
+        this._cachedStats = {};
 
         if (aCallback) {
           aCallback(true, "ok");
@@ -1105,7 +1105,7 @@ this.NetworkStatsService = {
   },
 
   _updateCurrentAlarm: function(aNetworkId) {
-    this._currentAlarms[aNetworkId] = Object.create(null);
+    this._currentAlarms[aNetworkId] = {};
 
     let self = this;
     this._db.getFirstAlarm(aNetworkId, function(error, result){
