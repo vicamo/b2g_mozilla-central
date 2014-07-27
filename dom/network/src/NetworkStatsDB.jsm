@@ -794,11 +794,6 @@ NetworkStatsDB.prototype = {
       let range = IDBKeyRange.bound(lowerFilter, upperFilter, false, false);
 
       let data = [];
-
-      if (!aTransaction.result) {
-        aTransaction.result = {};
-      }
-
       let request = aNetworkStore.openCursor(range).onsuccess = function(event) {
         var cursor = event.target.result;
         if (cursor){
@@ -846,19 +841,17 @@ NetworkStatsDB.prototype = {
   getAvailableNetworks: function(aResultCb) {
     this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
                    function(aTransaction, aNetworkStore) {
-      if (!aTransaction.result) {
-        aTransaction.result = [];
-      }
-
+      let networks = [];
       let request = aNetworkStore.index("network").openKeyCursor(null, "nextunique");
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor) {
-          aTransaction.result.push({ id: cursor.key[0],
-                                     type: cursor.key[1] });
+          networks.push({ id: cursor.key[0], type: cursor.key[1] });
           cursor.continue();
           return;
         }
+
+        aTransaction.result = networks;
       };
     }, aResultCb);
   },
@@ -866,16 +859,10 @@ NetworkStatsDB.prototype = {
   isNetworkAvailable: function(aNetwork, aResultCb) {
     this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
                    function(aTransaction, aNetworkStore) {
-      if (!aTransaction.result) {
-        aTransaction.result = false;
-      }
-
       let network = [aNetwork.id, aNetwork.type];
       let request = aNetworkStore.index("network").openKeyCursor(IDBKeyRange.only(network));
       request.onsuccess = function(event) {
-        if (event.target.result) {
-          aTransaction.result = true;
-        }
+        aTransaction.result = !!event.target.result;
       };
     }, aResultCb);
   },
@@ -883,18 +870,18 @@ NetworkStatsDB.prototype = {
   getAvailableServiceTypes: function(aResultCb) {
     this._dbNewTxn(NETWORK_STORE_NAME, "readonly",
                    function(aTransaction, aNetworkStore) {
-      if (!aTransaction.result) {
-        aTransaction.result = [];
-      }
+      let serviceTypes = [];
 
       let request = aNetworkStore.index("serviceType").openKeyCursor(null, "nextunique");
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (cursor && cursor.key != "") {
-          aTransaction.result.push({ serviceType: cursor.key });
+          serviceTypes.push({ serviceType: cursor.key });
           cursor.continue();
           return;
         }
+
+        aTransaction.result = serviceTypes;
       };
     }, aResultCb);
   },
@@ -962,9 +949,9 @@ NetworkStatsDB.prototype = {
 
       aAlarmStore.get(aAlarmId).onsuccess = function(event) {
         let alarmRecord = event.target.result;
-        aTransaction.result = false;
         if (!alarmRecord ||
             (aManifestURL && alarmRecord.manifestURL != aManifestURL)) {
+          aTransaction.result = false;
           return;
         }
 
@@ -999,16 +986,17 @@ NetworkStatsDB.prototype = {
         debug("Get alarms for " + aManifestURL);
       }
 
-      aTransaction.result = [];
+      let alarmRecords = [];
       aAlarmStore.index("manifestURL").openCursor(aManifestURL)
                                       .onsuccess = function(event) {
         let cursor = event.target.result;
         if (!cursor) {
+          aTransaction.result = alarmRecords;
           return;
         }
 
         if (!aNetworkId || cursor.value.networkId == aNetworkId) {
-          aTransaction.result.push(cursor.value);
+          alarmRecords.push(cursor.value);
         }
 
         cursor.continue();
