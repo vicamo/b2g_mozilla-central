@@ -106,16 +106,56 @@ this.NetworkStatsService = {
       status: NETWORK_STATUS_STANDBY
     };
 
-    this._messages = ["NetworkStats:Get",
-                      "NetworkStats:Clear",
-                      "NetworkStats:ClearAll",
-                      "NetworkStats:SetAlarm",
-                      "NetworkStats:GetAlarms",
-                      "NetworkStats:RemoveAlarms",
-                      "NetworkStats:GetAvailableNetworks",
-                      "NetworkStats:GetAvailableServiceTypes",
-                      "NetworkStats:SampleRate",
-                      "NetworkStats:MaxStorageAge"];
+    this._messages = [
+      // Request {
+      //   id: <numeric DOMRequest id>,
+      //   network: <{
+      //     id: <string>,
+      //     type: <numeric>,
+      //   }>,
+      //   startTimestamp: <numeric timestamp>,
+      //   endTimestamp: <numeric timestamp>,
+      //   manifestURL: <string>,
+      //   serviceType: <string>,
+      // }
+      //
+      // Response Error {
+      //   id: <numeric DOMRequest id>,
+      //   error: <string>,
+      // }
+      //
+      // Response Result {
+      //   id: <numeric DOMRequest id>,
+      //   result: <{
+      //     manifestURL: <string>,
+      //     serviceType: <string>,
+      //     network: <{
+      //       id: <string>,
+      //       type: <numeric>,
+      //     }>,
+      //     startTimestamp: <numeric timestamp>,
+      //     endTimestamp: <numeric timestamp>,
+      //     data: <[
+      //       <{
+      //         rxBytes: <numeric>,
+      //         txBytes: <numeric>,
+      //         timestamp: <numeric timestamp>,
+      //       }>
+      //     ]>,
+      //   }>
+      // }
+      "NetworkStats:Get",
+
+      "NetworkStats:Clear",
+      "NetworkStats:ClearAll",
+      "NetworkStats:SetAlarm",
+      "NetworkStats:GetAlarms",
+      "NetworkStats:RemoveAlarms",
+      "NetworkStats:GetAvailableNetworks",
+      "NetworkStats:GetAvailableServiceTypes",
+      "NetworkStats:SampleRate",
+      "NetworkStats:MaxStorageAge"
+    ];
 
     this._messages.forEach(function(aMsgName) {
       ppmm.addMessageListener(aMsgName, this);
@@ -431,7 +471,6 @@ this.NetworkStatsService = {
         aMsgTarget.sendAsyncMessage("NetworkStats:Get:Return", {
           id: aMsgJson.id,
           error: "Invalid appManifestURL",
-          result: null
         });
         return;
       }
@@ -443,12 +482,25 @@ this.NetworkStatsService = {
     let endDate = new Date(aMsgJson.endTimestamp);
 
     let callback = (function() {
-      this._db.find(function(aError, aResult) {
-        aMsgTarget.sendAsyncMessage("NetworkStats:Get:Return", {
-          id: aMsgJson.id,
-          error: aError,
-          result: aResult
-        });
+      this._db.find(function(aError, aStatsArray) {
+        let message;
+        if (aError) {
+          message = { error: aError };
+        } else {
+          message = {
+            result: {
+              manifestURL: manifestURL,
+              serviceType: serviceType,
+              network: network,
+              startTimestamp: aMsgJson.startTimestamp,
+              endTimestamp: aMsgJson.endTimestamp,
+              data: aStatsArray
+            }
+          };
+        }
+        message.id = aMsgJson.id;
+
+        aMsgTarget.sendAsyncMessage("NetworkStats:Get:Return", message);
       }, appId, serviceType, network, startDate, endDate, manifestURL);
     }).bind(this);
 
@@ -457,7 +509,6 @@ this.NetworkStatsService = {
         aMsgTarget.sendAsyncMessage("NetworkStats:Get:Return", {
           id: aMsgJson.id,
           error: "Invalid connectionType",
-          result: null
         });
         return;
       }

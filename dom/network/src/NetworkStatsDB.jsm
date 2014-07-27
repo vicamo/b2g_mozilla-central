@@ -568,9 +568,7 @@ NetworkStatsDB.prototype = {
       request.onsuccess = function(event) {
         let cursor = event.target.result;
         if (!cursor && lastSample != null) {
-          let timestamp = new Date();
-          timestamp = self.normalizeDate(timestamp);
-          lastSample.timestamp = timestamp;
+          lastSample.timestamp = self.normalizeDate(new Date());
           lastSample.rxBytes = 0;
           lastSample.txBytes = 0;
           self._saveStats(aNetworkStore, lastSample);
@@ -600,9 +598,7 @@ NetworkStatsDB.prototype = {
         }
 
         if (sample) {
-          let timestamp = new Date();
-          timestamp = self.normalizeDate(timestamp);
-          sample.timestamp = timestamp;
+          sample.timestamp = self.normalizeDate(new Date());
           sample.appId = 0;
           sample.serviceType = "";
           sample.rxBytes = 0;
@@ -744,17 +740,12 @@ NetworkStatsDB.prototype = {
       let range = IDBKeyRange.bound(lowerFilter, upperFilter, false, false);
 
       let data = [];
-
-      if (!aTransaction.result) {
-        aTransaction.result = {};
-      }
-
       let request = aNetworkStore.openCursor(range).onsuccess = function(event) {
         var cursor = event.target.result;
         if (cursor){
           data.push({ rxBytes: cursor.value.rxBytes,
                       txBytes: cursor.value.txBytes,
-                      date: new Date(cursor.value.timestamp + offset) });
+                      timestamp: (cursor.value.timestamp + offset) });
           cursor.continue();
           return;
         }
@@ -764,14 +755,7 @@ NetworkStatsDB.prototype = {
         this._fillResultSamples(startTimestamp + offset,
                                 endTimestamp + offset, data);
 
-        aTransaction.result = {
-          manifestURL: aManifestURL,
-          serviceType: aServiceType,
-          network: aNetwork,
-          startDate: aStartDate,
-          endDate: aEndDate,
-          data: data,
-	};
+        aTransaction.result = data;
       }.bind(this);
     }.bind(this), aResultCb);
   },
@@ -784,19 +768,19 @@ NetworkStatsDB.prototype = {
     if (aData.length == 0) {
       aData.push({ rxBytes: undefined,
                    txBytes: undefined,
-                   date: new Date(aStartTimestamp) });
+                   timestamp: aStartTimestamp });
     }
 
-    while (aStartTimestamp < aData[0].date.getTime()) {
+    while (aStartTimestamp < aData[0].timestamp) {
       aData.unshift({ rxBytes: undefined,
                       txBytes: undefined,
-                      date: new Date(aData[0].date.getTime() - SAMPLE_RATE) });
+                      timestamp: (aData[0].timestamp - SAMPLE_RATE) });
     }
 
-    while (aEndTimestamp > aData[aData.length - 1].date.getTime()) {
+    while (aEndTimestamp > aData[aData.length - 1].timestamp) {
       aData.push({ rxBytes: undefined,
                    txBytes: undefined,
-                   date: new Date(aData[aData.length - 1].date.getTime() + SAMPLE_RATE) });
+                   timestamp: (aData[aData.length - 1].timestamp + SAMPLE_RATE) });
     }
   },
 

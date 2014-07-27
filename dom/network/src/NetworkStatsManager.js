@@ -33,7 +33,7 @@ const NETWORKSTATSDATA_CID = Components.ID("{3b16fe17-5583-483a-b486-b64a3243221
 function NetworkStatsData(aWindow, aData) {
   this.rxBytes = aData.rxBytes;
   this.txBytes = aData.txBytes;
-  this.date = new aWindow.Date(aData.date.getTime());
+  this.date = new aWindow.Date(aData.timestamp);
 }
 
 NetworkStatsData.prototype = {
@@ -74,8 +74,8 @@ function NetworkStats(aWindow, aStats) {
   this.appManifestURL = aStats.manifestURL || null;
   this.serviceType = aStats.serviceType || null;
   this.network = new aWindow.MozNetworkStatsInterface(aStats.network);
-  this.start = aStats.startDate ? new aWindow.Date(aStats.startDate.getTime()) : null;
-  this.end = aStats.endDate ? new aWindow.Date(aStats.endDate.getTime()) : null;
+  this.start = new aWindow.Date(aStats.startTimestamp);
+  this.end = new aWindow.Date(aStats.endTimestamp);
 
   let samples = this.data = new aWindow.Array();
   for (let i = 0; i < aStats.data.length; i++) {
@@ -136,13 +136,15 @@ NetworkStatsManager.prototype = {
     }
 
     let request = this.createRequest();
-    cpmm.sendAsyncMessage("NetworkStats:Get",
-                          { network: aNetwork.toJSON(),
-                            startTimestamp: aStartDate.getTime(),
-                            endTimestamp: aEndDate.getTime(),
-                            manifestURL: manifestURL,
-                            serviceType: serviceType,
-                            id: this.getRequestId(request) });
+    cpmm.sendAsyncMessage("NetworkStats:Get", {
+      id: this.getRequestId(request),
+      network: aNetwork.toJSON(),
+      startTimestamp: aStartDate.getTime(),
+      endTimestamp: aEndDate.getTime(),
+      manifestURL: manifestURL,
+      serviceType: serviceType,
+    });
+
     return request;
   },
 
