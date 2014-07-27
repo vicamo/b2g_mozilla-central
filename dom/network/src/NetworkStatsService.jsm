@@ -181,8 +181,42 @@ this.NetworkStatsService = {
       "NetworkStats:SetAlarm",
       "NetworkStats:GetAlarms",
       "NetworkStats:RemoveAlarms",
+
+      // Request {
+      //   id: <numeric DOMRequest id>,
+      // }
+      //
+      // Response Error {
+      //   id: <numeric DOMRequest id>,
+      //   error: <string>,
+      // }
+      //
+      // Response Result {
+      //   id: <numeric DOMRequest id>,
+      //   result: <[
+      //     <{
+      //       id: <string>,
+      //       type: <numeric>,
+      //     }>
+      //   ]>
+      // }
       "NetworkStats:GetAvailableNetworks",
+
+      // Request {
+      //   id: <numeric DOMRequest id>,
+      // }
+      //
+      // Response Error {
+      //   id: <numeric DOMRequest id>,
+      //   error: <string>,
+      // }
+      //
+      // Response Result {
+      //   id: <numeric DOMRequest id>,
+      //   result: <[<string>]>
+      // }
       "NetworkStats:GetAvailableServiceTypes",
+
       "NetworkStats:SampleRate",
       "NetworkStats:MaxStorageAge"];
 
@@ -426,6 +460,13 @@ this.NetworkStatsService = {
     let self = this;
     let rilNetworks = this._getRilNetworks();
     this._db.getAvailableNetworks(function(aError, aNetworksArray) {
+      if (aError) {
+        aMsgTarget.sendAsyncMessage("NetworkStats:GetAvailableNetworks:Return", {
+          id: aMsgJson.id,
+          error: aError
+        });
+        return;
+      }
 
       // Also return the networks that are valid but have not
       // established connections yet.
@@ -445,7 +486,6 @@ this.NetworkStatsService = {
 
       aMsgTarget.sendAsyncMessage("NetworkStats:GetAvailableNetworks:Return", {
         id: aMsgJson.id,
-        error: aError,
         result: aNetworksArray
       });
     });

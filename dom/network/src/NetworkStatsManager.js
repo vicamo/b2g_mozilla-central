@@ -212,15 +212,17 @@ NetworkStatsManager.prototype = {
 
   getAvailableNetworks: function() {
     let request = this.createRequest();
-    cpmm.sendAsyncMessage("NetworkStats:GetAvailableNetworks",
-                          { id: this.getRequestId(request) });
+    cpmm.sendAsyncMessage("NetworkStats:GetAvailableNetworks", {
+      id: this.getRequestId(request),
+    });
     return request;
   },
 
   getAvailableServiceTypes: function() {
     let request = this.createRequest();
-    cpmm.sendAsyncMessage("NetworkStats:GetAvailableServiceTypes",
-                          { id: this.getRequestId(request) });
+    cpmm.sendAsyncMessage("NetworkStats:GetAvailableServiceTypes", {
+      id: this.getRequestId(request),
+    });
     return request;
   },
 
