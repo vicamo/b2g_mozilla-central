@@ -146,8 +146,38 @@ this.NetworkStatsService = {
       // }
       "NetworkStats:Get",
 
+      // Request {
+      //   id: <numeric DOMRequest id>,
+      //   network: <{
+      //     id: <string>,
+      //     type: <numeric>,
+      //   }>,
+      // }
+      //
+      // Response Error {
+      //   id: <numeric DOMRequest id>,
+      //   error: <string>,
+      // }
+      //
+      // Response Result {
+      //   id: <numeric DOMRequest id>,
+      // }
       "NetworkStats:Clear",
+
+      // Request {
+      //   id: <numeric DOMRequest id>,
+      // }
+      //
+      // Response Error {
+      //   id: <numeric DOMRequest id>,
+      //   error: <string>,
+      // }
+      //
+      // Response Result {
+      //   id: <numeric DOMRequest id>,
+      // }
       "NetworkStats:ClearAll",
+
       "NetworkStats:SetAlarm",
       "NetworkStats:GetAlarms",
       "NetworkStats:RemoveAlarms",
@@ -545,7 +575,6 @@ this.NetworkStatsService = {
         aMsgTarget.sendAsyncMessage("NetworkStats:Clear:Return", {
           id: aMsgJson.id,
           error: "Invalid connectionType",
-          result: null
         });
         return;
       }
@@ -555,7 +584,6 @@ this.NetworkStatsService = {
           aMsgTarget.sendAsyncMessage("NetworkStats:Clear:Return", {
             id: aMsgJson.id,
             error: aMessage,
-            result: null
           });
           return;
         }
@@ -565,7 +593,6 @@ this.NetworkStatsService = {
           aMsgTarget.sendAsyncMessage("NetworkStats:Clear:Return", {
             id: aMsgJson.id,
             error: aError,
-            result: null
           });
         });
       });
@@ -579,7 +606,6 @@ this.NetworkStatsService = {
         aMsgTarget.sendAsyncMessage("NetworkStats:ClearAll:Return", {
           id: aMsgJson.id,
           error: aError,
-          result: aNetworksArray
         });
         return;
       }
@@ -589,7 +615,6 @@ this.NetworkStatsService = {
           aMsgTarget.sendAsyncMessage("NetworkStats:ClearAll:Return", {
             id: aMsgJson.id,
             error: aMessage,
-            result: null
           });
           return;
         }
@@ -602,7 +627,6 @@ this.NetworkStatsService = {
           aMsgTarget.sendAsyncMessage("NetworkStats:ClearAll:Return", {
             id: aMsgJson.id,
             error: aError,
-            result: null
           });
         });
       });
