@@ -387,7 +387,7 @@ NetworkStatsDB.prototype = {
             stats.txBytes = stats.txTotalBytes;
           }
 
-          this._saveStats(aTxn, aStore, stats);
+          this._saveStats(aStore, stats);
           return;
         }
 
@@ -397,11 +397,11 @@ NetworkStatsDB.prototype = {
         }
 
         // Remove stats previous to now - VALUE_MAX_LENGTH
-        this._removeOldStats(aTxn, aStore, stats.appId, stats.serviceType,
+        this._removeOldStats(aStore, stats.appId, stats.serviceType,
                              stats.network, stats.timestamp);
 
         // Process stats before save
-        this._processSamplesDiff(aTxn, aStore, cursor, stats, isAccumulative);
+        this._processSamplesDiff(aStore, cursor, stats, isAccumulative);
       }.bind(this);
     }.bind(this), aResultCb);
   },
@@ -410,7 +410,7 @@ NetworkStatsDB.prototype = {
    * This function check that stats are saved in the database following the sample rate.
    * In this way is easier to find elements when stats are requested.
    */
-  _processSamplesDiff: function(aTxn, aStore, aLastSampleCursor, aNewSample,
+  _processSamplesDiff: function(aStore, aLastSampleCursor, aNewSample,
                                 aIsAccumulative) {
     let lastSample = aLastSampleCursor.value;
 
@@ -419,7 +419,6 @@ NetworkStatsDB.prototype = {
     if (diff % 1) {
       // diff is decimal, so some error happened because samples are stored as a multiple
       // of SAMPLE_RATE
-      aTxn.abort();
       throw new Error("Error processing samples");
     }
 
@@ -463,7 +462,7 @@ NetworkStatsDB.prototype = {
         aNewSample.txTotalBytes = aNewSample.txBytes + lastSample.txTotalBytes;
       }
 
-      this._saveStats(aTxn, aStore, aNewSample);
+      this._saveStats(aStore, aNewSample);
       return;
     }
     if (diff > 1) {
@@ -492,7 +491,7 @@ NetworkStatsDB.prototype = {
       }
 
       data.push(aNewSample);
-      this._saveStats(aTxn, aStore, data);
+      this._saveStats(aStore, data);
       return;
     }
     if (diff == 0 || diff < 0) {
@@ -517,7 +516,7 @@ NetworkStatsDB.prototype = {
     }
   },
 
-  _saveStats: function(aTxn, aStore, aNetworkStats) {
+  _saveStats: function(aStore, aNetworkStats) {
     if (DEBUG) {
       debug("_saveStats: " + JSON.stringify(aNetworkStats));
     }
@@ -532,8 +531,7 @@ NetworkStatsDB.prototype = {
     }
   },
 
-  _removeOldStats: function(aTxn, aStore, aAppId, aServiceType, aNetwork,
-                            aDate) {
+  _removeOldStats: function(aStore, aAppId, aServiceType, aNetwork, aDate) {
     // Callback function to remove old items when new ones are added.
     let filterDate = aDate - (SAMPLE_RATE * VALUES_MAX_LENGTH - 1);
     let lowerFilter = [aAppId, aServiceType, aNetwork, 0];
@@ -565,7 +563,7 @@ NetworkStatsDB.prototype = {
           lastSample.timestamp = timestamp;
           lastSample.rxBytes = 0;
           lastSample.txBytes = 0;
-          self._saveStats(aTxn, aStore, lastSample);
+          self._saveStats(aStore, lastSample);
         }
       };
     };
@@ -602,7 +600,7 @@ NetworkStatsDB.prototype = {
           sample.rxTotalBytes = 0;
           sample.txTotalBytes = 0;
 
-          self._saveStats(aTxn, aStore, sample);
+          self._saveStats(aStore, sample);
         }
       };
     }, this._resetAlarms.bind(this, aNetwork.networkId, aResultCb));

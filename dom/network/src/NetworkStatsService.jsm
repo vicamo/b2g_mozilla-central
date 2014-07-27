@@ -380,7 +380,7 @@ this.NetworkStatsService = {
 
       this._db.getFirstAlarm(netId, function(error, result) {
         if (!error && result) {
-          self._setAlarm(result, function(error, success) {
+          self._setAlarm(result, function(error) {
             if (error == "InvalidStateError") {
               self._fireAlarm(result);
             }
@@ -1005,7 +1005,7 @@ this.NetworkStatsService = {
           }
 
           newAlarm.id = newId;
-          self._setAlarm(newAlarm, function(error, success) {
+          self._setAlarm(newAlarm, function(error) {
             mm.sendAsyncMessage("NetworkStats:SetAlarm:Return",
                                 { id: msg.id, error: error, result: newId });
 
@@ -1023,7 +1023,7 @@ this.NetworkStatsService = {
     if ((Object.getOwnPropertyNames(currentAlarm).length !== 0 &&
          aAlarm.relativeThreshold > currentAlarm.alarm.relativeThreshold) ||
         this._networks[aAlarm.networkId].status != NETWORK_STATUS_READY) {
-      aCallback(null, true);
+      aCallback(null);
       return;
     }
 
@@ -1031,20 +1031,20 @@ this.NetworkStatsService = {
 
     this._getAlarmQuota(aAlarm, function(aError, aQuota) {
       if (aError) {
-        aCallback(aError, null);
+        aCallback(aError);
         return;
       }
 
       let callback = function(aError) {
         if (aError) {
           debug("Set alarm error: " + aError);
-          aCallback("netdError", null);
+          aCallback("netdError");
           return;
         }
 
         self._currentAlarms[aAlarm.networkId].alarm = aAlarm;
 
-        aCallback(null, true);
+        aCallback(null);
       };
 
       debug("Set alarm " + JSON.stringify(aAlarm));
@@ -1056,7 +1056,7 @@ this.NetworkStatsService = {
         return;
       }
 
-      aCallback(null, true);
+      aCallback(null);
     });
   },
 
@@ -1121,7 +1121,7 @@ this.NetworkStatsService = {
         return;
       }
 
-      self._setAlarm(result, function(error, success){
+      self._setAlarm(result, function(error){
         if (error == "InvalidStateError") {
           self._fireAlarm(result);
           return;
