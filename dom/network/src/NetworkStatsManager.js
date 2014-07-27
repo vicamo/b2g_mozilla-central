@@ -171,14 +171,16 @@ NetworkStatsManager.prototype = {
     }
 
     let request = this.createRequest();
-    cpmm.sendAsyncMessage("NetworkStats:SetAlarm",
-                          {id: this.getRequestId(request),
-                           data: {network: aNetwork.toJSON(),
-                                  threshold: aThreshold,
-                                  startTimestamp: aOptions.startTime,
-                                  data: aOptions.data,
-                                  manifestURL: this._manifestURL,
-                                  pageURL: this._pageURL}});
+    cpmm.sendAsyncMessage("NetworkStats:SetAlarm", {
+      id: this.getRequestId(request),
+      network: aNetwork.toJSON(),
+      threshold: aThreshold,
+      startTimestamp: aOptions.startTime,
+      data: aOptions.data,
+      manifestURL: this._manifestURL,
+      pageURL: this._pageURL,
+    });
+
     return request;
   },
 
@@ -189,10 +191,12 @@ NetworkStatsManager.prototype = {
     }
 
     let request = this.createRequest();
-    cpmm.sendAsyncMessage("NetworkStats:GetAlarms",
-                          {id: this.getRequestId(request),
-                           data: {network: network,
-                                  manifestURL: this._manifestURL}});
+    cpmm.sendAsyncMessage("NetworkStats:GetAlarms", {
+      id: this.getRequestId(request),
+      network: network,
+      manifestURL: this._manifestURL,
+    });
+
     return request;
   },
 
@@ -202,10 +206,11 @@ NetworkStatsManager.prototype = {
     }
 
     let request = this.createRequest();
-    cpmm.sendAsyncMessage("NetworkStats:RemoveAlarms",
-                          {id: this.getRequestId(request),
-                           data: {alarmId: aAlarmId,
-                                  manifestURL: this._manifestURL}});
+    cpmm.sendAsyncMessage("NetworkStats:RemoveAlarms", {
+      id: this.getRequestId(request),
+      alarmId: aAlarmId,
+      manifestURL: this._manifestURL,
+    });
 
     return request;
   },
@@ -303,13 +308,21 @@ NetworkStatsManager.prototype = {
         break;
 
       case "NetworkStats:SetAlarm:Return":
-      case "NetworkStats:RemoveAlarms:Return":
         if (msg.error) {
           Services.DOMRequest.fireError(req, msg.error);
           return;
         }
 
         Services.DOMRequest.fireSuccess(req, msg.result);
+        break;
+
+      case "NetworkStats:RemoveAlarms:Return":
+        if (msg.error) {
+          Services.DOMRequest.fireError(req, msg.error);
+          return;
+        }
+
+        Services.DOMRequest.fireSuccess(req, true);
         break;
 
       case "NetworkStats:GetAlarms:Return":

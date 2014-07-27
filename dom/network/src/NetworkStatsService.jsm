@@ -178,8 +178,74 @@ this.NetworkStatsService = {
       // }
       "NetworkStats:ClearAll",
 
+      // Request {
+      //   id: <numeric DOMRequest id>,
+      //   network: <{
+      //     id: <string>,
+      //     type: <numeric>,
+      //   }>,
+      //   threshold: <numeric>,
+      //   startTimestamp: <numeric timestamp>,
+      //   data: <any>,
+      //   manifestURL: <string>,
+      //   pageURL: <string>,
+      // }
+      //
+      // Response Error {
+      //   id: <numeric DOMRequest id>,
+      //   error: <string>,
+      // }
+      //
+      // Response Result {
+      //   id: <numeric DOMRequest id>,
+      //   result: <numeric alarm id>,
+      // }
       "NetworkStats:SetAlarm",
+
+      // Request {
+      //   id: <numeric DOMRequest id>,
+      //   network: <{
+      //     id: <string>,
+      //     type: <numeric>,
+      //   }>,
+      //   manifestURL: <string>,
+      // }
+      //
+      // Response Error {
+      //   id: <numeric DOMRequest id>,
+      //   error: <string>,
+      // }
+      //
+      // Response Result {
+      //   id: <numeric DOMRequest id>,
+      //   result: <[
+      //     <{
+      //       id: <numeric alarm id>,
+      //       network: <{
+      //         id: <string>,
+      //         type: <numeric>,
+      //       }>,
+      //       threshold: <numeric>,
+      //       data: <any>,
+      //     }>
+      //   ]>
+      // }
       "NetworkStats:GetAlarms",
+
+      // Request {
+      //   id: <numeric DOMRequest id>,
+      //   alarmId: <numeric alarm id>,
+      //   manifestURL: <string>,
+      // }
+      //
+      // Response Error {
+      //   id: <numeric DOMRequest id>,
+      //   error: <string>,
+      // }
+      //
+      // Response Result {
+      //   id: <numeric DOMRequest id>,
+      // }
       "NetworkStats:RemoveAlarms",
 
       // Request {
@@ -1046,8 +1112,8 @@ this.NetworkStatsService = {
 
   getAlarms: function(aMsgTarget, aMsgJson) {
     let self = this;
-    let network = aMsgJson.data.network;
-    let manifestURL = aMsgJson.data.manifestURL;
+    let network = aMsgJson.network;
+    let manifestURL = aMsgJson.manifestURL;
 
     if (network) {
       this._validateNetwork(network, function(aNetworkId) {
@@ -1055,7 +1121,6 @@ this.NetworkStatsService = {
           aMsgTarget.sendAsyncMessage("NetworkStats:GetAlarms:Return", {
             id: aMsgJson.id,
             error: "InvalidInterface",
-            result: null
           });
           return;
         }
@@ -1075,7 +1140,6 @@ this.NetworkStatsService = {
         aMsgTarget.sendAsyncMessage("NetworkStats:GetAlarms:Return", {
           id: aMsgJson.id,
           error: aError,
-          result: aAlarmRecords
         });
         return;
       }
@@ -1094,15 +1158,14 @@ this.NetworkStatsService = {
 
       aMsgTarget.sendAsyncMessage("NetworkStats:GetAlarms:Return", {
         id: aMsgJson.id,
-        error: null,
         result: alarms
       });
     });
   },
 
   removeAlarms: function(aMsgTarget, aMsgJson) {
-    let alarmId = aMsgJson.data.alarmId;
-    let manifestURL = aMsgJson.data.manifestURL;
+    let alarmId = aMsgJson.alarmId;
+    let manifestURL = aMsgJson.manifestURL;
 
     let self = this;
     let callback = function(aError, aUnused) {
@@ -1110,7 +1173,6 @@ this.NetworkStatsService = {
         aMsgTarget.sendAsyncMessage("NetworkStats:RemoveAlarms:Return", {
           id: aMsgJson.id,
           error: aError,
-          result: null
         });
         return;
       }
@@ -1126,8 +1188,6 @@ this.NetworkStatsService = {
 
       aMsgTarget.sendAsyncMessage("NetworkStats:RemoveAlarms:Return", {
         id: aMsgJson.id,
-        error: aError,
-        result: true
       });
     };
 
@@ -1142,9 +1202,8 @@ this.NetworkStatsService = {
    * Function called from manager to set an alarm.
    */
   setAlarm: function(aMsgTarget, aMsgJson) {
-    let options = aMsgJson.data;
-    let network = options.network;
-    let threshold = options.threshold;
+    let network = aMsgJson.network;
+    let threshold = aMsgJson.threshold;
 
     debug("Set alarm at " + threshold + " for " + JSON.stringify(network));
 
@@ -1152,7 +1211,6 @@ this.NetworkStatsService = {
       aMsgTarget.sendAsyncMessage("NetworkStats:SetAlarm:Return", {
         id: aMsgJson.id,
         error: "InvalidThresholdValue",
-        result: null
       });
       return;
     }
@@ -1163,7 +1221,6 @@ this.NetworkStatsService = {
         aMsgTarget.sendAsyncMessage("NetworkStats:SetAlarm:Return", {
           id: aMsgJson.id,
           error: "InvalidiConnectionType",
-          result: null
         });
         return;
       }
@@ -1173,10 +1230,10 @@ this.NetworkStatsService = {
         networkId: aNetworkId,
         absoluteThreshold: threshold,
         relativeThreshold: null,
-        startTime: options.startTimestamp,
-        data: options.data,
-        pageURL: options.pageURL,
-        manifestURL: options.manifestURL
+        startTime: aMsgJson.startTimestamp,
+        data: aMsgJson.data,
+        pageURL: aMsgJson.pageURL,
+        manifestURL: aMsgJson.manifestURL
       };
 
       self._getAlarmQuota(newAlarm, function(aError, aAlarmQuota) {
@@ -1184,7 +1241,6 @@ this.NetworkStatsService = {
           aMsgTarget.sendAsyncMessage("NetworkStats:SetAlarm:Return", {
             id: aMsgJson.id,
             error: aError,
-            result: null
           });
           return;
         }
@@ -1194,7 +1250,6 @@ this.NetworkStatsService = {
             aMsgTarget.sendAsyncMessage("NetworkStats:SetAlarm:Return", {
               id: aMsgJson.id,
               error: aError,
-              result: null
             });
             return;
           }
