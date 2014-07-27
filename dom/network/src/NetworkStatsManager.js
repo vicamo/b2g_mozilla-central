@@ -150,16 +150,18 @@ NetworkStatsManager.prototype = {
 
   clearStats: function(aNetwork) {
     let request = this.createRequest();
-    cpmm.sendAsyncMessage("NetworkStats:Clear",
-                          { network: aNetwork.toJSON(),
-                            id: this.getRequestId(request) });
+    cpmm.sendAsyncMessage("NetworkStats:Clear", {
+      id: this.getRequestId(request),
+      network: aNetwork.toJSON(),
+    });
     return request;
   },
 
   clearAllStats: function() {
     let request = this.createRequest();
-    cpmm.sendAsyncMessage("NetworkStats:ClearAll",
-                          {id: this.getRequestId(request)});
+    cpmm.sendAsyncMessage("NetworkStats:ClearAll", {
+      id: this.getRequestId(request),
+    });
     return request;
   },
 
