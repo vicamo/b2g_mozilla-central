@@ -959,12 +959,9 @@ this.NetworkStatsService = {
    * Function responsible for receiving stats which are not from netd.
    */
   saveStats: function(aAppId, aServiceType, aNetworkInterface, aTimeStamp,
-                      aRxBytes, aTxBytes, aIsAccumulative, aCallback) {
+                      aRxBytes, aTxBytes, aIsAccumulative) {
     let networkId = this._convertNetworkInterface(aNetworkInterface);
     if (!networkId) {
-      if (aCallback) {
-        aCallback(false, "Invalid network type");
-      }
       return;
     }
 
@@ -992,7 +989,7 @@ this.NetworkStatsService = {
 
     this._updateQueue.push({
       stats: stats,
-      callbacks: [aCallback],
+      callbacks: [],
       queueType: QUEUE_TYPE_WRITE_CACHE
     });
 

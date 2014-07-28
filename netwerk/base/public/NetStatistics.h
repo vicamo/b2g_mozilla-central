@@ -76,8 +76,7 @@ public:
                                        PR_Now() / 1000,
                                        mCountRecv,
                                        mCountSent,
-                                       mIsAccumulative,
-                                       nullptr);
+                                       mIsAccumulative);
 
     return NS_OK;
   }

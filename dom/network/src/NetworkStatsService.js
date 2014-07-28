@@ -27,7 +27,7 @@ NetworkStatsServiceProxy.prototype = {
    * to pass the per-app stats to NetworkStatsService.
    */
   saveAppStats: function(aAppId, aNetworkInterface, aTimeStamp, aRxBytes,
-                         aTxBytes, aIsAccumulative, aCallback) {
+                         aTxBytes, aIsAccumulative) {
     if (!aNetworkInterface) {
       if (DEBUG) {
         debug("Network interface is not specified. Failed to save stats. Returning.");
@@ -40,13 +40,8 @@ NetworkStatsServiceProxy.prototype = {
             aTimeStamp + " " + aRxBytes + " " + aTxBytes + " " + aIsAccumulative);
     }
 
-    if (aCallback) {
-      aCallback = aCallback.notify;
-    }
-
     NetworkStatsService.saveStats(aAppId, "", aNetworkInterface, aTimeStamp,
-                                  aRxBytes, aTxBytes, aIsAccumulative,
-                                  aCallback);
+                                  aRxBytes, aTxBytes, aIsAccumulative);
   },
 
   classID : NETWORKSTATSSERVICE_CID,

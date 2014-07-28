@@ -6,17 +6,7 @@
 
 interface nsINetworkInterface;
 
-[scriptable, function, uuid(e7de41f5-0e49-441b-897d-6e85c0dae045)]
-interface nsINetworkStatsServiceCallback : nsISupports
-{
-  /*
-   * @param aResult callback result with boolean value
-   * @param aMessage message
-   */
-  void notify(in boolean aResult, in jsval aMessage);
-};
-
-[scriptable, uuid(8077efb2-4c98-4e82-868e-45b62c1a9cd9)]
+[scriptable, uuid(26ec1f21-03ce-4ac4-9eb3-9281f2caeeeb)]
 interface nsINetworkStatsService : nsISupports
 {
   /*
@@ -27,13 +17,11 @@ interface nsINetworkStatsService : nsISupports
    * @param aRxBytes received data amount
    * @param aTxBytes transmitted data amount
    * @param aIsAccumulative is stats accumulative
-   * @param aCallback an optional callback
    */
   void saveAppStats(in unsigned long aAppId,
                     in nsINetworkInterface aNetwork,
                     in unsigned long long aTimeStamp,
                     in unsigned long long aRxBytes,
                     in unsigned long long aTxBytes,
-                    in boolean aIsAccumulative,
-         [optional] in nsINetworkStatsServiceCallback aCallback);
+                    in boolean aIsAccumulative);
 };
