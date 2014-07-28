@@ -922,7 +922,7 @@ this.NetworkStatsService = {
    * Callback of request stats. Store stats in database.
    */
   _networkStatsAvailable: function(aCallback, aNetworkId, aResult, aRxBytes,
-                                   aTxBytes, aDate) {
+                                   aTxBytes, aTimestamp) {
     if (!aResult) {
       if (aCallback) {
         aCallback(false, "Netd IPC error");
@@ -935,7 +935,7 @@ this.NetworkStatsService = {
       serviceType: "",
       networkId: this._networks[aNetworkId].network.id,
       networkType: this._networks[aNetworkId].network.type,
-      date: aDate,
+      date: new Date(aTimestamp),
       rxBytes: aTxBytes,
       txBytes: aRxBytes,
       isAccumulative: true
