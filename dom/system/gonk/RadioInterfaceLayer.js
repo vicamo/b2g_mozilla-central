@@ -2244,33 +2244,34 @@ RadioInterface.prototype = {
     if (DEBUG) this.debug("matchMvno: " + JSON.stringify(message));
 
     if (!message || message.mvnoType == null || !message.mvnoData) {
-      message.errorMsg = RIL.GECKO_ERROR_INVALID_PARAMETER;
-    }
-
-    if (!message.errorMsg) {
+      message.rilRequestError = Ci.nsIRilCallback.ERROR_INVALID_PARAMETER;
+    } else {
+      message.rilRequestError = Ci.nsIRilCallback.SUCCESS;
       switch (message.mvnoType) {
         case Ci.nsIIccService.MVNO_TYPE_IMSI:
           if (!this.rilContext.imsi) {
-            message.errorMsg = RIL.GECKO_ERROR_GENERIC_FAILURE;
+            message.rilRequestError = Ci.nsIRilCallback.ERROR_GENERIC_FAILURE;
             break;
           }
           message.result = this.isImsiMatches(message.mvnoData);
           break;
+
         case Ci.nsIIccService.MVNO_TYPE_SPN:
           let spn = this.rilContext.iccInfo && this.rilContext.iccInfo.spn;
           if (!spn) {
-            message.errorMsg = RIL.GECKO_ERROR_GENERIC_FAILURE;
+            message.rilRequestError = Ci.nsIRilCallback.ERROR_GENERIC_FAILURE;
             break;
           }
           message.result = spn == message.mvnoData;
           break;
+
         case Ci.nsIIccService.MVNO_TYPE_GID:
           this.workerMessenger.send("getGID1", null, (function(response) {
             let gid = response.gid1;
             let mvnoDataLength = message.mvnoData.length;
 
             if (!gid) {
-              message.errorMsg = RIL.GECKO_ERROR_GENERIC_FAILURE;
+              message.rilRequestError = Ci.nsIRilCallback.ERROR_GENERIC_FAILURE;
             } else if (mvnoDataLength > gid.length) {
               message.result = false;
             } else {
@@ -2285,8 +2286,9 @@ RadioInterface.prototype = {
             });
           }).bind(this));
           return;
+
         default:
-          message.errorMsg = RIL.GECKO_ERROR_MODE_NOT_SUPPORTED;
+          message.rilRequestError = Ci.nsIRilCallback.ERROR_MODE_NOT_SUPPORTED;
       }
     }
 
