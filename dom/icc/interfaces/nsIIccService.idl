@@ -20,7 +20,7 @@ interface nsIIccListener : nsISupports
 /**
  * XPCOM component (in the content process) that provides the ICC information.
  */
-[scriptable, uuid(be38063e-058e-4c0a-9581-d406f91ac6aa)]
+[scriptable, uuid(b9ce9f2e-7c05-4913-9dbc-f204e771ae81)]
 interface nsIIccService : nsISupports
 {
   // MUST match enum IccCardState in MozIcc.webidl!
@@ -56,6 +56,38 @@ interface nsIIccService : nsISupports
   const unsigned long CARD_STATE_ILLEGAL = 29;
 
   const unsigned long CARD_STATE_UNDETECTED = 4294967295; // UINT32_MAX
+
+  const unsigned long MVNO_TYPE_IMSI = 0;
+  const unsigned long MVNO_TYPE_SPN = 1;
+  const unsigned long MVNO_TYPE_GID = 2;
+
+  // MUST match enum IccContactType in MozIcc.webidl!
+  const unsigned long CONTACT_TYPE_ADN = 0;
+  const unsigned long CONTACT_TYPE_FDN = 1;
+  const unsigned long CONTACT_TYPE_SDN = 2;
+
+  // Union of card lock enum types in MozIcc.webidl
+  const unsigned long CARD_LOCK_TYPE_PIN = 0;
+  const unsigned long CARD_LOCK_TYPE_PIN2 = 1;
+  const unsigned long CARD_LOCK_TYPE_PUK = 2;
+  const unsigned long CARD_LOCK_TYPE_PUK2 = 3;
+  const unsigned long CARD_LOCK_TYPE_NCK = 4;
+  const unsigned long CARD_LOCK_TYPE_NCK1 = 5;
+  const unsigned long CARD_LOCK_TYPE_NCK2 = 6;
+  const unsigned long CARD_LOCK_TYPE_HNCK = 7;
+  const unsigned long CARD_LOCK_TYPE_CCK = 8;
+  const unsigned long CARD_LOCK_TYPE_SPCK = 9;
+  const unsigned long CARD_LOCK_TYPE_RCCK = 10;
+  const unsigned long CARD_LOCK_TYPE_RSPCK = 11;
+  const unsigned long CARD_LOCK_TYPE_NCK_PUK = 12;
+  const unsigned long CARD_LOCK_TYPE_NCK1_PUK = 13;
+  const unsigned long CARD_LOCK_TYPE_NCK2_PUK = 14;
+  const unsigned long CARD_LOCK_TYPE_HNCK_PUK = 15;
+  const unsigned long CARD_LOCK_TYPE_CCK_PUK = 16;
+  const unsigned long CARD_LOCK_TYPE_SPCK_PUK = 17;
+  const unsigned long CARD_LOCK_TYPE_RCCK_PUK = 18;
+  const unsigned long CARD_LOCK_TYPE_RSPCK_PUK = 19;
+  const unsigned long CARD_LOCK_TYPE_FDN = 20;
 
   /**
    * Called when a content process registers receiving unsolicited messages from
@@ -98,27 +130,40 @@ interface nsIIccService : nsISupports
    */
   nsIDOMDOMRequest getCardLockState(in unsigned long clientId,
                                     in nsIDOMWindow window,
-                                    in DOMString lockType);
+                                    in unsigned long lockType,
+                                    [optional] in AString aid);
   nsIDOMDOMRequest unlockCardLock(in unsigned long clientId,
                                   in nsIDOMWindow window,
-                                  in jsval info);
-  nsIDOMDOMRequest setCardLock(in unsigned long clientId,
-                               in nsIDOMWindow window,
-                               in jsval info);
+                                  in unsigned long lockType,
+                                  in AString password,
+                                  in AString newPassword,
+                                  [optional] in AString aid);
+  nsIDOMDOMRequest enableCardLock(in unsigned long clientId,
+                                  in nsIDOMWindow window,
+                                  in unsigned long lockType,
+                                  in AString password,
+                                  in bool enabled,
+                                  [optional] in AString aid);
+  nsIDOMDOMRequest changeCardLockPassword(in unsigned long clientId,
+                                          in nsIDOMWindow window,
+                                          in unsigned long lockType,
+                                          in AString password,
+                                          in AString newPassword,
+                                          [optional] in AString aid);
   nsIDOMDOMRequest getCardLockRetryCount(in unsigned long clientId,
                                          in nsIDOMWindow window,
-                                         in DOMString lockType);
+                                         in unsigned long lockType);
 
   /**
    * Phonebook interfaces.
    */
   nsIDOMDOMRequest readContacts(in unsigned long clientId,
                                 in nsIDOMWindow window,
-                                in DOMString contactType);
+                                in unsigned long contactType);
 
   nsIDOMDOMRequest updateContact(in unsigned long clientId,
                                  in nsIDOMWindow window,
-                                 in DOMString contactType,
+                                 in unsigned long contactType,
                                  in jsval contact,
                                  in DOMString pin2);
 
@@ -143,6 +188,6 @@ interface nsIIccService : nsISupports
    */
   nsIDOMDOMRequest matchMvno(in unsigned long clientId,
                              in nsIDOMWindow window,
-                             in DOMString mvnoType,
+                             in unsigned long mvnoType,
                              in DOMString mvnoData);
 };

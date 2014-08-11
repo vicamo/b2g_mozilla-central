@@ -5,8 +5,8 @@
 */
 
 [JSImplementation="@mozilla.org/dom/icccardlock-error;1",
- Constructor(DOMString lockType, DOMString errorName, short retryCount)]
+ Constructor(IccCardLockType lockType, DOMString errorName, short retryCount)]
 interface IccCardLockError : DOMError {
-  readonly attribute DOMString lockType;
+  readonly attribute IccCardLockType lockType;
   readonly attribute short retryCount;
 };
