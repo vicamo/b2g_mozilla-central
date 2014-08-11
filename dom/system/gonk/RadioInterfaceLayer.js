@@ -116,7 +116,8 @@ const RIL_IPC_ICCMANAGER_MSG_NAMES = [
   "RIL:SendStkEventDownload",
   "RIL:GetCardLockState",
   "RIL:UnlockCardLock",
-  "RIL:SetCardLock",
+  "RIL:EnableCardLock",
+  "RIL:ChangeCardLockPassword",
   "RIL:GetCardLockRetryCount",
   "RIL:IccOpenChannel",
   "RIL:IccExchangeAPDU",
@@ -1987,14 +1988,18 @@ RadioInterface.prototype = {
         return this.rilContext;
       case "RIL:GetCardLockState":
         this.workerMessenger.sendWithIPCMessage(msg, "iccGetCardLockState",
-                                                "RIL:CardLockResult");
+                                                "RIL:GetCardLockResult");
         break;
       case "RIL:UnlockCardLock":
         this.workerMessenger.sendWithIPCMessage(msg, "iccUnlockCardLock",
                                                 "RIL:CardLockResult");
         break;
-      case "RIL:SetCardLock":
-        this.workerMessenger.sendWithIPCMessage(msg, "iccSetCardLock",
+      case "RIL:EnableCardLock":
+        this.workerMessenger.sendWithIPCMessage(msg, "iccEnableCardLock",
+                                                "RIL:CardLockResult");
+        break;
+      case "RIL:ChangeCardLockPassword":
+        this.workerMessenger.sendWithIPCMessage(msg, "iccChangeCardLockPassword",
                                                 "RIL:CardLockResult");
         break;
       case "RIL:GetCardLockRetryCount":
@@ -2238,20 +2243,20 @@ RadioInterface.prototype = {
   matchMvno: function(target, message) {
     if (DEBUG) this.debug("matchMvno: " + JSON.stringify(message));
 
-    if (!message || !message.mvnoType || !message.mvnoData) {
+    if (!message || message.mvnoType == null || !message.mvnoData) {
       message.errorMsg = RIL.GECKO_ERROR_INVALID_PARAMETER;
     }
 
     if (!message.errorMsg) {
       switch (message.mvnoType) {
-        case "imsi":
+        case Ci.nsIIccService.MVNO_TYPE_IMSI:
           if (!this.rilContext.imsi) {
             message.errorMsg = RIL.GECKO_ERROR_GENERIC_FAILURE;
             break;
           }
           message.result = this.isImsiMatches(message.mvnoData);
           break;
-        case "spn":
+        case Ci.nsIIccService.MVNO_TYPE_SPN:
           let spn = this.rilContext.iccInfo && this.rilContext.iccInfo.spn;
           if (!spn) {
             message.errorMsg = RIL.GECKO_ERROR_GENERIC_FAILURE;
@@ -2259,7 +2264,7 @@ RadioInterface.prototype = {
           }
           message.result = spn == message.mvnoData;
           break;
-        case "gid":
+        case Ci.nsIIccService.MVNO_TYPE_GID:
           this.workerMessenger.send("getGID1", null, (function(response) {
             let gid = response.gid1;
             let mvnoDataLength = message.mvnoData.length;

@@ -57,6 +57,7 @@ const ICCCARDLOCKERROR_CID =
 const RIL_IPC_MSG_NAMES = [
   "RIL:CardStateChanged",
   "RIL:IccInfoChanged",
+  "RIL:GetCardLockResult",
   "RIL:CardLockResult",
   "RIL:CardLockRetryCount",
   "RIL:StkCommand",
@@ -396,7 +397,7 @@ RILContentHelper.prototype = {
     return request;
   },
 
-  getCardLockState: function(clientId, window, lockType) {
+  getCardLockState: function(clientId, window, lockType, aid) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
@@ -409,40 +410,76 @@ RILContentHelper.prototype = {
       clientId: clientId,
       data: {
         lockType: lockType,
+        aid: aid,
         requestId: requestId
       }
     });
     return request;
   },
 
-  unlockCardLock: function(clientId, window, info) {
+  unlockCardLock: function(clientId, window, lockType, password, newPassword, aid) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
     let request = Services.DOMRequest.createRequest(window);
-    info.requestId = this.getRequestId(request);
-    this._windowsMap[info.requestId] = window;
+    let requestId = this.getRequestId(request);
+    this._windowsMap[requestId] = window;
 
     cpmm.sendAsyncMessage("RIL:UnlockCardLock", {
       clientId: clientId,
-      data: info
+      data: {
+        lockType: lockType,
+        password: password,
+        newPassword: newPassword,
+        aid: aid,
+        requestId: requestId
+      }
     });
     return request;
   },
 
-  setCardLock: function(clientId, window, info) {
+  enableCardLock: function(clientId, window, lockType, password, enabled, aid) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
     }
     let request = Services.DOMRequest.createRequest(window);
-    info.requestId = this.getRequestId(request);
-    this._windowsMap[info.requestId] = window;
+    let requestId = this.getRequestId(request);
+    this._windowsMap[requestId] = window;
 
-    cpmm.sendAsyncMessage("RIL:SetCardLock", {
+    cpmm.sendAsyncMessage("RIL:EnableCardLock", {
       clientId: clientId,
-      data: info
+      data: {
+        lockType: lockType,
+        password: password,
+        enabled: enabled,
+        aid: aid,
+        requestId: requestId
+      }
+    });
+    return request;
+  },
+
+  changeCardLockPassword: function(clientId, window, lockType, password,
+                                   newPassword, aid) {
+    if (window == null) {
+      throw Components.Exception("Can't get window object",
+                                  Cr.NS_ERROR_UNEXPECTED);
+    }
+    let request = Services.DOMRequest.createRequest(window);
+    let requestId = this.getRequestId(request);
+    this._windowsMap[requestId] = window;
+
+    cpmm.sendAsyncMessage("RIL:ChangeCardLockPassword", {
+      clientId: clientId,
+      data: {
+        lockType: lockType,
+        password: password,
+        newPassword: newPassword,
+        aid: aid,
+        requestId: requestId
+      }
     });
     return request;
   },
@@ -811,6 +848,7 @@ RILContentHelper.prototype = {
                            "notifyIccInfoChanged",
                            null);
         break;
+      case "RIL:GetCardLockResult":
       case "RIL:CardLockResult": {
         let requestId = data.requestId;
         let requestWindow = this._windowsMap[requestId];
@@ -820,8 +858,7 @@ RILContentHelper.prototype = {
           let result = new MobileIccCardLockResult(data);
           this.fireRequestSuccess(requestId, result);
         } else {
-          if (data.rilMessageType == "iccSetCardLock" ||
-              data.rilMessageType == "iccUnlockCardLock") {
+          if (msg.name == "RIL:CardLockResult") {
             let cardLockError =
               new requestWindow.IccCardLockError(WEBIDL_ICC_CARD_LOCK_TYPE_NAMES[data.lockType],
                                                  data.errorMsg,
