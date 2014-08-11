@@ -6,6 +6,7 @@
 #define mozilla_dom_Icc_h
 
 #include "mozilla/dom/MozIccBinding.h"
+#include "mozilla/dom/MozStkCommandEventBinding.h"
 #include "mozilla/DOMEventTargetHelper.h"
 #include "nsIIccService.h"
 
@@ -68,8 +69,7 @@ public:
                        ErrorResult& aRv);
 
   void
-  SendStkTimerExpiration(const JSContext* aCx,
-                         JS::Handle<JS::Value> aTimer,
+  SendStkTimerExpiration(const IccSendStkTimerExpirationOptions& aOptions,
                          ErrorResult& aRv);
 
   void
@@ -98,9 +98,8 @@ public:
                ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  UpdateContact(const JSContext* aCx,
-                IccContactType aContactType,
-                JS::Handle<JS::Value> aContact,
+  UpdateContact(IccContactType aContactType,
+                const IccUpdateContactContactOptions& aOptions,
                 const nsAString& aPin2,
                 ErrorResult& aRv);
 
@@ -109,9 +108,8 @@ public:
                  ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  IccExchangeAPDU(const JSContext* aCx,
-                  int32_t aChannel,
-                  JS::Handle<JS::Value> aApdu,
+  IccExchangeAPDU(int32_t aChannel,
+                  const IccExchangeAPDUOptions& aApdu,
                   ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>

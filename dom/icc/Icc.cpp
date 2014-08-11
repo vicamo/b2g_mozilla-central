@@ -183,8 +183,7 @@ Icc::SendStkMenuSelection(uint16_t aItemIdentifier,
 }
 
 void
-Icc::SendStkTimerExpiration(const JSContext* aCx,
-                            JS::Handle<JS::Value> aTimer,
+Icc::SendStkTimerExpiration(const IccSendStkTimerExpirationOptions& aOptions,
                             ErrorResult& aRv)
 {
   if (!mService) {
@@ -192,7 +191,9 @@ Icc::SendStkTimerExpiration(const JSContext* aCx,
     return;
   }
 
-  nsresult rv = mService->SendStkTimerExpiration(mClientId, GetOwner(), aTimer);
+  nsresult rv = mService->SendStkTimerExpiration(mClientId, GetOwner(),
+                                                 aOptions.mTimerId,
+                                                 aOptions.mTimerValue);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
   }
@@ -358,9 +359,8 @@ Icc::ReadContacts(IccContactType aContactType,
 }
 
 already_AddRefed<DOMRequest>
-Icc::UpdateContact(const JSContext* aCx,
-                   IccContactType aContactType,
-                   JS::Handle<JS::Value> aContact,
+Icc::UpdateContact(IccContactType aContactType,
+                   const IccUpdateContactContactOptions& aOptions,
                    const nsAString& aPin2,
                    ErrorResult& aRv)
 {
@@ -369,10 +369,74 @@ Icc::UpdateContact(const JSContext* aCx,
     return nullptr;
   }
 
+  AutoFallibleTArray<const char16_t*, 1> names;
+  if (!aOptions.mName.IsNull() && aOptions.mName.Value().Length()) {
+    const Sequence<nsString>& sequence = aOptions.mName.Value();
+
+    if (!names.SetCapacity(sequence.Length())) {
+      aRv.Throw(NS_ERROR_OUT_OF_MEMORY);
+      return nullptr;
+    }
+    for (uint32_t i = 0; i < sequence.Length(); i++) {
+      const nsString& name = sequence[i];
+      if (!name.IsVoid()) {
+        if (!names.AppendElement(sequence[i].get())) {
+          aRv.Throw(NS_ERROR_OUT_OF_MEMORY);
+          return nullptr;
+        }
+      }
+    }
+  }
+
+  AutoFallibleTArray<const char16_t*, 1> tels;
+  if (!aOptions.mTel.IsNull() && aOptions.mTel.Value().Length()) {
+    const Sequence<ContactTelField>& sequence = aOptions.mTel.Value();
+
+    if (!tels.SetCapacity(sequence.Length())) {
+      aRv.Throw(NS_ERROR_OUT_OF_MEMORY);
+      return nullptr;
+    }
+    for (uint32_t i = 0; i < sequence.Length(); i++) {
+      const Optional<nsString>& optional = sequence[i].mValue;
+      if (optional.WasPassed() && !optional.Value().IsVoid()) {
+        if (!tels.AppendElement(optional.Value().get())) {
+          aRv.Throw(NS_ERROR_OUT_OF_MEMORY);
+          return nullptr;
+        }
+      }
+    }
+  }
+
+  AutoFallibleTArray<const char16_t*, 1> emails;
+  if (!aOptions.mEmail.IsNull() && aOptions.mEmail.Value().Length()) {
+    const Sequence<ContactField>& sequence = aOptions.mEmail.Value();
+
+    if (!emails.SetCapacity(sequence.Length())) {
+      aRv.Throw(NS_ERROR_OUT_OF_MEMORY);
+      return nullptr;
+    }
+    for (uint32_t i = 0; i < sequence.Length(); i++) {
+      const Optional<nsString>& optional = sequence[i].mValue;
+      if (optional.WasPassed() && !optional.Value().IsVoid()) {
+        if (!emails.AppendElement(optional.Value().get())) {
+          aRv.Throw(NS_ERROR_OUT_OF_MEMORY);
+          return nullptr;
+        }
+      }
+    }
+  }
+
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv = mService->UpdateContact(mClientId, GetOwner(),
                                         static_cast<uint32_t>(aContactType),
-                                        aContact, aPin2,
+                                        aOptions.mId,
+                                        names.Length() ? names.Elements() : nullptr,
+                                        names.Length(),
+                                        tels.Length() ? tels.Elements() : nullptr,
+                                        tels.Length(),
+                                        emails.Length() ? emails.Elements() : nullptr,
+                                        emails.Length(),
+                                        aPin2,
                                         getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
@@ -403,9 +467,8 @@ Icc::IccOpenChannel(const nsAString& aAid,
 }
 
 already_AddRefed<DOMRequest>
-Icc::IccExchangeAPDU(const JSContext* aCx,
-                     int32_t aChannel,
-                     JS::Handle<JS::Value> aApdu,
+Icc::IccExchangeAPDU(int32_t aChannel,
+                     const IccExchangeAPDUOptions& aOptions,
                      ErrorResult& aRv)
 {
   if (!mService) {
@@ -413,9 +476,22 @@ Icc::IccExchangeAPDU(const JSContext* aCx,
     return nullptr;
   }
 
+  if (!aOptions.mData.WasPassed()) {
+    aRv.Throw(NS_ERROR_INVALID_ARG);
+    return nullptr;
+  }
+
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv = mService->IccExchangeAPDU(mClientId, GetOwner(), aChannel,
-                                          aApdu, getter_AddRefs(request));
+                                          aOptions.mCla,
+                                          aOptions.mCommand,
+                                          aOptions.mPath,
+                                          aOptions.mP1,
+                                          aOptions.mP2,
+                                          aOptions.mP3,
+                                          aOptions.mData.Value(),
+                                          aOptions.mData2,
+                                          getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
