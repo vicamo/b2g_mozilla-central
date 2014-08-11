@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "Icc.h"
+#include "mozilla/dom/Icc.h"
 
 #include "mozilla/dom/MozIccBinding.h"
 #include "mozilla/dom/MozStkCommandEvent.h"
@@ -13,7 +13,8 @@
 #include "nsRadioInterfaceLayer.h"
 #include "nsServiceManagerUtils.h"
 
-using namespace mozilla::dom;
+namespace mozilla {
+namespace dom {
 
 Icc::Icc(nsPIDOMWindow* aWindow,
          long aClientId,
@@ -400,3 +401,6 @@ Icc::MatchMvno(const nsAString& aMvnoType,
 
   return request.forget().downcast<DOMRequest>();
 }
+
+} // namespace dom
+} // namespace mozilla

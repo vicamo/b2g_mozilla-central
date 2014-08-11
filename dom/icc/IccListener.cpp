@@ -4,13 +4,15 @@
 
 #include "IccListener.h"
 
-#include "Icc.h"
-#include "IccManager.h"
+#include "mozilla/dom/Icc.h"
+#include "mozilla/dom/IccManager.h"
 #include "nsIDOMClassInfo.h"
 #include "nsIDOMIccInfo.h"
 #include "nsRadioInterfaceLayer.h"
 
-using namespace mozilla::dom;
+namespace mozilla {
+namespace dom {
+namespace icc {
 
 NS_IMPL_ISUPPORTS(IccListener, nsIIccListener)
 
@@ -129,3 +131,7 @@ IccListener::NotifyIccInfoChanged()
 
   return NS_OK;
 }
+
+} // namespace icc
+} // namespace dom
+} // namespace mozilla

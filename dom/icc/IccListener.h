@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef mozilla_dom_IccListener_h
-#define mozilla_dom_IccListener_h
+#ifndef mozilla_dom_icc_IccListener_h
+#define mozilla_dom_icc_IccListener_h
 
 #include "nsAutoPtr.h"
 #include "nsIIccProvider.h"
@@ -13,6 +13,8 @@ namespace dom {
 
 class IccManager;
 class Icc;
+
+namespace icc {
 
 class IccListener MOZ_FINAL : public nsIIccListener
 {
@@ -48,7 +50,8 @@ private:
   nsCOMPtr<nsIIccProvider> mProvider;
 };
 
+} // namespace icc
 } // namespace dom
 } // namespace mozilla
 
-#endif // mozilla_dom_IccListener_h
+#endif // mozilla_dom_icc_IccListener_h
