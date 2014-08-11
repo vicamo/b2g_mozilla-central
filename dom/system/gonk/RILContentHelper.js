@@ -528,7 +528,7 @@ RILContentHelper.prototype = {
     });
   },
 
-  sendStkTimerExpiration: function(clientId, window, timer) {
+  sendStkTimerExpiration: function(clientId, window, timerId, timerValue) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
@@ -536,7 +536,8 @@ RILContentHelper.prototype = {
     cpmm.sendAsyncMessage("RIL:SendStkTimerExpiration", {
       clientId: clientId,
       data: {
-        timer: timer
+        timerId: timerId,
+        timerValue: timerValue
       }
     });
   },
@@ -573,7 +574,8 @@ RILContentHelper.prototype = {
     return request;
   },
 
-  iccExchangeAPDU: function(clientId, window, channel, apdu) {
+  iccExchangeAPDU: function(clientId, window, channel, cla, command, path, p1,
+                            p2, p3, data, data2) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
@@ -588,7 +590,16 @@ RILContentHelper.prototype = {
       data: {
         requestId: requestId,
         channel: channel,
-        apdu: apdu
+        apdu: {
+          cla: cla,
+          command: command,
+          path: path,
+          p1: p1,
+          p2: p2,
+          p3: p3,
+          data: data,
+          data2: data2
+        }
       }
     });
     return request;
@@ -633,7 +644,8 @@ RILContentHelper.prototype = {
     return request;
   },
 
-  updateContact: function(clientId, window, contactType, contact, pin2) {
+  updateContact: function(clientId, window, contactType, id, names, nameCount,
+                          tels, telCount, emails, emailCount, pin2) {
     if (window == null) {
       throw Components.Exception("Can't get window object",
                                   Cr.NS_ERROR_UNEXPECTED);
@@ -644,29 +656,22 @@ RILContentHelper.prototype = {
     this._windowsMap[requestId] = window;
 
     // Parsing nsDOMContact to Icc Contact format
-    let iccContact = {};
+    let iccContact = { contactId: id };
 
-    if (Array.isArray(contact.name) && contact.name[0]) {
-      iccContact.alphaId = contact.name[0];
+    if (nameCount && Array.isArray(names) && names[0]) {
+      iccContact.alphaId = names[0];
     }
 
-    if (Array.isArray(contact.tel)) {
-      iccContact.number = contact.tel[0] && contact.tel[0].value;
-      let telArray = contact.tel.slice(1);
-      let length = telArray.length;
-      if (length > 0) {
-        iccContact.anr = [];
-      }
-      for (let i = 0; i < telArray.length; i++) {
-        iccContact.anr.push(telArray[i].value);
+    if (telCount && Array.isArray(tels)) {
+      iccContact.number = tels[0];
+      if (telCount > 1) {
+        iccContact.anr = tels.slice(1);
       }
     }
 
-    if (Array.isArray(contact.email) && contact.email[0]) {
-      iccContact.email = contact.email[0].value;
+    if (emailCount && Array.isArray(emails) && emails[0]) {
+      iccContact.email = emails[0];
     }
-
-    iccContact.contactId = contact.id;
 
     cpmm.sendAsyncMessage("RIL:UpdateIccContact", {
       clientId: clientId,

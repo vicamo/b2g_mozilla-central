@@ -3196,8 +3196,6 @@ RilObject.prototype = {
       sourceId: STK_DEVICE_ID_ME,
       destinationId: STK_DEVICE_ID_SIM
     };
-    command.timerId = command.timer.timerId;
-    command.timerValue = command.timer.timerValue;
     this.sendICCEnvelopeCommand(command);
   },
 
