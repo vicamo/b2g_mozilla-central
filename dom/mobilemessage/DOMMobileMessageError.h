@@ -35,6 +35,7 @@ public:
   void GetData(OwningMozSmsMessageOrMozMmsMessage& aRetVal) const;
 
 private:
+  // MOZ_FINAL suppresses -Werror,-Wdelete-non-virtual-dtor
   ~DOMMobileMessageError() {}
 
   nsCOMPtr<nsIDOMMozSmsMessage> mSms;

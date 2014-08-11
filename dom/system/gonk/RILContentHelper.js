@@ -51,8 +51,6 @@ const CELLBROADCASTMESSAGE_CID =
   Components.ID("{29474c96-3099-486f-bb4a-3c9a1da834e4}");
 const CELLBROADCASTETWSINFO_CID =
   Components.ID("{59f176ee-9dcd-4005-9d47-f6be0cd08e17}");
-const ICCCARDLOCKERROR_CID =
-  Components.ID("{08a71987-408c-44ff-93fd-177c0a85c3dd}");
 
 const RIL_IPC_MSG_NAMES = [
   "RIL:CardStateChanged",
@@ -238,20 +236,6 @@ CellBroadcastEtwsInfo.prototype = {
   warningType: null,
   emergencyUserAlert: null,
   popup: null
-};
-
-function IccCardLockError() {
-}
-IccCardLockError.prototype = {
-  classDescription: "IccCardLockError",
-  classID:          ICCCARDLOCKERROR_CID,
-  contractID:       "@mozilla.org/dom/icccardlock-error;1",
-  QueryInterface:   XPCOMUtils.generateQI([Ci.nsISupports]),
-  __init: function(lockType, errorMsg, retryCount) {
-    this.__DOM_IMPL__.init(errorMsg);
-    this.lockType = lockType;
-    this.retryCount = retryCount;
-  },
 };
 
 function RILContentHelper() {
@@ -1022,5 +1006,4 @@ RILContentHelper.prototype = {
   }
 };
 
-this.NSGetFactory = XPCOMUtils.generateNSGetFactory([RILContentHelper,
-                                                     IccCardLockError]);
+this.NSGetFactory = XPCOMUtils.generateNSGetFactory([RILContentHelper]);
