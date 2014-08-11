@@ -15,7 +15,9 @@
 
 using namespace mozilla::dom;
 
-Icc::Icc(nsPIDOMWindow* aWindow, long aClientId, const nsAString& aIccId)
+Icc::Icc(nsPIDOMWindow* aWindow,
+         long aClientId,
+         const nsAString& aIccId)
   : mLive(true)
   , mClientId(aClientId)
   , mIccId(aIccId)
@@ -46,7 +48,8 @@ Icc::NotifyEvent(const nsAString& aName)
 }
 
 nsresult
-Icc::NotifyStkEvent(const nsAString& aName, const nsAString& aMessage)
+Icc::NotifyStkEvent(const nsAString& aName,
+                    const nsAString& aMessage)
 {
   AutoJSAPI jsapi;
   if (NS_WARN_IF(!jsapi.InitWithLegacyErrorReporting(GetOwner()))) {
@@ -117,8 +120,10 @@ Icc::GetCardState() const
 }
 
 void
-Icc::SendStkResponse(const JSContext* aCx, JS::Handle<JS::Value> aCommand,
-                     JS::Handle<JS::Value> aResponse, ErrorResult& aRv)
+Icc::SendStkResponse(const JSContext* aCx,
+                     JS::Handle<JS::Value> aCommand,
+                     JS::Handle<JS::Value> aResponse,
+                     ErrorResult& aRv)
 {
   if (!mProvider) {
     aRv.Throw(NS_ERROR_FAILURE);
@@ -133,7 +138,8 @@ Icc::SendStkResponse(const JSContext* aCx, JS::Handle<JS::Value> aCommand,
 }
 
 void
-Icc::SendStkMenuSelection(uint16_t aItemIdentifier, bool aHelpRequested,
+Icc::SendStkMenuSelection(uint16_t aItemIdentifier,
+                          bool aHelpRequested,
                           ErrorResult& aRv)
 {
   if (!mProvider) {
@@ -151,7 +157,8 @@ Icc::SendStkMenuSelection(uint16_t aItemIdentifier, bool aHelpRequested,
 }
 
 void
-Icc::SendStkTimerExpiration(const JSContext* aCx, JS::Handle<JS::Value> aTimer,
+Icc::SendStkTimerExpiration(const JSContext* aCx,
+                            JS::Handle<JS::Value> aTimer,
                             ErrorResult& aRv)
 {
   if (!mProvider) {
@@ -167,7 +174,8 @@ Icc::SendStkTimerExpiration(const JSContext* aCx, JS::Handle<JS::Value> aTimer,
 }
 
 void
-Icc::SendStkEventDownload(const JSContext* aCx, JS::Handle<JS::Value> aEvent,
+Icc::SendStkEventDownload(const JSContext* aCx,
+                          JS::Handle<JS::Value> aEvent,
                           ErrorResult& aRv)
 {
   if (!mProvider) {
@@ -182,7 +190,8 @@ Icc::SendStkEventDownload(const JSContext* aCx, JS::Handle<JS::Value> aEvent,
 }
 
 already_AddRefed<DOMRequest>
-Icc::GetCardLock(const nsAString& aLockType, ErrorResult& aRv)
+Icc::GetCardLock(const nsAString& aLockType,
+                 ErrorResult& aRv)
 {
   if (!mProvider) {
     aRv.Throw(NS_ERROR_FAILURE);
@@ -201,7 +210,8 @@ Icc::GetCardLock(const nsAString& aLockType, ErrorResult& aRv)
 }
 
 already_AddRefed<DOMRequest>
-Icc::UnlockCardLock(const JSContext* aCx, JS::Handle<JS::Value> aInfo,
+Icc::UnlockCardLock(const JSContext* aCx,
+                    JS::Handle<JS::Value> aInfo,
                     ErrorResult& aRv)
 {
   if (!mProvider) {
@@ -221,7 +231,8 @@ Icc::UnlockCardLock(const JSContext* aCx, JS::Handle<JS::Value> aInfo,
 }
 
 already_AddRefed<DOMRequest>
-Icc::SetCardLock(const JSContext* aCx, JS::Handle<JS::Value> aInfo,
+Icc::SetCardLock(const JSContext* aCx,
+                 JS::Handle<JS::Value> aInfo,
                  ErrorResult& aRv)
 {
   if (!mProvider) {
@@ -241,7 +252,8 @@ Icc::SetCardLock(const JSContext* aCx, JS::Handle<JS::Value> aInfo,
 }
 
 already_AddRefed<DOMRequest>
-Icc::GetCardLockRetryCount(const nsAString& aLockType, ErrorResult& aRv)
+Icc::GetCardLockRetryCount(const nsAString& aLockType,
+                           ErrorResult& aRv)
 {
   if (!mProvider) {
     aRv.Throw(NS_ERROR_FAILURE);
@@ -262,7 +274,8 @@ Icc::GetCardLockRetryCount(const nsAString& aLockType, ErrorResult& aRv)
 }
 
 already_AddRefed<DOMRequest>
-Icc::ReadContacts(const nsAString& aContactType, ErrorResult& aRv)
+Icc::ReadContacts(const nsAString& aContactType,
+                  ErrorResult& aRv)
 {
   if (!mProvider) {
     aRv.Throw(NS_ERROR_FAILURE);
@@ -281,8 +294,10 @@ Icc::ReadContacts(const nsAString& aContactType, ErrorResult& aRv)
 }
 
 already_AddRefed<DOMRequest>
-Icc::UpdateContact(const JSContext* aCx, const nsAString& aContactType,
-                   JS::Handle<JS::Value> aContact, const nsAString& aPin2,
+Icc::UpdateContact(const JSContext* aCx,
+                   const nsAString& aContactType,
+                   JS::Handle<JS::Value> aContact,
+                   const nsAString& aPin2,
                    ErrorResult& aRv)
 {
   if (!mProvider) {
@@ -303,7 +318,8 @@ Icc::UpdateContact(const JSContext* aCx, const nsAString& aContactType,
 }
 
 already_AddRefed<DOMRequest>
-Icc::IccOpenChannel(const nsAString& aAid, ErrorResult& aRv)
+Icc::IccOpenChannel(const nsAString& aAid,
+                    ErrorResult& aRv)
 {
   if (!mProvider) {
     aRv.Throw(NS_ERROR_FAILURE);
@@ -322,8 +338,10 @@ Icc::IccOpenChannel(const nsAString& aAid, ErrorResult& aRv)
 }
 
 already_AddRefed<DOMRequest>
-Icc::IccExchangeAPDU(const JSContext* aCx, int32_t aChannel,
-                     JS::Handle<JS::Value> aApdu, ErrorResult& aRv)
+Icc::IccExchangeAPDU(const JSContext* aCx,
+                     int32_t aChannel,
+                     JS::Handle<JS::Value> aApdu,
+                     ErrorResult& aRv)
 {
   if (!mProvider) {
     aRv.Throw(NS_ERROR_FAILURE);
@@ -342,7 +360,8 @@ Icc::IccExchangeAPDU(const JSContext* aCx, int32_t aChannel,
 }
 
 already_AddRefed<DOMRequest>
-Icc::IccCloseChannel(int32_t aChannel, ErrorResult& aRv)
+Icc::IccCloseChannel(int32_t aChannel,
+                     ErrorResult& aRv)
 {
   if (!mProvider) {
     aRv.Throw(NS_ERROR_FAILURE);

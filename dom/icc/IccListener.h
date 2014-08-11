@@ -20,7 +20,8 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIICCLISTENER
 
-  IccListener(IccManager* aIccManager, uint32_t aClientId);
+  IccListener(IccManager* aIccManager,
+              uint32_t aClientId);
 
   void
   Shutdown();

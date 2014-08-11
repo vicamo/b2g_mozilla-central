@@ -19,7 +19,9 @@ class Icc MOZ_FINAL : public DOMEventTargetHelper
 public:
   NS_REALLY_FORWARD_NSIDOMEVENTTARGET(DOMEventTargetHelper)
 
-  Icc(nsPIDOMWindow* aWindow, long aClientId, const nsAString& aIccId);
+  Icc(nsPIDOMWindow* aWindow,
+      long aClientId,
+      const nsAString& aIccId);
 
   void
   Shutdown();
@@ -28,7 +30,8 @@ public:
   NotifyEvent(const nsAString& aName);
 
   nsresult
-  NotifyStkEvent(const nsAString& aName, const nsAString& aMessage);
+  NotifyStkEvent(const nsAString& aName,
+                 const nsAString& aMessage);
 
   nsString
   GetIccId()
@@ -54,55 +57,72 @@ public:
   GetCardState() const;
 
   void
-  SendStkResponse(const JSContext* aCx, JS::Handle<JS::Value> aCommand,
-                  JS::Handle<JS::Value> aResponse, ErrorResult& aRv);
+  SendStkResponse(const JSContext* aCx,
+                  JS::Handle<JS::Value> aCommand,
+                  JS::Handle<JS::Value> aResponse,
+                  ErrorResult& aRv);
 
   void
-  SendStkMenuSelection(uint16_t aItemIdentifier, bool aHelpRequested,
+  SendStkMenuSelection(uint16_t aItemIdentifier,
+                       bool aHelpRequested,
                        ErrorResult& aRv);
 
   void
-  SendStkTimerExpiration(const JSContext* aCx, JS::Handle<JS::Value> aTimer,
+  SendStkTimerExpiration(const JSContext* aCx,
+                         JS::Handle<JS::Value> aTimer,
                          ErrorResult& aRv);
 
   void
-  SendStkEventDownload(const JSContext* aCx, JS::Handle<JS::Value> aEvent,
+  SendStkEventDownload(const JSContext* aCx,
+                       JS::Handle<JS::Value> aEvent,
                        ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  GetCardLock(const nsAString& aLockType, ErrorResult& aRv);
-
-  already_AddRefed<DOMRequest>
-  UnlockCardLock(const JSContext* aCx, JS::Handle<JS::Value> aInfo,
-                 ErrorResult& aRv);
-
-  already_AddRefed<DOMRequest>
-  SetCardLock(const JSContext* aCx, JS::Handle<JS::Value> aInfo,
+  GetCardLock(const nsAString& aLockType,
               ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  GetCardLockRetryCount(const nsAString& aLockType, ErrorResult& aRv);
+  UnlockCardLock(const JSContext* aCx,
+                 JS::Handle<JS::Value> aInfo,
+                 ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  ReadContacts(const nsAString& aContactType, ErrorResult& aRv);
+  SetCardLock(const JSContext* aCx,
+              JS::Handle<JS::Value> aInfo,
+              ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  UpdateContact(const JSContext* aCx, const nsAString& aContactType,
-                JS::Handle<JS::Value> aContact, const nsAString& aPin2,
+  GetCardLockRetryCount(const nsAString& aLockType,
+                        ErrorResult& aRv);
+
+  already_AddRefed<DOMRequest>
+  ReadContacts(const nsAString& aContactType,
+               ErrorResult& aRv);
+
+  already_AddRefed<DOMRequest>
+  UpdateContact(const JSContext* aCx,
+                const nsAString& aContactType,
+                JS::Handle<JS::Value> aContact,
+                const nsAString& aPin2,
                 ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  IccOpenChannel(const nsAString& aAid, ErrorResult& aRv);
+  IccOpenChannel(const nsAString& aAid,
+                 ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  IccExchangeAPDU(const JSContext* aCx, int32_t aChannel,
-                  JS::Handle<JS::Value> aApdu, ErrorResult& aRv);
+  IccExchangeAPDU(const JSContext* aCx,
+                  int32_t aChannel,
+                  JS::Handle<JS::Value> aApdu,
+                  ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  IccCloseChannel(int32_t aChannel, ErrorResult& aRv);
+  IccCloseChannel(int32_t aChannel,
+                  ErrorResult& aRv);
 
   already_AddRefed<DOMRequest>
-  MatchMvno(const nsAString& aMvnoType, const nsAString& aMatchData,
+  MatchMvno(const nsAString& aMvnoType,
+            const nsAString& aMatchData,
             ErrorResult& aRv);
 
   IMPL_EVENT_HANDLER(iccinfochange)
