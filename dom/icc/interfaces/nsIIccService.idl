@@ -20,7 +20,7 @@ interface nsIIccListener : nsISupports
 /**
  * XPCOM component (in the content process) that provides the ICC information.
  */
-[scriptable, uuid(b9ce9f2e-7c05-4913-9dbc-f204e771ae81)]
+[scriptable, uuid(83a37b3f-e1c1-48ce-b9b8-da9f80a20fd3)]
 interface nsIIccService : nsISupports
 {
   // MUST match enum IccCardState in MozIcc.webidl!
@@ -120,7 +120,8 @@ interface nsIIccService : nsISupports
                             in boolean helpRequested);
   void sendStkTimerExpiration(in unsigned long clientId,
                               in nsIDOMWindow window,
-                              in jsval timer);
+                              in octet timerId,
+                              in unsigned long timerValue);
   void sendStkEventDownload(in unsigned long clientId,
                             in nsIDOMWindow window,
                             in jsval event);
@@ -164,7 +165,13 @@ interface nsIIccService : nsISupports
   nsIDOMDOMRequest updateContact(in unsigned long clientId,
                                  in nsIDOMWindow window,
                                  in unsigned long contactType,
-                                 in jsval contact,
+                                 in AString id,
+                                 [array, size_is(nameCount)] in wstring names,
+                                 in uint32_t nameCount,
+                                 [array, size_is(telCount)] in wstring tels,
+                                 in uint32_t telCount,
+                                 [array, size_is(emailCount)] in wstring emails,
+                                 in uint32_t emailCount,
                                  in DOMString pin2);
 
   /**
@@ -177,7 +184,14 @@ interface nsIIccService : nsISupports
   nsIDOMDOMRequest iccExchangeAPDU(in unsigned long clientId,
                                    in nsIDOMWindow window,
                                    in long channel,
-                                   in jsval apdu);
+                                   in long cla,
+                                   in long command,
+                                   in AString path,
+                                   in long p1,
+                                   in long p2,
+                                   in long p3,
+                                   in AString data,
+                                   in AString data2);
 
   nsIDOMDOMRequest iccCloseChannel(in unsigned long clientId,
                                    in nsIDOMWindow window,

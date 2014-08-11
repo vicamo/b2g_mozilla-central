@@ -123,6 +123,40 @@ dictionary IccSetCardLockOptions
   DOMString? aid = null;
 };
 
+dictionary IccSendStkTimerExpirationOptions
+{
+  /**
+   * Identifier of the timer that has expired.
+   */
+  [EnforceRange] octet timerId = 0;
+
+  /**
+   * Difference between the time when this command is issued and when the timer
+   * was initially started.
+   */
+  [EnforceRange] unsigned long timerValue = 0;
+};
+
+dictionary IccUpdateContactContactOptions
+{
+  DOMString? id = null;
+  sequence<DOMString>? name = null;
+  sequence<ContactTelField>? tel = null;
+  sequence<ContactField>? email = null;
+};
+
+dictionary IccExchangeAPDUOptions
+{
+  [EnforceRange] long cla = 0;
+  [EnforceRange] long command = 0;
+  DOMString? path = null;
+  [EnforceRange] long p1 = 0;
+  [EnforceRange] long p2 = 0;
+  [EnforceRange] long p3 = 0;
+  DOMString data;
+  DOMString? data2 = null;
+};
+
 [Pref="dom.icc.enabled"]
 interface MozIcc : EventTarget
 {
@@ -192,13 +226,9 @@ interface MozIcc : EventTarget
    *
    * @param timer
    *        The identifier and value for a timer.
-   *        timerId: Identifier of the timer that has expired.
-   *        timerValue: Different between the time when this command is issued
-   *                    and when the timer was initially started.
-   *        @see MozStkTimer
    */
   [Throws]
-  void sendStkTimerExpiration(any timer);
+  void sendStkTimerExpiration(optional IccSendStkTimerExpirationOptions timer);
 
   /**
    * Send "Event Download" envelope command to ICC.
@@ -374,7 +404,7 @@ interface MozIcc : EventTarget
    */
   [Throws]
   DOMRequest updateContact(IccContactType contactType,
-                           any contact,
+                           optional IccUpdateContactContactOptions contact,
                            optional DOMString? pin2 = null);
 
   // Integrated Circuit Card Secure Element Interfaces.
@@ -415,7 +445,8 @@ interface MozIcc : EventTarget
    *         The request's result will be response APDU.
    */
   [Throws]
-  DOMRequest iccExchangeAPDU(long channel, any apdu);
+  DOMRequest iccExchangeAPDU(long channel,
+                             optional IccExchangeAPDUOptions apdu);
 
   /**
    * Send request to close the selected logical channel identified by its
