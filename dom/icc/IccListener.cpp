@@ -23,15 +23,15 @@ IccListener::IccListener(IccManager* aIccManager,
 {
   MOZ_ASSERT(mIccManager);
 
-  mProvider = do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
+  mService = do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
 
-  if (!mProvider) {
-    NS_WARNING("Could not acquire nsIIccProvider!");
+  if (!mService) {
+    NS_WARNING("Could not acquire nsIIccService!");
     return;
   }
 
   nsCOMPtr<nsIDOMMozIccInfo> iccInfo;
-  mProvider->GetIccInfo(mClientId, getter_AddRefs(iccInfo));
+  mService->GetIccInfo(mClientId, getter_AddRefs(iccInfo));
   if (iccInfo) {
     nsString iccId;
     iccInfo->GetIccid(iccId);
@@ -40,7 +40,7 @@ IccListener::IccListener(IccManager* aIccManager,
     }
   }
 
-  DebugOnly<nsresult> rv = mProvider->RegisterIccMsg(mClientId, this);
+  DebugOnly<nsresult> rv = mService->RegisterIccMsg(mClientId, this);
   NS_WARN_IF_FALSE(NS_SUCCEEDED(rv),
                    "Failed registering icc messages with provider");
 }
@@ -53,9 +53,9 @@ IccListener::~IccListener()
 void
 IccListener::Shutdown()
 {
-  if (mProvider) {
-    mProvider->UnregisterIccMsg(mClientId, this);
-    mProvider = nullptr;
+  if (mService) {
+    mService->UnregisterIccMsg(mClientId, this);
+    mService = nullptr;
   }
 
   if (mIcc) {
@@ -102,7 +102,7 @@ NS_IMETHODIMP
 IccListener::NotifyIccInfoChanged()
 {
   nsCOMPtr<nsIDOMMozIccInfo> iccInfo;
-  mProvider->GetIccInfo(mClientId, getter_AddRefs(iccInfo));
+  mService->GetIccInfo(mClientId, getter_AddRefs(iccInfo));
 
   // Create/delete icc object based on current iccInfo.
   // 1. If the mIcc is nullptr and iccInfo has valid data, create icc object and

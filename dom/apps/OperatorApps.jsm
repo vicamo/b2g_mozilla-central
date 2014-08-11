@@ -21,9 +21,9 @@ Cu.import("resource://gre/modules/Task.jsm");
 let Path = OS.Path;
 
 #ifdef MOZ_B2G_RIL
-XPCOMUtils.defineLazyServiceGetter(this, "iccProvider",
+XPCOMUtils.defineLazyServiceGetter(this, "iccService",
                                    "@mozilla.org/ril/content-helper;1",
-                                   "nsIIccProvider");
+                                   "nsIIccService");
 #endif
 
 function debug(aMsg) {
@@ -69,17 +69,17 @@ let iccListener = {
 
   notifyIccInfoChanged: function() {
     // TODO: Bug 927709 - OperatorApps for multi-sim
-    // In Multi-sim, there is more than one client in iccProvider. Each
+    // In Multi-sim, there is more than one client in iccService. Each
     // client represents a icc service. To maintain the backward compatibility
     // with single sim, we always use client 0 for now. Adding support for
     // multiple sim will be addressed in bug 927709, if needed.
     let clientId = 0;
-    let iccInfo = iccProvider.getIccInfo(clientId);
+    let iccInfo = iccService.getIccInfo(clientId);
     if (iccInfo && iccInfo.mcc && iccInfo.mnc) {
       let mcc = iccInfo.mcc;
       let mnc = iccInfo.mnc;
       debug("******* iccListener cardIccInfo MCC-MNC: " + mcc + "-" + mnc);
-      iccProvider.unregisterIccMsg(clientId, this);
+      iccService.unregisterIccMsg(clientId, this);
       OperatorAppsRegistry._installOperatorApps(mcc, mnc);
 
       debug("Broadcast message first-run-with-sim");
@@ -105,13 +105,13 @@ this.OperatorAppsRegistry = {
         try {
           yield this._initializeSourceDir();
           // TODO: Bug 927709 - OperatorApps for multi-sim
-          // In Multi-sim, there is more than one client in iccProvider. Each
+          // In Multi-sim, there is more than one client in iccService. Each
           // client represents a icc service. To maintain the backward
           // compatibility with single sim, we always use client 0 for now.
           // Adding support for multiple sim will be addressed in bug 927709, if
           // needed.
           let clientId = 0;
-          let iccInfo = iccProvider.getIccInfo(clientId);
+          let iccInfo = iccService.getIccInfo(clientId);
           let mcc = 0;
           let mnc = 0;
           if (iccInfo && iccInfo.mcc) {
@@ -128,7 +128,7 @@ this.OperatorAppsRegistry = {
                                                                mnc: mnc });
 
           } else {
-            iccProvider.registerIccMsg(clientId, iccListener);
+            iccService.registerIccMsg(clientId, iccListener);
           }
         } catch (e) {
           debug("Error Initializing OperatorApps. " + e);

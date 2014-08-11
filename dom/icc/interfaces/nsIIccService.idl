@@ -20,8 +20,8 @@ interface nsIIccListener : nsISupports
 /**
  * XPCOM component (in the content process) that provides the ICC information.
  */
-[scriptable, uuid(aa404b6e-fcfa-4bd2-bc46-e4e94b603ca7)]
-interface nsIIccProvider : nsISupports
+[scriptable, uuid(be38063e-058e-4c0a-9581-d406f91ac6aa)]
+interface nsIIccService : nsISupports
 {
   // MUST match enum IccCardState in MozIcc.webidl!
   const unsigned long CARD_STATE_UNKNOWN = 0;

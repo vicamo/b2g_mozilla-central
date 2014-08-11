@@ -56,10 +56,6 @@ XPCOMUtils.defineLazyServiceGetter(this, "gRil",
                                    "@mozilla.org/ril;1",
                                    "nsIRadioInterfaceLayer");
 
-XPCOMUtils.defineLazyServiceGetter(this, "iccProvider",
-                                   "@mozilla.org/ril/content-helper;1",
-                                   "nsIIccProvider");
-
 XPCOMUtils.defineLazyServiceGetter(this, "mobileConnectionService",
                                    "@mozilla.org/mobileconnection/mobileconnectionservice;1",
                                    "nsIMobileConnectionService");

@@ -256,7 +256,7 @@ function RILContentHelper() {
   this.rilContexts = [];
   for (let clientId = 0; clientId < this.numClients; clientId++) {
     this.rilContexts[clientId] = {
-      cardState: Ci.nsIIccProvider.CARD_STATE_UNKNOWN,
+      cardState: Ci.nsIIccService.CARD_STATE_UNKNOWN,
       iccInfo: null
     };
   }
@@ -275,14 +275,14 @@ RILContentHelper.prototype = {
   __proto__: DOMRequestIpcHelper.prototype,
 
   QueryInterface: XPCOMUtils.generateQI([Ci.nsICellBroadcastProvider,
-                                         Ci.nsIIccProvider,
+                                         Ci.nsIIccService,
                                          Ci.nsIObserver,
                                          Ci.nsISupportsWeakReference]),
   classID:   RILCONTENTHELPER_CID,
   classInfo: XPCOMUtils.generateCI({classID: RILCONTENTHELPER_CID,
                                     classDescription: "RILContentHelper",
                                     interfaces: [Ci.nsICellBroadcastProvider,
-                                                 Ci.nsIIccProvider]}),
+                                                 Ci.nsIIccService]}),
 
   updateDebugFlag: function() {
     try {
@@ -357,7 +357,7 @@ RILContentHelper.prototype = {
   },
 
   /**
-   * nsIIccProvider
+   * nsIIccService
    */
 
   getIccInfo: function(clientId) {

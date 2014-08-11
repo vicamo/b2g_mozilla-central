@@ -7,7 +7,7 @@
 
 #include "mozilla/DOMEventTargetHelper.h"
 #include "nsCycleCollectionParticipant.h"
-#include "nsIIccProvider.h"
+#include "nsIIccService.h"
 #include "nsTArrayHelpers.h"
 
 namespace mozilla {

@@ -7,7 +7,7 @@
 
 #include "mozilla/dom/MozIccBinding.h" // For IccCardState
 #include "mozilla/DOMEventTargetHelper.h"
-#include "nsIIccProvider.h"
+#include "nsIIccService.h"
 
 namespace mozilla {
 namespace dom {
@@ -134,9 +134,9 @@ private:
   bool mLive;
   uint32_t mClientId;
   nsString mIccId;
-  // mProvider is a xpcom service and will be released at shutdown, so it
+  // mService is a xpcom service and will be released at shutdown, so it
   // doesn't need to be cycle collected.
-  nsCOMPtr<nsIIccProvider> mProvider;
+  nsCOMPtr<nsIIccService> mService;
 };
 
 } // namespace dom

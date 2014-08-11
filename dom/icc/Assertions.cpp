@@ -3,14 +3,14 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/dom/MozIccBinding.h"
-#include "nsIIccProvider.h"
+#include "nsIIccService.h"
 
 namespace mozilla {
 namespace dom {
 
 #define ASSERT_ICC_CARD_STATE_EQUALITY(webidlState, xpidlState) \
-  static_assert(static_cast<uint32_t>(IccCardState::webidlState) == nsIIccProvider::xpidlState, \
-                "IccCardState::" #webidlState " should equal to nsIIccProvider::" #xpidlState)
+  static_assert(static_cast<uint32_t>(IccCardState::webidlState) == nsIIccService::xpidlState, \
+                "IccCardState::" #webidlState " should equal to nsIIccService::" #xpidlState)
 
 ASSERT_ICC_CARD_STATE_EQUALITY(Unknown, CARD_STATE_UNKNOWN);
 ASSERT_ICC_CARD_STATE_EQUALITY(Ready, CARD_STATE_READY);

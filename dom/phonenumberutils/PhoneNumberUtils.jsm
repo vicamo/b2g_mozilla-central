@@ -25,7 +25,7 @@ XPCOMUtils.defineLazyServiceGetter(this, "mobileConnection",
                                    "nsIMobileConnectionService");
 XPCOMUtils.defineLazyServiceGetter(this, "icc",
                                    "@mozilla.org/ril/content-helper;1",
-                                   "nsIIccProvider");
+                                   "nsIIccService");
 #endif
 
 this.PhoneNumberUtils = {
@@ -47,7 +47,7 @@ this.PhoneNumberUtils = {
 #ifdef MOZ_B2G_RIL
     // TODO: Bug 926740 - PhoneNumberUtils for multisim
     // In Multi-sim, there is more than one client in 
-    // iccProvider/mobileConnectionProvider. Each client represents a
+    // iccService/mobileConnectionProvider. Each client represents a
     // icc/mobileConnection service. To maintain the backward compatibility with
     // single sim, we always use client 0 for now. Adding support for multiple
     // sim will be addressed in bug 926740, if needed.

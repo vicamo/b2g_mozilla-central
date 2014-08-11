@@ -26,19 +26,19 @@ Icc::Icc(nsPIDOMWindow* aWindow,
   SetIsDOMBinding();
   BindToOwner(aWindow);
 
-  mProvider = do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
+  mService = do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
 
   // Not being able to acquire the provider isn't fatal since we check
   // for it explicitly below.
-  if (!mProvider) {
-    NS_WARNING("Could not acquire nsIIccProvider!");
+  if (!mService) {
+    NS_WARNING("Could not acquire nsIIccService!");
   }
 }
 
 void
 Icc::Shutdown()
 {
-  mProvider = nullptr;
+  mService = nullptr;
   mLive = false;
 }
 
@@ -91,12 +91,12 @@ Icc::WrapObject(JSContext* aCx)
 already_AddRefed<nsIDOMMozIccInfo>
 Icc::GetIccInfo() const
 {
-  if (!mProvider) {
+  if (!mService) {
     return nullptr;
   }
 
   nsCOMPtr<nsIDOMMozIccInfo> iccInfo;
-  nsresult rv = mProvider->GetIccInfo(mClientId, getter_AddRefs(iccInfo));
+  nsresult rv = mService->GetIccInfo(mClientId, getter_AddRefs(iccInfo));
   if (NS_FAILED(rv)) {
     return nullptr;
   }
@@ -109,10 +109,10 @@ Icc::GetCardState() const
 {
   Nullable<IccCardState> result;
 
-  uint32_t cardState = nsIIccProvider::CARD_STATE_UNDETECTED;
-  if (mProvider &&
-      NS_SUCCEEDED(mProvider->GetCardState(mClientId, &cardState)) &&
-      cardState != nsIIccProvider::CARD_STATE_UNDETECTED) {
+  uint32_t cardState = nsIIccService::CARD_STATE_UNDETECTED;
+  if (mService &&
+      NS_SUCCEEDED(mService->GetCardState(mClientId, &cardState)) &&
+      cardState != nsIIccService::CARD_STATE_UNDETECTED) {
     MOZ_ASSERT(cardState < static_cast<uint32_t>(IccCardState::EndGuard_));
     result.SetValue(static_cast<IccCardState>(cardState));
   }
@@ -126,13 +126,13 @@ Icc::SendStkResponse(const JSContext* aCx,
                      JS::Handle<JS::Value> aResponse,
                      ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return;
   }
 
-  nsresult rv = mProvider->SendStkResponse(mClientId, GetOwner(), aCommand,
-                                           aResponse);
+  nsresult rv = mService->SendStkResponse(mClientId, GetOwner(), aCommand,
+                                          aResponse);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
   }
@@ -143,15 +143,15 @@ Icc::SendStkMenuSelection(uint16_t aItemIdentifier,
                           bool aHelpRequested,
                           ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return;
   }
 
-  nsresult rv = mProvider->SendStkMenuSelection(mClientId,
-                                                GetOwner(),
-                                                aItemIdentifier,
-                                                aHelpRequested);
+  nsresult rv = mService->SendStkMenuSelection(mClientId,
+                                               GetOwner(),
+                                               aItemIdentifier,
+                                               aHelpRequested);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
   }
@@ -162,13 +162,12 @@ Icc::SendStkTimerExpiration(const JSContext* aCx,
                             JS::Handle<JS::Value> aTimer,
                             ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return;
   }
 
-  nsresult rv = mProvider->SendStkTimerExpiration(mClientId, GetOwner(),
-                                                  aTimer);
+  nsresult rv = mService->SendStkTimerExpiration(mClientId, GetOwner(), aTimer);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
   }
@@ -179,12 +178,12 @@ Icc::SendStkEventDownload(const JSContext* aCx,
                           JS::Handle<JS::Value> aEvent,
                           ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return;
   }
 
-  nsresult rv = mProvider->SendStkEventDownload(mClientId, GetOwner(), aEvent);
+  nsresult rv = mService->SendStkEventDownload(mClientId, GetOwner(), aEvent);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
   }
@@ -194,14 +193,14 @@ already_AddRefed<DOMRequest>
 Icc::GetCardLock(const nsAString& aLockType,
                  ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->GetCardLockState(mClientId, GetOwner(), aLockType,
-                                            getter_AddRefs(request));
+  nsresult rv = mService->GetCardLockState(mClientId, GetOwner(), aLockType,
+                                           getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -215,14 +214,14 @@ Icc::UnlockCardLock(const JSContext* aCx,
                     JS::Handle<JS::Value> aInfo,
                     ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->UnlockCardLock(mClientId, GetOwner(), aInfo,
-                                          getter_AddRefs(request));
+  nsresult rv = mService->UnlockCardLock(mClientId, GetOwner(), aInfo,
+                                         getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -236,14 +235,14 @@ Icc::SetCardLock(const JSContext* aCx,
                  JS::Handle<JS::Value> aInfo,
                  ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->SetCardLock(mClientId, GetOwner(), aInfo,
-                                       getter_AddRefs(request));
+  nsresult rv = mService->SetCardLock(mClientId, GetOwner(), aInfo,
+                                      getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -256,16 +255,16 @@ already_AddRefed<DOMRequest>
 Icc::GetCardLockRetryCount(const nsAString& aLockType,
                            ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->GetCardLockRetryCount(mClientId,
-                                                 GetOwner(),
-                                                 aLockType,
-                                                 getter_AddRefs(request));
+  nsresult rv = mService->GetCardLockRetryCount(mClientId,
+                                                GetOwner(),
+                                                aLockType,
+                                                getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -278,14 +277,14 @@ already_AddRefed<DOMRequest>
 Icc::ReadContacts(const nsAString& aContactType,
                   ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->ReadContacts(mClientId, GetOwner(), aContactType,
-                                        getter_AddRefs(request));
+  nsresult rv = mService->ReadContacts(mClientId, GetOwner(), aContactType,
+                                       getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -301,15 +300,15 @@ Icc::UpdateContact(const JSContext* aCx,
                    const nsAString& aPin2,
                    ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->UpdateContact(mClientId, GetOwner(), aContactType,
-                                         aContact, aPin2,
-                                         getter_AddRefs(request));
+  nsresult rv = mService->UpdateContact(mClientId, GetOwner(), aContactType,
+                                        aContact, aPin2,
+                                        getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -322,14 +321,14 @@ already_AddRefed<DOMRequest>
 Icc::IccOpenChannel(const nsAString& aAid,
                     ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->IccOpenChannel(mClientId, GetOwner(), aAid,
-                                          getter_AddRefs(request));
+  nsresult rv = mService->IccOpenChannel(mClientId, GetOwner(), aAid,
+                                         getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -344,14 +343,14 @@ Icc::IccExchangeAPDU(const JSContext* aCx,
                      JS::Handle<JS::Value> aApdu,
                      ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->IccExchangeAPDU(mClientId, GetOwner(), aChannel,
-                                           aApdu, getter_AddRefs(request));
+  nsresult rv = mService->IccExchangeAPDU(mClientId, GetOwner(), aChannel,
+                                          aApdu, getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -364,14 +363,14 @@ already_AddRefed<DOMRequest>
 Icc::IccCloseChannel(int32_t aChannel,
                      ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->IccCloseChannel(mClientId, GetOwner(), aChannel,
-                                           getter_AddRefs(request));
+  nsresult rv = mService->IccCloseChannel(mClientId, GetOwner(), aChannel,
+                                          getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -385,15 +384,15 @@ Icc::MatchMvno(const nsAString& aMvnoType,
                const nsAString& aMvnoData,
                ErrorResult& aRv)
 {
-  if (!mProvider) {
+  if (!mService) {
     aRv.Throw(NS_ERROR_FAILURE);
     return nullptr;
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mProvider->MatchMvno(mClientId, GetOwner(),
-                                     aMvnoType, aMvnoData,
-                                     getter_AddRefs(request));
+  nsresult rv = mService->MatchMvno(mClientId, GetOwner(),
+                                    aMvnoType, aMvnoData,
+                                    getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;

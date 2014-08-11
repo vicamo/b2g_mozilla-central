@@ -17,7 +17,7 @@
 #include "nsContentUtils.h"
 #include "nsIAudioManager.h"
 #include "nsIDOMIccInfo.h"
-#include "nsIIccProvider.h"
+#include "nsIIccService.h"
 #include "nsIMobileConnectionInfo.h"
 #include "nsIMobileConnectionService.h"
 #include "nsIMobileNetworkInfo.h"
@@ -682,12 +682,12 @@ BluetoothHfpManager::HandleVoiceConnectionChanged(uint32_t aClientId)
 void
 BluetoothHfpManager::HandleIccInfoChanged(uint32_t aClientId)
 {
-  nsCOMPtr<nsIIccProvider> icc =
+  nsCOMPtr<nsIIccService> iccService =
     do_GetService(NS_RILCONTENTHELPER_CONTRACTID);
-  NS_ENSURE_TRUE_VOID(icc);
+  NS_ENSURE_TRUE_VOID(iccService);
 
   nsCOMPtr<nsIDOMMozIccInfo> iccInfo;
-  icc->GetIccInfo(aClientId, getter_AddRefs(iccInfo));
+  iccService->GetIccInfo(aClientId, getter_AddRefs(iccInfo));
   NS_ENSURE_TRUE_VOID(iccInfo);
 
   nsCOMPtr<nsIDOMMozGsmIccInfo> gsmIccInfo = do_QueryInterface(iccInfo);

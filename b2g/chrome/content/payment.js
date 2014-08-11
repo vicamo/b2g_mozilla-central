@@ -54,9 +54,9 @@ XPCOMUtils.defineLazyServiceGetter(this, "gRil",
                                    "@mozilla.org/ril;1",
                                    "nsIRadioInterfaceLayer");
 
-XPCOMUtils.defineLazyServiceGetter(this, "iccProvider",
+XPCOMUtils.defineLazyServiceGetter(this, "iccService",
                                    "@mozilla.org/ril/content-helper;1",
-                                   "nsIIccProvider");
+                                   "nsIIccService");
 
 XPCOMUtils.defineLazyServiceGetter(this, "smsService",
                                    "@mozilla.org/sms/smsservice;1",
@@ -311,7 +311,7 @@ let PaymentProvider = {
     if (!this._iccInfo) {
       this._iccInfo = {};
       for (let i = 0; i < gRil.numRadioInterfaces; i++) {
-        let info = iccProvider.getIccInfo(i);
+        let info = iccService.getIccInfo(i);
         if (!info) {
           LOGE("Tried to get the ICC info for an invalid service ID " + i);
           continue;
