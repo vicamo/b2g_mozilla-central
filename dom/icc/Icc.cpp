@@ -16,6 +16,31 @@
 namespace mozilla {
 namespace dom {
 
+namespace {
+
+bool
+IsPukCardLockType(uint32_t aXpidlValue)
+{
+  switch(aXpidlValue) {
+    case nsIIccService::CARD_LOCK_TYPE_PUK:
+    case nsIIccService::CARD_LOCK_TYPE_PUK2:
+    case nsIIccService::CARD_LOCK_TYPE_NCK_PUK:
+    case nsIIccService::CARD_LOCK_TYPE_NCK1_PUK:
+    case nsIIccService::CARD_LOCK_TYPE_NCK2_PUK:
+    case nsIIccService::CARD_LOCK_TYPE_HNCK_PUK:
+    case nsIIccService::CARD_LOCK_TYPE_CCK_PUK:
+    case nsIIccService::CARD_LOCK_TYPE_SPCK_PUK:
+    case nsIIccService::CARD_LOCK_TYPE_RCCK_PUK:
+    case nsIIccService::CARD_LOCK_TYPE_RSPCK_PUK:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+} // anonymous namespace
+
 Icc::Icc(nsPIDOMWindow* aWindow,
          long aClientId,
          const nsAString& aIccId)
@@ -190,7 +215,7 @@ Icc::SendStkEventDownload(const JSContext* aCx,
 }
 
 already_AddRefed<DOMRequest>
-Icc::GetCardLock(const nsAString& aLockType,
+Icc::GetCardLock(IccCardLockType aLockType,
                  ErrorResult& aRv)
 {
   if (!mService) {
@@ -199,7 +224,9 @@ Icc::GetCardLock(const nsAString& aLockType,
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->GetCardLockState(mClientId, GetOwner(), aLockType,
+  nsresult rv = mService->GetCardLockState(mClientId, GetOwner(),
+                                           static_cast<uint32_t>(aLockType),
+                                           EmptyString(),
                                            getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
@@ -210,8 +237,7 @@ Icc::GetCardLock(const nsAString& aLockType,
 }
 
 already_AddRefed<DOMRequest>
-Icc::UnlockCardLock(const JSContext* aCx,
-                    JS::Handle<JS::Value> aInfo,
+Icc::UnlockCardLock(const IccUnlockCardLockOptions& aOptions,
                     ErrorResult& aRv)
 {
   if (!mService) {
@@ -219,8 +245,20 @@ Icc::UnlockCardLock(const JSContext* aCx,
     return nullptr;
   }
 
+  if (!aOptions.mLockType.WasPassed()) {
+    aRv.Throw(NS_ERROR_INVALID_ARG);
+    return nullptr;
+  }
+
+  uint32_t xpidlLockType = static_cast<uint32_t>(aOptions.mLockType.Value());
+  const nsString& password = IsPukCardLockType(xpidlLockType)
+                           ? aOptions.mPuk : aOptions.mPin;
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->UnlockCardLock(mClientId, GetOwner(), aInfo,
+  nsresult rv = mService->UnlockCardLock(mClientId, GetOwner(),
+                                         xpidlLockType,
+                                         password,
+                                         aOptions.mNewPin,
+                                         aOptions.mAid,
                                          getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
@@ -231,8 +269,7 @@ Icc::UnlockCardLock(const JSContext* aCx,
 }
 
 already_AddRefed<DOMRequest>
-Icc::SetCardLock(const JSContext* aCx,
-                 JS::Handle<JS::Value> aInfo,
+Icc::SetCardLock(const IccSetCardLockOptions& aOptions,
                  ErrorResult& aRv)
 {
   if (!mService) {
@@ -240,9 +277,35 @@ Icc::SetCardLock(const JSContext* aCx,
     return nullptr;
   }
 
+  if (!aOptions.mLockType.WasPassed()) {
+    aRv.Throw(NS_ERROR_INVALID_ARG);
+    return nullptr;
+  }
+
+  uint32_t xpidlLockType = static_cast<uint32_t>(aOptions.mLockType.Value());
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->SetCardLock(mClientId, GetOwner(), aInfo,
-                                      getter_AddRefs(request));
+  nsresult rv;
+  if (!aOptions.mNewPin.IsVoid()) {
+    // Change card lock password.
+    rv = mService->ChangeCardLockPassword(mClientId, GetOwner(),
+                                          xpidlLockType,
+                                          aOptions.mPin,
+                                          aOptions.mNewPin,
+                                          aOptions.mAid,
+                                          getter_AddRefs(request));
+  } else {
+    // Enable card lock.
+    const nsString& password =
+      xpidlLockType == nsIIccService::CARD_LOCK_TYPE_PIN ? aOptions.mPin
+                                                         : aOptions.mPin2;
+    rv = mService->EnableCardLock(mClientId, GetOwner(),
+                                  xpidlLockType,
+                                  password,
+                                  aOptions.mEnabled,
+                                  aOptions.mAid,
+                                  getter_AddRefs(request));
+  }
+
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
@@ -252,7 +315,7 @@ Icc::SetCardLock(const JSContext* aCx,
 }
 
 already_AddRefed<DOMRequest>
-Icc::GetCardLockRetryCount(const nsAString& aLockType,
+Icc::GetCardLockRetryCount(IccCardLockType aLockType,
                            ErrorResult& aRv)
 {
   if (!mService) {
@@ -263,7 +326,7 @@ Icc::GetCardLockRetryCount(const nsAString& aLockType,
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv = mService->GetCardLockRetryCount(mClientId,
                                                 GetOwner(),
-                                                aLockType,
+                                                static_cast<uint32_t>(aLockType),
                                                 getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
@@ -274,7 +337,7 @@ Icc::GetCardLockRetryCount(const nsAString& aLockType,
 }
 
 already_AddRefed<DOMRequest>
-Icc::ReadContacts(const nsAString& aContactType,
+Icc::ReadContacts(IccContactType aContactType,
                   ErrorResult& aRv)
 {
   if (!mService) {
@@ -283,7 +346,8 @@ Icc::ReadContacts(const nsAString& aContactType,
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->ReadContacts(mClientId, GetOwner(), aContactType,
+  nsresult rv = mService->ReadContacts(mClientId, GetOwner(),
+                                       static_cast<uint32_t>(aContactType),
                                        getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
@@ -295,7 +359,7 @@ Icc::ReadContacts(const nsAString& aContactType,
 
 already_AddRefed<DOMRequest>
 Icc::UpdateContact(const JSContext* aCx,
-                   const nsAString& aContactType,
+                   IccContactType aContactType,
                    JS::Handle<JS::Value> aContact,
                    const nsAString& aPin2,
                    ErrorResult& aRv)
@@ -306,7 +370,8 @@ Icc::UpdateContact(const JSContext* aCx,
   }
 
   nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->UpdateContact(mClientId, GetOwner(), aContactType,
+  nsresult rv = mService->UpdateContact(mClientId, GetOwner(),
+                                        static_cast<uint32_t>(aContactType),
                                         aContact, aPin2,
                                         getter_AddRefs(request));
   if (NS_FAILED(rv)) {
@@ -380,7 +445,7 @@ Icc::IccCloseChannel(int32_t aChannel,
 }
 
 already_AddRefed<DOMRequest>
-Icc::MatchMvno(const nsAString& aMvnoType,
+Icc::MatchMvno(IccMvnoType aMvnoType,
                const nsAString& aMvnoData,
                ErrorResult& aRv)
 {
@@ -391,7 +456,7 @@ Icc::MatchMvno(const nsAString& aMvnoType,
 
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv = mService->MatchMvno(mClientId, GetOwner(),
-                                    aMvnoType, aMvnoData,
+                                    static_cast<uint32_t>(aMvnoType), aMvnoData,
                                     getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);

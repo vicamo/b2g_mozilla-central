@@ -87,8 +87,14 @@ XPCOMUtils.defineLazyGetter(this, "gNumRadioInterfaces", function() {
   return Services.prefs.getIntPref(kPrefRilNumRadioInterfaces);
 });
 
+const WEBIDL_ICC_CARD_LOCK_TYPE_NAMES = [
+  "pin", "pin2", "puk", "puk2", "nck", "nck1", "nck2", "hnck", "cck", "spck",
+  "rcck", "rspck", "nckPuk", "nck1Puk", "nck2Puk", "hnckPuk", "cckPuk",
+  "spckPuk", "rcckPuk", "rspckPuk", "fdn"
+];
+
 function MobileIccCardLockResult(options) {
-  this.lockType = options.lockType;
+  this.lockType = WEBIDL_ICC_CARD_LOCK_TYPE_NAMES[options.lockType];
   this.enabled = options.enabled;
   this.retryCount = options.retryCount;
   this.success = options.success;
@@ -101,7 +107,7 @@ MobileIccCardLockResult.prototype = {
 };
 
 function MobileIccCardLockRetryCount(options) {
-  this.lockType = options.lockType;
+  this.lockType = WEBIDL_ICC_CARD_LOCK_TYPE_NAMES[options.lockType];
   this.retryCount = options.retryCount;
   this.success = options.success;
 }
@@ -816,9 +822,10 @@ RILContentHelper.prototype = {
         } else {
           if (data.rilMessageType == "iccSetCardLock" ||
               data.rilMessageType == "iccUnlockCardLock") {
-            let cardLockError = new requestWindow.IccCardLockError(data.lockType,
-                                                                   data.errorMsg,
-                                                                   data.retryCount);
+            let cardLockError =
+              new requestWindow.IccCardLockError(WEBIDL_ICC_CARD_LOCK_TYPE_NAMES[data.lockType],
+                                                 data.errorMsg,
+                                                 data.retryCount);
             this.fireRequestDetailedError(requestId, cardLockError);
           } else {
             this.fireRequestError(requestId, data.errorMsg);
