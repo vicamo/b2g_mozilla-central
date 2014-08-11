@@ -88,6 +88,10 @@ ToXpidlEnum(T aWebidlEnum)
   return details::EnumTraits<T>::w2x(aWebidlEnum);
 }
 
+template <typename T>
+const nsAString&
+ToString(T aWebidlEnum);
+
 } // namespace icc
 } // namespace dom
 } // namespace mozilla

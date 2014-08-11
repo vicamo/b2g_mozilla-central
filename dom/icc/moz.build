@@ -15,6 +15,7 @@ EXPORTS.mozilla.dom += [
 UNIFIED_SOURCES += [
     'Assertions.cpp',
     'Icc.cpp',
+    'IccCallback.cpp',
     'IccCardLockError.cpp',
     'IccListener.cpp',
     'IccManager.cpp',

@@ -10,6 +10,15 @@ namespace mozilla {
 namespace dom {
 namespace icc {
 
+template <>
+const nsAString&
+ToString<IccErrorNames>(IccErrorNames aName)
+{
+  const EnumEntry& entry =
+    IccErrorNamesValues::strings[static_cast<uint32_t>(aName)];
+  return NS_ConvertASCIItoUTF16(entry.value, entry.length);
+}
+
 #if defined(MOZ_HAVE_CXX11_CONSTEXPR)
 #define ASSERT_EQUALITY(webidlType, webidlState, xpidlIface, xpidlState) \
   static_assert(ToXpidlEnum(webidlType::webidlState) == xpidlIface::xpidlState, \

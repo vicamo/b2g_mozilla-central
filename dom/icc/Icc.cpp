@@ -5,6 +5,7 @@
 #include "mozilla/dom/Icc.h"
 
 #include "EnumHelpers.h"
+#include "IccCallback.h"
 #include "mozilla/dom/MozIccBinding.h"
 #include "mozilla/dom/MozStkCommandEvent.h"
 #include "mozilla/dom/DOMRequest.h"
@@ -142,7 +143,7 @@ Icc::GetCardState() const
       NS_SUCCEEDED(mService->GetCardState(mClientId, &cardState)) &&
       cardState != nsIIccService::CARD_STATE_UNDETECTED) {
     MOZ_ASSERT(cardState < static_cast<uint32_t>(IccCardState::EndGuard_));
-    result.SetValue(ToXpidlEnum(cardState));
+    result.SetValue(ToWebidlEnum<IccCardState>(cardState));
   }
 
   return result;
@@ -159,8 +160,7 @@ Icc::SendStkResponse(const JSContext* aCx,
     return;
   }
 
-  nsresult rv = mService->SendStkResponse(mClientId, GetOwner(), aCommand,
-                                          aResponse);
+  nsresult rv = mService->SendStkResponse(mClientId, aCommand, aResponse);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
   }
@@ -177,7 +177,6 @@ Icc::SendStkMenuSelection(uint16_t aItemIdentifier,
   }
 
   nsresult rv = mService->SendStkMenuSelection(mClientId,
-                                               GetOwner(),
                                                aItemIdentifier,
                                                aHelpRequested);
   if (NS_FAILED(rv)) {
@@ -194,7 +193,7 @@ Icc::SendStkTimerExpiration(const IccSendStkTimerExpirationOptions& aOptions,
     return;
   }
 
-  nsresult rv = mService->SendStkTimerExpiration(mClientId, GetOwner(),
+  nsresult rv = mService->SendStkTimerExpiration(mClientId,
                                                  aOptions.mTimerId,
                                                  aOptions.mTimerValue);
   if (NS_FAILED(rv)) {
@@ -212,7 +211,7 @@ Icc::SendStkEventDownload(const JSContext* aCx,
     return;
   }
 
-  nsresult rv = mService->SendStkEventDownload(mClientId, GetOwner(), aEvent);
+  nsresult rv = mService->SendStkEventDownload(mClientId, aEvent);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
   }
@@ -227,17 +226,17 @@ Icc::GetCardLock(IccCardLockType aLockType,
     return nullptr;
   }
 
-  nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->GetCardLockState(mClientId, GetOwner(),
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIIccCallback> callback = new IccCallback(request);
+  nsresult rv = mService->GetCardLockState(mClientId, callback,
                                            ToXpidlEnum(aLockType),
-                                           EmptyString(),
-                                           getter_AddRefs(request));
+                                           EmptyString());
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 already_AddRefed<DOMRequest>
@@ -254,22 +253,23 @@ Icc::UnlockCardLock(const IccUnlockCardLockOptions& aOptions,
     return nullptr;
   }
 
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIIccCallback> callback = new IccCallback(request);
+
   uint32_t xpidlLockType = ToXpidlEnum(aOptions.mLockType.Value());
   const nsString& password = IsPukCardLockType(xpidlLockType)
                            ? aOptions.mPuk : aOptions.mPin;
-  nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->UnlockCardLock(mClientId, GetOwner(),
+  nsresult rv = mService->UnlockCardLock(mClientId, callback,
                                          xpidlLockType,
                                          password,
                                          aOptions.mNewPin,
-                                         aOptions.mAid,
-                                         getter_AddRefs(request));
+                                         aOptions.mAid);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 already_AddRefed<DOMRequest>
@@ -286,28 +286,28 @@ Icc::SetCardLock(const IccSetCardLockOptions& aOptions,
     return nullptr;
   }
 
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIIccCallback> callback = new IccCallback(request);
+
   uint32_t xpidlLockType = ToXpidlEnum(aOptions.mLockType.Value());
-  nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv;
   if (!aOptions.mNewPin.IsVoid()) {
     // Change card lock password.
-    rv = mService->ChangeCardLockPassword(mClientId, GetOwner(),
+    rv = mService->ChangeCardLockPassword(mClientId, callback,
                                           xpidlLockType,
                                           aOptions.mPin,
                                           aOptions.mNewPin,
-                                          aOptions.mAid,
-                                          getter_AddRefs(request));
+                                          aOptions.mAid);
   } else {
     // Enable card lock.
     const nsString& password =
       xpidlLockType == nsIIccService::CARD_LOCK_TYPE_PIN ? aOptions.mPin
                                                          : aOptions.mPin2;
-    rv = mService->EnableCardLock(mClientId, GetOwner(),
+    rv = mService->EnableCardLock(mClientId, callback,
                                   xpidlLockType,
                                   password,
                                   aOptions.mEnabled,
-                                  aOptions.mAid,
-                                  getter_AddRefs(request));
+                                  aOptions.mAid);
   }
 
   if (NS_FAILED(rv)) {
@@ -315,7 +315,7 @@ Icc::SetCardLock(const IccSetCardLockOptions& aOptions,
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 already_AddRefed<DOMRequest>
@@ -327,17 +327,16 @@ Icc::GetCardLockRetryCount(IccCardLockType aLockType,
     return nullptr;
   }
 
-  nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->GetCardLockRetryCount(mClientId,
-                                                GetOwner(),
-                                                ToXpidlEnum(aLockType),
-                                                getter_AddRefs(request));
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIIccCallback> callback = new IccCallback(request);
+  nsresult rv = mService->GetCardLockRetryCount(mClientId, callback,
+                                                ToXpidlEnum(aLockType));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 already_AddRefed<DOMRequest>
@@ -349,16 +348,17 @@ Icc::ReadContacts(IccContactType aContactType,
     return nullptr;
   }
 
-  nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->ReadContacts(mClientId, GetOwner(),
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsRefPtr<IccCallback> callback = new IccCallback(request);
+  nsresult rv = mService->ReadContacts(mClientId, callback,
                                        ToXpidlEnum(aContactType),
-                                       getter_AddRefs(request));
+                                       getter_AddRefs(callback->mCursorContinueCallback));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 already_AddRefed<DOMRequest>
@@ -429,8 +429,9 @@ Icc::UpdateContact(IccContactType aContactType,
     }
   }
 
-  nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->UpdateContact(mClientId, GetOwner(),
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIIccCallback> callback = new IccCallback(request);
+  nsresult rv = mService->UpdateContact(mClientId, callback,
                                         ToXpidlEnum(aContactType),
                                         aOptions.mId,
                                         names.Length() ? names.Elements() : nullptr,
@@ -439,14 +440,13 @@ Icc::UpdateContact(IccContactType aContactType,
                                         tels.Length(),
                                         emails.Length() ? emails.Elements() : nullptr,
                                         emails.Length(),
-                                        aPin2,
-                                        getter_AddRefs(request));
+                                        aPin2);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 already_AddRefed<DOMRequest>
@@ -458,15 +458,15 @@ Icc::IccOpenChannel(const nsAString& aAid,
     return nullptr;
   }
 
-  nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->IccOpenChannel(mClientId, GetOwner(), aAid,
-                                         getter_AddRefs(request));
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIIccCallback> callback = new IccCallback(request);
+  nsresult rv = mService->IccOpenChannel(mClientId, callback, aAid);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 already_AddRefed<DOMRequest>
@@ -484,8 +484,9 @@ Icc::IccExchangeAPDU(int32_t aChannel,
     return nullptr;
   }
 
-  nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->IccExchangeAPDU(mClientId, GetOwner(), aChannel,
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIIccCallback> callback = new IccCallback(request);
+  nsresult rv = mService->IccExchangeAPDU(mClientId, callback, aChannel,
                                           aOptions.mCla,
                                           aOptions.mCommand,
                                           aOptions.mPath,
@@ -493,14 +494,13 @@ Icc::IccExchangeAPDU(int32_t aChannel,
                                           aOptions.mP2,
                                           aOptions.mP3,
                                           aOptions.mData.Value(),
-                                          aOptions.mData2,
-                                          getter_AddRefs(request));
+                                          aOptions.mData2);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 already_AddRefed<DOMRequest>
@@ -512,15 +512,15 @@ Icc::IccCloseChannel(int32_t aChannel,
     return nullptr;
   }
 
-  nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->IccCloseChannel(mClientId, GetOwner(), aChannel,
-                                          getter_AddRefs(request));
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIIccCallback> callback = new IccCallback(request);
+  nsresult rv = mService->IccCloseChannel(mClientId, callback, aChannel);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 already_AddRefed<DOMRequest>
@@ -533,16 +533,16 @@ Icc::MatchMvno(IccMvnoType aMvnoType,
     return nullptr;
   }
 
-  nsRefPtr<nsIDOMDOMRequest> request;
-  nsresult rv = mService->MatchMvno(mClientId, GetOwner(),
-                                    ToXpidlEnum(aMvnoType), aMvnoData,
-                                    getter_AddRefs(request));
+  nsRefPtr<DOMRequest> request = new DOMRequest(GetOwner());
+  nsCOMPtr<nsIIccCallback> callback = new IccCallback(request);
+  nsresult rv = mService->MatchMvno(mClientId, callback,
+                                    ToXpidlEnum(aMvnoType), aMvnoData);
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
     return nullptr;
   }
 
-  return request.forget().downcast<DOMRequest>();
+  return request.forget();
 }
 
 } // namespace dom

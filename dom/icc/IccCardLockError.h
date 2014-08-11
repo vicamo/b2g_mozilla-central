@@ -18,12 +18,10 @@ class IccCardLockError MOZ_FINAL : public DOMError
 public:
   NS_DECL_ISUPPORTS_INHERITED
 
-  static already_AddRefed<IccCardLockError>
-  Constructor(const GlobalObject& aGlobal,
-              IccCardLockType aLockType,
-              const nsAString& aName,
-              int16_t aRetryCount,
-              ErrorResult& aRv);
+  IccCardLockError(nsPIDOMWindow* aWindow,
+                   IccErrorNames aName,
+                   IccCardLockType aLockType,
+                   int16_t aRetryCount);
 
   virtual JSObject*
   WrapObject(JSContext* aCx) MOZ_OVERRIDE;
@@ -35,11 +33,6 @@ public:
   RetryCount() const { return mRetryCount; }
 
 private:
-  IccCardLockError(nsPIDOMWindow* aWindow,
-                   const nsAString& aName,
-                   IccCardLockType aLockType,
-                   int16_t aRetryCount);
-
   // MOZ_FINAL suppresses -Werror,-Wdelete-non-virtual-dtor
   ~IccCardLockError() {}
 
