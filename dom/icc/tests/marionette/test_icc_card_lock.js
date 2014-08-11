@@ -113,21 +113,13 @@ taskHelper.push(function testPukCardLockRetryCount() {
 
 /* Read lock retry count for an invalid entries  */
 taskHelper.push(function testInvalidCardLockRetryCount() {
-  let request = icc.getCardLockRetryCount('invalid-lock-type');
-
-  ok(request instanceof DOMRequest,
-     'request instanceof ' + request.constructor);
-
-  request.onsuccess = function onsuccess() {
-    ok(false,
-        'request should never return success for an invalid lock type');
+  try {
+    icc.getCardLockRetryCount('invalid-lock-type');
+    ok(false, "Should throw given an invalid lock type was passed.");
+  } catch(e) {
+    ok(e instanceof TypeError, "A TypeError is expected, got " + e.constructor);
     taskHelper.runNext();
-  };
-  request.onerror = function onerror() {
-    is(request.error.name, 'GenericFailure',
-        'error name is ' + request.error.name);
-    taskHelper.runNext();
-  };
+  }
 });
 
 // Start test
