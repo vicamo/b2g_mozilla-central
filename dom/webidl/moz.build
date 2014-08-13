@@ -273,6 +273,7 @@ WEBIDL_FILES = [
     'NativeOSFileInternals.webidl',
     'NetDashboard.webidl',
     'NetworkInformation.webidl',
+    'NetworkManager.webidl',
     'NetworkOptions.webidl',
     'Node.webidl',
     'NodeFilter.webidl',
