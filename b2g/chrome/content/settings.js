@@ -448,6 +448,10 @@ let settingsToObserve = {
     prefName: 'dom.sms.strict7BitEncoding',
     defaultValue: false
   },
+  'ril.sms.maxReadAheadEntries': {
+    prefName: 'dom.sms.maxReadAheadEntries',
+    defaultValue: 0
+  },
   'ui.touch.radius.leftmm': {
     resetToPref: true
   },

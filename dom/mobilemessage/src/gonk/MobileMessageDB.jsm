@@ -3467,17 +3467,49 @@ let FilterSearcherHelper = {
   }
 };
 
-function ResultsCollector() {
+function ResultsCollector(aReadAheadFunc) {
+  this.ids = [];
   this.results = [];
   this.done = false;
+  this.readingAhead = false;
+  this.readAhead = aReadAheadFunc;
 }
 ResultsCollector.prototype = {
+  /**
+   * An array of numeric IDs. When collecting IDs is done, the last element
+   * should be either COLLECT_ID_END(0) or COLLECT_ID_ERROR(-1).
+   */
+  ids: null,
+
+  /**
+   * An array of cached result objects notified via |notifyResult|. When |drip|
+   * is called, it's replaced by a new empty array.
+   */
   results: null,
   requestWaiting: null,
+
+  /**
+   * A boolean value indicating IDs collecting is done. Note that There might
+   * still be multiple read head operations even after |done| being set to true.
+   */
   done: null,
 
   /**
-   * Queue up passed id, reply if necessary.
+   * A boolean value inidicating a readAhead call is ongoing.
+   */
+  readingAhead: null,
+
+  /**
+   * A function that takes (<txn>, <id>, <collector>). It fetches the object
+   * specified by <id> and notify <collector> with that by calling
+   * |<collector>.notifyResult()|. If <txn> is null, aReadAheadFunc should
+   * create a new read-only transaction itself. The returned result object may
+   * be null to indicate an error during the fetch process.
+   */
+  readAhead: null,
+
+  /**
+   * Queue up passed id and read ahead.
    *
    * @param txn
    *        Ongoing IDBTransaction context object.
@@ -3495,21 +3527,105 @@ ResultsCollector.prototype = {
       return false;
     }
 
-    if (DEBUG) {
-      debug("collect: message ID = " + id);
-    }
-    if (id) {
-      // Queue up any id but '0' and replies later accordingly.
-      this.results.push(id);
-    }
+    if (DEBUG) debug("collect: ID = " + id);
+
+    // Queue up any id.
+    this.ids.push(id);
     if (id <= 0) {
       // No more processing on '0' or negative values passed.
       this.done = true;
     }
 
+    this.doReadAhead(txn);
+
+    return !this.done;
+  },
+
+  /**
+   * Determine whether should we fetch one more record using given transaction.
+   *
+   * @param txn
+   *        An ongoing IDBTransaction context object.
+   */
+  doReadAhead: function(txn) {
+    if (this.readingAhead) {
+      // Already in progress.
+      if (DEBUG) debug("doReadAhead: already in progress. Skip.");
+      return;
+    }
+
+    if (!this.ids.length) {
+      // Nothing to be read yet. Waiting for further calls to |this.collect|.
+      if (DEBUG) debug("doReadAhead: nothing to be read. Stop.");
+      return;
+    }
+
+
+    // We don't remove COLLECT_ID_END(0) and COLLECT_ID_ERROR(-1) from the list.
+    // Just take a peek here.
+    let firstId = this.ids[0];
+
+    // If the first id is either an end or an error mark, skip read ahead max
+    // entries check because we don't read anything for them.
+    if (firstId <= 0) {
+      this.notifyResult(txn, firstId, null);
+      return;
+    }
+
+    let max = 0;
+    try {
+      // positive: finite read-ahead entries,
+      // 0: don't read ahead unless explicitly requested,
+      // negative: read ahead all IDs if possible.
+      max = Services.prefs.getIntPref("dom.sms.maxReadAheadEntries");
+    } catch (e) {}
+
+    // If |this.requestWaiting| is set, try to read ahead at least once.
+    if (this.requestWaiting && !max) {
+      max = 1;
+    }
+
+    if (max >= 0 && this.results.length >= max) {
+      // More-equal than <max> entries has been read. Stop.
+      if (DEBUG) debug("doReadAhead: max " + max + " entries read. Stop.");
+      return;
+    }
+
+    // Remove the first element because that's no longer just a peek. It's
+    // going to be fetched.
+    this.ids.shift();
+
+    this.readingAhead = true;
+    this.readAhead(txn, firstId, this);
+  },
+
+  /**
+   * Notify a newly fetched result object specified by id.
+   */
+  notifyResult: function(txn, id, result) {
+    if (DEBUG) debug("notifyResult(txn, " + id + ", <result>)")
+    this.readingAhead = false;
+
+    if (id > 0) {
+      if (result) {
+        this.results.push(result);
+      } else {
+        // Read ahead failed, so reset related parameters to reflect this.
+        id = COLLECT_ID_ERROR;
+        this.ids = [id];
+        this.done = true;
+      }
+    }
+
     if (!this.requestWaiting) {
-      if (DEBUG) debug("Cursor.continue() not called yet");
-      return !this.done;
+      if (DEBUG) debug("notifyResult: cursor.continue() not called yet");
+
+      if (id > 0) {
+        // Only try to fetch one more result if that's not an end or an error
+        // mark.
+        this.doReadAhead(txn);
+      }
+      return;
     }
 
     // We assume there is only one request waiting throughout the message list
@@ -3520,8 +3636,6 @@ ResultsCollector.prototype = {
     this.requestWaiting = null;
 
     this.drip(txn, callback);
-
-    return !this.done;
   },
 
   /**
@@ -3529,21 +3643,34 @@ ResultsCollector.prototype = {
    * done. Or queue up the request and callback when a new entry is available.
    *
    * @param callback
-   *        A callback function that accepts a numeric id.
+   *        A callback function that accepts ([<result>], <reason>).
    */
   squeeze: function(callback) {
     if (this.requestWaiting) {
       throw new Error("Already waiting for another request!");
     }
 
-    if (!this.done) {
-      // Database transaction ongoing, let it reply for us so that we won't get
-      // blocked by the existing transaction.
+    if (!this.done || this.readingAhead) {
+      // |this.requestWaiting| is only taken in |this.notifyResult|. If that's
+      // going to be called in the future, we may assign |callback| to
+      // |this.requestWaiting| here.
+      //
+      // There is always a call to |this.notifyResult| when |this.done| is set
+      // to true. Or, if read-ahead is in action, |this.notifyResult| is called
+      // whenever a result object is available.
       this.requestWaiting = callback;
       return;
     }
 
-    this.drip(null, callback);
+    // Otherwise, either there is no more IDs to read ahead, which means
+    // read-ahead is done, or max read-ahead entries has been fetched.
+    if (this.results.length) {
+      this.drip(null, callback);
+    } else {
+      // Kick start read-ahead and ask for at least one fetch.
+      this.requestWaiting = callback;
+      this.doReadAhead(null);
+    }
   },
 
   /**
@@ -3553,22 +3680,17 @@ ResultsCollector.prototype = {
    *        A callback function that accepts a numeric id.
    */
   drip: function(txn, callback) {
-    if (!this.results.length) {
-      if (DEBUG) debug("No messages matching the filter criteria");
-      callback(txn, COLLECT_ID_END);
-      return;
-    }
+    let results = this.results;
+    this.results = [];
+    if (DEBUG) debug("drip " + results.length + " results");
 
-    if (this.results[0] < 0) {
-      // An previous error found. Keep the answer in results so that we can
-      // reply INTERNAL_ERROR for further requests.
-      if (DEBUG) debug("An previous error found");
-      callback(txn, COLLECT_ID_ERROR);
-      return;
-    }
+    let func = callback.bind(null, results, (results.length || this.ids[0]));
+    Services.tm.currentThread.dispatch(func, Ci.nsIThread.DISPATCH_NORMAL);
 
-    let firstMessageId = this.results.shift();
-    callback(txn, firstMessageId);
+    if (results.length) {
+      // Try to read more since |this.results| has been emptyed.
+      this.doReadAhead(txn);
+    }
   }
 };
 
@@ -3762,7 +3884,7 @@ UnionResultsCollector.prototype = {
 function GetMessagesCursor(mmdb, callback) {
   this.mmdb = mmdb;
   this.callback = callback;
-  this.collector = new ResultsCollector();
+  this.collector = new ResultsCollector(this.getMessage.bind(this));
 
   this.handleContinue(); // Trigger first run.
 }
@@ -3774,7 +3896,7 @@ GetMessagesCursor.prototype = {
   callback: null,
   collector: null,
 
-  getMessageTxn: function(messageStore, messageId) {
+  getMessageTxn: function(txn, messageStore, messageId, collector) {
     if (DEBUG) debug ("Fetching message " + messageId);
 
     let getRequest = messageStore.get(messageId);
@@ -3785,32 +3907,26 @@ GetMessagesCursor.prototype = {
       }
       let domMessage =
         self.mmdb.createDomMessageFromRecord(event.target.result);
-      self.callback.notifyCursorResult([domMessage], 1);
+      collector.notifyResult(txn, messageId, domMessage);
     };
     getRequest.onerror = function(event) {
+      // Error reporting is done in GetMessagesCursor.notify.
+      event.stopPropagation();
+      event.reventDefault();
+
       if (DEBUG) {
         debug("notifyCursorError - messageId: " + messageId);
       }
-      self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+      collector.notifyResult(txn, messageId, null);
     };
   },
 
-  notify: function(txn, messageId) {
-    if (!messageId) {
-      this.callback.notifyCursorDone();
-      return;
-    }
-
-    if (messageId < 0) {
-      this.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-      return;
-    }
-
+  getMessage: function(txn, messageId, collector) {
     // When filter transaction is not yet completed, we're called with current
     // ongoing transaction object.
     if (txn) {
       let messageStore = txn.objectStore(MESSAGE_STORE_NAME);
-      this.getMessageTxn(messageStore, messageId);
+      this.getMessageTxn(txn, messageStore, messageId, collector);
       return;
     }
 
@@ -3818,11 +3934,23 @@ GetMessagesCursor.prototype = {
     let self = this;
     this.mmdb.newTxn(READ_ONLY, function(error, txn, messageStore) {
       if (error) {
-        self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-        return;
+        debug("getMessage: failed to create new transaction");
+        collector.notifyResult(null, messageId, null);
+      } else {
+        self.getMessageTxn(txn, messageStore, messageId, collector);
       }
-      self.getMessageTxn(messageStore, messageId);
     }, [MESSAGE_STORE_NAME]);
+  },
+
+  notify: function(messages, reason) {
+    debug("notify(messages[" + messages.length + "], " + reason + ")");
+    if (messages.length) {
+      this.callback.notifyCursorResult(messages, messages.length);
+    } else if (reason == COLLECT_ID_END) {
+      this.callback.notifyCursorDone();
+    } else {
+      this.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+    }
   },
 
   // nsICursorContinueCallback
@@ -3836,7 +3964,7 @@ GetMessagesCursor.prototype = {
 function GetThreadsCursor(mmdb, callback) {
   this.mmdb = mmdb;
   this.callback = callback;
-  this.collector = new ResultsCollector();
+  this.collector = new ResultsCollector(this.getThread.bind(this));
 
   this.handleContinue(); // Trigger first run.
 }
@@ -3848,11 +3976,10 @@ GetThreadsCursor.prototype = {
   callback: null,
   collector: null,
 
-  getThreadTxn: function(threadStore, threadId) {
+  getThreadTxn: function(txn, threadStore, threadId, collector) {
     if (DEBUG) debug ("Fetching thread " + threadId);
 
     let getRequest = threadStore.get(threadId);
-    let self = this;
     getRequest.onsuccess = function(event) {
       let threadRecord = event.target.result;
       if (DEBUG) {
@@ -3866,32 +3993,26 @@ GetThreadsCursor.prototype = {
                                            threadRecord.body,
                                            threadRecord.unreadCount,
                                            threadRecord.lastMessageType);
-      self.callback.notifyCursorResult([thread], 1);
+      collector.notifyResult(null, threadId, thread);
     };
     getRequest.onerror = function(event) {
+      // Error reporting is done in GetThreadCursor.notify.
+      event.stopPropagation();
+      event.reventDefault();
+
       if (DEBUG) {
         debug("notifyCursorError - threadId: " + threadId);
       }
-      self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+      collector.notifyResult(txn, threadId, null);
     };
   },
 
-  notify: function(txn, threadId) {
-    if (!threadId) {
-      this.callback.notifyCursorDone();
-      return;
-    }
-
-    if (threadId < 0) {
-      this.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-      return;
-    }
-
+  getThread: function(txn, threadId, collector) {
     // When filter transaction is not yet completed, we're called with current
     // ongoing transaction object.
     if (txn) {
       let threadStore = txn.objectStore(THREAD_STORE_NAME);
-      this.getThreadTxn(threadStore, threadId);
+      this.getThreadTxn(txn, threadStore, threadId, collector);
       return;
     }
 
@@ -3899,11 +4020,21 @@ GetThreadsCursor.prototype = {
     let self = this;
     this.mmdb.newTxn(READ_ONLY, function(error, txn, threadStore) {
       if (error) {
-        self.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
-        return;
+        collector.notifyResult(null, threadId, null);
+      } else {
+        self.getThreadTxn(txn, threadStore, threadId, collector);
       }
-      self.getThreadTxn(threadStore, threadId);
     }, [THREAD_STORE_NAME]);
+  },
+
+  notify: function(threads, reason) {
+    if (threads.length) {
+      this.callback.notifyCursorResult(threads, threads.length);
+    } else if (reason == COLLECT_ID_END) {
+      this.callback.notifyCursorDone();
+    } else {
+      this.callback.notifyCursorError(Ci.nsIMobileMessageCallback.INTERNAL_ERROR);
+    }
   },
 
   // nsICursorContinueCallback
