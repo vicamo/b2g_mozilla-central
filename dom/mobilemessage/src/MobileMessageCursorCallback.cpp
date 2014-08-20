@@ -8,12 +8,57 @@
 #include "nsIDOMDOMRequest.h"
 #include "nsIDOMMozSmsMessage.h"
 #include "nsIMobileMessageCallback.h"
-#include "DOMCursor.h"
 #include "nsServiceManagerUtils.h"      // for do_GetService
 
 namespace mozilla {
 namespace dom {
 namespace mobilemessage {
+
+NS_IMPL_CYCLE_COLLECTION_INHERITED(MobileMessageCursor, DOMCursor,
+                                   mResults)
+
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(MobileMessageCursor)
+NS_INTERFACE_MAP_END_INHERITING(DOMCursor)
+
+NS_IMPL_ADDREF_INHERITED(MobileMessageCursor, DOMCursor)
+NS_IMPL_RELEASE_INHERITED(MobileMessageCursor, DOMCursor)
+
+MobileMessageCursor::MobileMessageCursor(nsPIDOMWindow* aWindow,
+                                         nsICursorContinueCallback *aCallback)
+  : DOMCursor(aWindow, aCallback)
+{
+  MOZ_COUNT_CTOR(MobileMessageCursor);
+}
+
+void
+MobileMessageCursor::Continue(ErrorResult& aRv)
+{
+  if (!mResults.Length()) {
+    DOMCursor::Continue(aRv);
+    return;
+  }
+
+  nsCOMPtr<nsISupports> result = mResults.LastElement();
+
+  AutoJSAPI jsapi;
+  if (NS_WARN_IF(!jsapi.Init(GetOwner()))) {
+    aRv.Throw(NS_ERROR_FAILURE);
+    return;
+  }
+  JSContext* cx = jsapi.cx();
+
+  JS::Rooted<JS::Value> val(cx);
+  nsresult rv = nsContentUtils::WrapNative(cx, result, &val);
+  if (NS_FAILED(rv)) {
+    aRv.Throw(rv);
+    return;
+  }
+
+  mResults.RemoveElementAt(mResults.Length() - 1);
+
+  Reset();
+  FireSuccess(val);
+}
 
 NS_IMPL_CYCLE_COLLECTION(MobileMessageCursorCallback, mDOMCursor)
 
@@ -55,9 +100,11 @@ MobileMessageCursorCallback::NotifyCursorError(int32_t aError)
 }
 
 NS_IMETHODIMP
-MobileMessageCursorCallback::NotifyCursorResult(nsISupports* aResult)
+MobileMessageCursorCallback::NotifyCursorResult(nsISupports** aResults,
+                                                uint32_t aSize)
 {
   MOZ_ASSERT(mDOMCursor);
+  MOZ_ASSERT(aResults && *aResults && aSize);
 
   AutoJSAPI jsapi;
   if (NS_WARN_IF(!jsapi.Init(mDOMCursor->GetOwner()))) {
@@ -66,8 +113,14 @@ MobileMessageCursorCallback::NotifyCursorResult(nsISupports* aResult)
   JSContext* cx = jsapi.cx();
 
   JS::Rooted<JS::Value> wrappedResult(cx);
-  nsresult rv = nsContentUtils::WrapNative(cx, aResult, &wrappedResult);
+  nsresult rv = nsContentUtils::WrapNative(cx, aResults[0], &wrappedResult);
   NS_ENSURE_SUCCESS(rv, rv);
+
+  // Push additional results in reversed order.
+  while (aSize > 1) {
+    --aSize;
+    mDOMCursor->mResults.AppendElement(aResults[aSize]);
+  }
 
   mDOMCursor->FireSuccess(wrappedResult);
   return NS_OK;

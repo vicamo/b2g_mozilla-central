@@ -293,22 +293,17 @@ MobileMessageCursorChild::RecvNotifyResult(const MobileMessageCursorData& aData)
 {
   MOZ_ASSERT(mCursorCallback);
 
-  nsCOMPtr<nsISupports> result;
   switch(aData.type()) {
-    case MobileMessageCursorData::TMmsMessageData:
-      result = new MmsMessage(aData.get_MmsMessageData());
+    case MobileMessageCursorData::TMobileMessageArrayData:
+      DoNotifyResult(aData.get_MobileMessageArrayData().messages());
       break;
-    case MobileMessageCursorData::TSmsMessageData:
-      result = new SmsMessage(aData.get_SmsMessageData());
-      break;
-    case MobileMessageCursorData::TThreadData:
-      result = new MobileMessageThread(aData.get_ThreadData());
+    case MobileMessageCursorData::TThreadArrayData:
+      DoNotifyResult(aData.get_ThreadArrayData().threads());
       break;
     default:
       MOZ_CRASH("Received invalid response parameters!");
   }
 
-  mCursorCallback->NotifyCursorResult(result);
   return true;
 }
 
@@ -336,6 +331,58 @@ MobileMessageCursorChild::HandleContinue()
 
   SendContinue();
   return NS_OK;
+}
+
+void
+MobileMessageCursorChild::DoNotifyResult(const nsTArray<MobileMessageData>& aDataArray)
+{
+  const uint32_t length = aDataArray.Length();
+  MOZ_ASSERT(length);
+
+  if (length == 1) {
+    nsCOMPtr<nsISupports> message = CreateMessageFromMessageData(aDataArray[0]);
+    nsISupports* ptr = message.get();
+    mCursorCallback->NotifyCursorResult(&ptr, 1);
+    return;
+  }
+
+  nsAutoArrayPtr<nsISupports*> autoArray(new nsISupports* [length]);
+
+  FallibleTArray<nsCOMPtr<nsISupports>> messages;
+  for (uint32_t i = 0; i < length; i++) {
+    nsCOMPtr<nsISupports> message = CreateMessageFromMessageData(aDataArray[i]);
+    NS_ENSURE_TRUE_VOID(messages.AppendElement(message));
+
+    autoArray[i] = message.get();
+  }
+
+  mCursorCallback->NotifyCursorResult(autoArray, length);
+}
+
+void
+MobileMessageCursorChild::DoNotifyResult(const nsTArray<ThreadData>& aDataArray)
+{
+  const uint32_t length = aDataArray.Length();
+  MOZ_ASSERT(length);
+
+  if (length == 1) {
+    nsCOMPtr<nsISupports> thread = new MobileMessageThread(aDataArray[0]);
+    nsISupports* ptr = thread.get();
+    mCursorCallback->NotifyCursorResult(&ptr, 1);
+    return;
+  }
+
+  nsAutoArrayPtr<nsISupports*> autoArray(new nsISupports* [length]);
+
+  FallibleTArray<nsCOMPtr<nsISupports>> threads;
+  for (uint32_t i = 0; i < length; i++) {
+    nsCOMPtr<nsISupports> thread = new MobileMessageThread(aDataArray[i]);
+    NS_ENSURE_TRUE_VOID(threads.AppendElement(thread));
+
+    autoArray[i] = thread.get();
+  }
+
+  mCursorCallback->NotifyCursorResult(autoArray, length);
 }
 
 } // namespace mobilemessage
