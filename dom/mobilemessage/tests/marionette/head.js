@@ -260,7 +260,7 @@ function getMessages(aFilter, aReverse) {
   cursor.onsuccess = function(aEvent) {
     if (cursor.result) {
       messages.push(cursor.result);
-      cursor.continue();
+      window.setTimeout(cursor.continue.bind(cursor), 300);
       return;
     }
 

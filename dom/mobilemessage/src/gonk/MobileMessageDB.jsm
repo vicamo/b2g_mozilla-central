@@ -22,7 +22,7 @@ const RIL_GETMESSAGESCURSOR_CID =
 const RIL_GETTHREADSCURSOR_CID =
   Components.ID("{95ee7c3e-d6f2-4ec4-ade5-0c453c036d35}");
 
-const DEBUG = false;
+const DEBUG = true;
 const DISABLE_MMS_GROUPING_FOR_RECEIVING = true;
 
 const DB_VERSION = 23;
@@ -3572,12 +3572,12 @@ ResultsCollector.prototype = {
       return;
     }
 
-    let max = 0;
+    let max = -1;
     try {
       // positive: finite read-ahead entries,
       // 0: don't read ahead unless explicitly requested,
       // negative: read ahead all IDs if possible.
-      max = Services.prefs.getIntPref("dom.sms.maxReadAheadEntries");
+      //max = Services.prefs.getIntPref("dom.sms.maxReadAheadEntries");
     } catch (e) {}
 
     // If |this.requestWaiting| is set, try to read ahead at least once.
