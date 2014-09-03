@@ -259,7 +259,7 @@ function getMessages(aFilter, aReverse) {
   cursor.onsuccess = function(aEvent) {
     if (cursor.result) {
       messages.push(cursor.result);
-      cursor.continue();
+      window.setTimeout(cursor.continue.bind(cursor), 200);
       return;
     }
 
@@ -304,7 +304,7 @@ function getAllThreads() {
   cursor.onsuccess = function(aEvent) {
     if (cursor.result) {
       threads.push(cursor.result);
-      cursor.continue();
+      window.setTimeout(cursor.continue.bind(cursor), 200);
       return;
     }
 

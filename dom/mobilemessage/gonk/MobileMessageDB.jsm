@@ -3773,7 +3773,7 @@ ResultsCollector.prototype = {
    *        otherwise.
    */
   notifyCallback: function(callback, results, lastId) {
-    if (DEBUG) {
+    if (true) {
       debug("notifyCallback(results[" + results.length + "], " + lastId + ")");
     }
 
