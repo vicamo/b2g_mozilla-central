@@ -12,6 +12,7 @@ EXPORTS.mozilla.dom += [
 ]
 
 UNIFIED_SOURCES += [
+    'Assertions.cpp',
     'Icc.cpp',
     'IccListener.cpp',
     'IccManager.cpp',
