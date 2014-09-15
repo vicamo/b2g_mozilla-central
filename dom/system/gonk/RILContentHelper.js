@@ -572,6 +572,11 @@ RILContentHelper.prototype = {
 
   updateContact: function(clientId, callback, contactType, id, names, nameCount,
                           tels, telCount, emails, emailCount, pin2) {
+    debug("updateContact(" + clientId + ", window, " + contactType + ", " + id +
+          ", '" + JSON.stringify(names) + "', " + nameCount +
+          ", '" + JSON.stringify(tels) + "', " + telCount +
+          ", '" + JSON.stringify(emails) + "', " + emailCount);
+
     let requestId = this.getRequestId(callback);
 
     // Parsing nsDOMContact to Icc Contact format
@@ -590,6 +595,9 @@ RILContentHelper.prototype = {
 
     if (emailCount && Array.isArray(emails) && emails[0]) {
       iccContact.email = emails[0];
+    }
+    if (DEBUG) {
+      debug("updateContact: iccContact = " + JSON.stringify(iccContact));
     }
 
     cpmm.sendAsyncMessage("RIL:UpdateIccContact", {
