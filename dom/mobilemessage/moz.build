@@ -22,6 +22,9 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'android':
         'android/SmsService.cpp',
     ]
 elif CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk' and CONFIG['MOZ_B2G_RIL']:
+    XPIDL_SOURCES += [
+        'gonk/nsIRilMobileMessageDatabaseService.idl',
+    ]
     EXTRA_JS_MODULES += [
         'gonk/mms_consts.js',
         'gonk/MmsPduHelper.jsm',
@@ -44,6 +47,22 @@ EXPORTS.mozilla.dom += [
     'MmsMessage.h',
     'MobileMessageManager.h',
     'SmsMessage.h',
+]
+
+XPIDL_MODULE = 'dom_mobilemessage'
+
+XPIDL_SOURCES += [
+    'interfaces/nsIDeletedMessageInfo.idl',
+    'interfaces/nsIDOMMozMmsMessage.idl',
+    'interfaces/nsIDOMMozMobileMessageThread.idl',
+    'interfaces/nsIDOMMozSmsMessage.idl',
+    'interfaces/nsIMmsService.idl',
+    'interfaces/nsIMobileMessageCallback.idl',
+    'interfaces/nsIMobileMessageCursorCallback.idl',
+    'interfaces/nsIMobileMessageDatabaseService.idl',
+    'interfaces/nsIMobileMessageService.idl',
+    'interfaces/nsISmsService.idl',
+    'interfaces/nsIWapPushApplication.idl',
 ]
 
 UNIFIED_SOURCES += [
