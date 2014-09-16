@@ -4,7 +4,6 @@
 
 #include "nsISupports.idl"
 
-interface nsIDOMMozSmsMessage;
 interface nsIMobileMessageCallback;
 
 %{C++
@@ -12,10 +11,10 @@ interface nsIMobileMessageCallback;
 #define SMS_SERVICE_CONTRACTID "@mozilla.org/sms/smsservice;1"
 %}
 
-[scriptable, builtinclass, uuid(cb7d7b60-01f1-4241-a0ae-2ff035c3fbe5)]
+[scriptable, uuid(c46b44db-fa5c-4a39-a51d-f4aa6b9d4384)]
 interface nsISmsService : nsISupports
 {
-  readonly attribute unsigned long smsDefaultServiceId;
+  readonly attribute unsigned long defaultServiceId;
 
   void getSegmentInfoForText(in DOMString text,
                              in nsIMobileMessageCallback request);
@@ -26,7 +25,6 @@ interface nsISmsService : nsISupports
             in boolean silent,
             in nsIMobileMessageCallback request);
 
-  boolean isSilentNumber(in DOMString number);
   void addSilentNumber(in DOMString number);
   void removeSilentNumber(in DOMString number);
 

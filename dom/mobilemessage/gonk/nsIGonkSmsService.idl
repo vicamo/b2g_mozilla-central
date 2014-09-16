@@ -1,0 +1,49 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "nsISmsService.idl"
+
+%{C++
+#define GONK_SMS_SERVICE_CONTRACTID "@mozilla.org/sms/gonksmsservice;1"
+%}
+
+[scriptable, uuid(0da79539-ab92-4573-aa94-771ddc1fef56)]
+interface nsIGonkSmsService : nsISmsService
+{
+// PID - Protocol Indicator
+this.PDU_PID_DEFAULT                      = 0x00;
+this.PDU_PID_TELEMATIC_INTERWORKING       = 0x20;
+this.PDU_PID_SHORT_MESSAGE_TYPE_0         = 0x40;
+this.PDU_PID_REPLACE_SHORT_MESSAGE_TYPE_1 = 0x41;
+this.PDU_PID_REPLACE_SHORT_MESSAGE_TYPE_2 = 0x42;
+this.PDU_PID_REPLACE_SHORT_MESSAGE_TYPE_3 = 0x43;
+this.PDU_PID_REPLACE_SHORT_MESSAGE_TYPE_4 = 0x44;
+this.PDU_PID_REPLACE_SHORT_MESSAGE_TYPE_5 = 0x45;
+this.PDU_PID_REPLACE_SHORT_MESSAGE_TYPE_6 = 0x46;
+this.PDU_PID_REPLACE_SHORT_MESSAGE_TYPE_7 = 0x47;
+this.PDU_PID_ENHANDED_MESSAGE_SERVICE     = 0x5E;
+this.PDU_PID_RETURN_CALL_MESSAGE          = 0x5F;
+this.PDU_PID_ANSI_136_R_DATA              = 0x7C;
+this.PDU_PID_ME_DATA_DOWNLOAD             = 0x7D;
+this.PDU_PID_ME_DEPERSONALIZATION         = 0x7E;
+this.PDU_PID_USIM_DATA_DOWNLOAD           = 0x7F;
+
+// DCS - Data Coding Scheme
+this.PDU_DCS_MSG_CODING_7BITS_ALPHABET  = 0x00;
+this.PDU_DCS_MSG_CODING_8BITS_ALPHABET  = 0x04;
+this.PDU_DCS_MSG_CODING_16BITS_ALPHABET = 0x08;
+this.PDU_DCS_MSG_CLASS_NORMAL           = 0xFF;
+this.PDU_DCS_MSG_CLASS_0                = 0x00;
+this.PDU_DCS_MSG_CLASS_1                = 0x01;
+this.PDU_DCS_MSG_CLASS_2                = 0x02;
+this.PDU_DCS_MSG_CLASS_3                = 0x03;
+
+  void receiveSegment(in unsigned long serviceId,
+                      in AString smsc,
+                      in AString sender,
+                      in octet pid,
+                      in octet encoding,
+                      in octet messageClass,
+                      in unsigned long long smscTimestamp);
+};
