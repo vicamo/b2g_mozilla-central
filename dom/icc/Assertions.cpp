@@ -2,23 +2,30 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "mozilla/dom/MozIccBinding.h"
+#include "EnumHelpers.h"
 #include "nsIIccService.h"
+#include "nsIRadioInterfaceLayer.h" // For nsIRilCallback
 
 namespace mozilla {
 namespace dom {
 namespace icc {
 
-#define ASSERT_EQUALITY(webidlType, webidlState, xpidlState) \
-  static_assert(static_cast<uint32_t>(webidlType::webidlState) == nsIIccService::xpidlState, \
-                #webidlType "::" #webidlState " should equal to nsIIccService::" #xpidlState)
+#if defined(MOZ_HAVE_CXX11_CONSTEXPR)
+#define ASSERT_EQUALITY(webidlType, webidlState, xpidlIface, xpidlState) \
+  static_assert(ToXpidlEnum(webidlType::webidlState) == xpidlIface::xpidlState, \
+                #webidlType "::" #webidlState " should equal to " #xpidlIface "::" #xpidlState); \
+  static_assert(ToWebidlEnum<webidlType>(xpidlIface::xpidlState) == webidlType::webidlState, \
+                #xpidlIface "::" #xpidlState " should equal to " #webidlType "::" #webidlState)
+#else
+#define ASSERT_EQUALITY(webidlType, webidlState, xpidlIface, xpidlState)
+#endif
 
 //
 // enum IccCardState
 //
 
 #define ASSERT_ICC_CARD_STATE_EQUALITY(webidlState, xpidlState) \
-  ASSERT_EQUALITY(IccCardState, webidlState, xpidlState)
+  ASSERT_EQUALITY(IccCardState, webidlState, nsIIccService, xpidlState)
 
 ASSERT_ICC_CARD_STATE_EQUALITY(Unknown, CARD_STATE_UNKNOWN);
 ASSERT_ICC_CARD_STATE_EQUALITY(Ready, CARD_STATE_READY);
@@ -58,7 +65,7 @@ ASSERT_ICC_CARD_STATE_EQUALITY(Illegal, CARD_STATE_ILLEGAL);
 //
 
 #define ASSERT_ICC_CONTACT_TYPE_EQUALITY(webidlState, xpidlState) \
-  ASSERT_EQUALITY(IccContactType, webidlState, xpidlState)
+  ASSERT_EQUALITY(IccContactType, webidlState, nsIIccService, xpidlState)
 
 ASSERT_ICC_CONTACT_TYPE_EQUALITY(Adn, CONTACT_TYPE_ADN);
 ASSERT_ICC_CONTACT_TYPE_EQUALITY(Fdn, CONTACT_TYPE_FDN);
@@ -71,7 +78,7 @@ ASSERT_ICC_CONTACT_TYPE_EQUALITY(Sdn, CONTACT_TYPE_SDN);
 //
 
 #define ASSERT_ICC_CARD_LOCK_TYPE_EQUALITY(webidlState, xpidlState) \
-  ASSERT_EQUALITY(IccCardLockType, webidlState, xpidlState)
+  ASSERT_EQUALITY(IccCardLockType, webidlState, nsIIccService, xpidlState)
 
 ASSERT_ICC_CARD_LOCK_TYPE_EQUALITY(Pin, CARD_LOCK_TYPE_PIN);
 ASSERT_ICC_CARD_LOCK_TYPE_EQUALITY(Pin2, CARD_LOCK_TYPE_PIN2);
@@ -102,13 +109,53 @@ ASSERT_ICC_CARD_LOCK_TYPE_EQUALITY(Fdn, CARD_LOCK_TYPE_FDN);
 //
 
 #define ASSERT_ICC_MVNO_TYPE_EQUALITY(webidlState, xpidlState) \
-  ASSERT_EQUALITY(IccMvnoType, webidlState, xpidlState)
+  ASSERT_EQUALITY(IccMvnoType, webidlState, nsIIccService, xpidlState)
 
 ASSERT_ICC_MVNO_TYPE_EQUALITY(Imsi, MVNO_TYPE_IMSI);
 ASSERT_ICC_MVNO_TYPE_EQUALITY(Spn, MVNO_TYPE_SPN);
 ASSERT_ICC_MVNO_TYPE_EQUALITY(Gid, MVNO_TYPE_GID);
 
 #undef ASSERT_ICC_MVNO_TYPE_EQUALITY
+
+//
+// enum IccErrorNames
+//
+
+#define ASSERT_ICC_ERROR_NAMES_EQUALITY(webidlState, xpidlState) \
+  ASSERT_EQUALITY(IccErrorNames, webidlState, nsIRilCallback, xpidlState)
+
+ASSERT_ICC_ERROR_NAMES_EQUALITY(RadioNotAvailable, ERROR_RADIO_NOT_AVAILABLE);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(GenericFailure, ERROR_GENERIC_FAILURE);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(IncorrectPassword, ERROR_INCORRECT_PASSWORD);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(SimPin2, ERROR_SIM_PIN2);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(SimPuk2, ERROR_SIM_PUK2);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(RequestNotSupported, ERROR_REQUEST_NOT_SUPPORTED);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(Cancelled, ERROR_CANCELLED);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(OpNotAllowedDuringVoiceCall, ERROR_OP_NOT_ALLOWED_DURING_VOICE_CALL);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(OpNotAllowedBeforeRegToNw, ERROR_OP_NOT_ALLOWED_BEFORE_REG_TO_NW);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(SmsSendFailRetry, ERROR_SMS_SEND_FAIL_RETRY);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(SimAbsent, ERROR_SIM_ABSENT);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(SubscriptionNotAvailable, ERROR_SUBSCRIPTION_NOT_AVAILABLE);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(ModeNotSupported, ERROR_MODE_NOT_SUPPORTED);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(FdnCheckFailure, ERROR_FDN_CHECK_FAILURE);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(IllegalSIMorME, ERROR_ILLEGAL_SIM_OR_ME);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(MissingResource, ERROR_MISSING_RESOURCE);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(DialModifiedToUssd, ERROR_DIAL_MODIFIED_TO_USSD);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(DialModifiedToSs, ERROR_DIAL_MODIFIED_TO_SS);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(DialModifiedToDial, ERROR_DIAL_MODIFIED_TO_DIAL);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(UssdModifiedToDial, ERROR_USSD_MODIFIED_TO_DIAL);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(UssdModifiedToSs, ERROR_USSD_MODIFIED_TO_SS);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(UssdModifiedToUssd, ERROR_USSD_MODIFIED_TO_USSD);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(SsModifiedToDial, ERROR_SS_MODIFIED_TO_DIAL);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(SsModifiedToUssd, ERROR_SS_MODIFIED_TO_USSD);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(SsModifiedToSs, ERROR_SS_MODIFIED_TO_SS);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(SubscriptionNotSupported, ERROR_SUBSCRIPTION_NOT_SUPPORTED);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(InvalidParameter, ERROR_INVALID_PARAMETER);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(RejectedByRemote, ERROR_REJECTED_BY_REMOTE);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(NoSuchElement, ERROR_NO_SUCH_ELEMENT);
+ASSERT_ICC_ERROR_NAMES_EQUALITY(UnsupportedCardLock, ERROR_UNSUPPORTED_CARD_LOCK);
+
+#undef ASSERT_ICC_ERROR_NAMES_EQUALITY
 
 #undef ASSERT_EQUALITY
 

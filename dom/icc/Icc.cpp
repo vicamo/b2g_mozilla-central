@@ -4,6 +4,7 @@
 
 #include "mozilla/dom/Icc.h"
 
+#include "EnumHelpers.h"
 #include "mozilla/dom/MozIccBinding.h"
 #include "mozilla/dom/MozStkCommandEvent.h"
 #include "mozilla/dom/DOMRequest.h"
@@ -40,6 +41,8 @@ IsPukCardLockType(uint32_t aXpidlValue)
 }
 
 } // anonymous namespace
+
+using namespace mozilla::dom::icc;
 
 Icc::Icc(nsPIDOMWindow* aWindow,
          long aClientId,
@@ -139,7 +142,7 @@ Icc::GetCardState() const
       NS_SUCCEEDED(mService->GetCardState(mClientId, &cardState)) &&
       cardState != nsIIccService::CARD_STATE_UNDETECTED) {
     MOZ_ASSERT(cardState < static_cast<uint32_t>(IccCardState::EndGuard_));
-    result.SetValue(static_cast<IccCardState>(cardState));
+    result.SetValue(ToXpidlEnum(cardState));
   }
 
   return result;
@@ -226,7 +229,7 @@ Icc::GetCardLock(IccCardLockType aLockType,
 
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv = mService->GetCardLockState(mClientId, GetOwner(),
-                                           static_cast<uint32_t>(aLockType),
+                                           ToXpidlEnum(aLockType),
                                            EmptyString(),
                                            getter_AddRefs(request));
   if (NS_FAILED(rv)) {
@@ -251,7 +254,7 @@ Icc::UnlockCardLock(const IccUnlockCardLockOptions& aOptions,
     return nullptr;
   }
 
-  uint32_t xpidlLockType = static_cast<uint32_t>(aOptions.mLockType.Value());
+  uint32_t xpidlLockType = ToXpidlEnum(aOptions.mLockType.Value());
   const nsString& password = IsPukCardLockType(xpidlLockType)
                            ? aOptions.mPuk : aOptions.mPin;
   nsRefPtr<nsIDOMDOMRequest> request;
@@ -283,7 +286,7 @@ Icc::SetCardLock(const IccSetCardLockOptions& aOptions,
     return nullptr;
   }
 
-  uint32_t xpidlLockType = static_cast<uint32_t>(aOptions.mLockType.Value());
+  uint32_t xpidlLockType = ToXpidlEnum(aOptions.mLockType.Value());
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv;
   if (!aOptions.mNewPin.IsVoid()) {
@@ -327,7 +330,7 @@ Icc::GetCardLockRetryCount(IccCardLockType aLockType,
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv = mService->GetCardLockRetryCount(mClientId,
                                                 GetOwner(),
-                                                static_cast<uint32_t>(aLockType),
+                                                ToXpidlEnum(aLockType),
                                                 getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
@@ -348,7 +351,7 @@ Icc::ReadContacts(IccContactType aContactType,
 
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv = mService->ReadContacts(mClientId, GetOwner(),
-                                       static_cast<uint32_t>(aContactType),
+                                       ToXpidlEnum(aContactType),
                                        getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
@@ -428,7 +431,7 @@ Icc::UpdateContact(IccContactType aContactType,
 
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv = mService->UpdateContact(mClientId, GetOwner(),
-                                        static_cast<uint32_t>(aContactType),
+                                        ToXpidlEnum(aContactType),
                                         aOptions.mId,
                                         names.Length() ? names.Elements() : nullptr,
                                         names.Length(),
@@ -532,7 +535,7 @@ Icc::MatchMvno(IccMvnoType aMvnoType,
 
   nsRefPtr<nsIDOMDOMRequest> request;
   nsresult rv = mService->MatchMvno(mClientId, GetOwner(),
-                                    static_cast<uint32_t>(aMvnoType), aMvnoData,
+                                    ToXpidlEnum(aMvnoType), aMvnoData,
                                     getter_AddRefs(request));
   if (NS_FAILED(rv)) {
     aRv.Throw(rv);
