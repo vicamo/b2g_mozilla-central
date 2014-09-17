@@ -4,6 +4,43 @@
 
 interface MozIccInfo;
 
+enum IccErrorNames
+{
+  // Common
+  "RadioNotAvailable",
+  "GenericFailure",
+  "IncorrectPassword",
+  "SimPin2",
+  "SimPuk2",
+  "RequestNotSupported",
+  "Cancelled",
+  "OpNotAllowedDuringVoiceCall",
+  "OpNotAllowedBeforeRegToNw",
+  "SmsSendFailRetry",
+  "SimAbsent",
+  "SubscriptionNotAvailable",
+  "ModeNotSupported",
+  "FdnCheckFailure",
+  "IllegalSIMorME",
+  "MissingResource",
+  "DialModifiedToUssd",
+  "DialModifiedToSs",
+  "DialModifiedToDial",
+  "UssdModifiedToDial",
+  "UssdModifiedToSs",
+  "UssdModifiedToUssd",
+  "SsModifiedToDial",
+  "SsModifiedToUssd",
+  "SsModifiedToSs",
+  "SubscriptionNotSupported",
+  "InvalidParameter",
+  "RejectedByRemote",
+  "NoSuchElement",
+
+  // ICC specific.
+  "UnsupportedCardLock"
+};
+
 enum IccCardState
 {
   "unknown", // ICC card state is either not yet reported from modem or in an
@@ -113,6 +150,17 @@ dictionary IccUnlockCardLockOptions
                          // "pin2", "puk", "puk2".
 };
 
+dictionary IccCardLockResult
+{
+  IccCardLockType lockType = "pin";
+  boolean success = true; // For backward compatibility. Always true.
+};
+
+dictionary IccGetCardLockResult : IccCardLockResult
+{
+  boolean enabled = false;
+};
+
 dictionary IccSetCardLockOptions
 {
   IccCardLockType lockType;
@@ -121,6 +169,11 @@ dictionary IccSetCardLockOptions
   DOMString? newPin = null;
   boolean enabled = false;
   DOMString? aid = null;
+};
+
+dictionary IccGetCardLockRetryCountResult : IccCardLockResult
+{
+  short retryCount = 0;
 };
 
 dictionary IccSendStkTimerExpirationOptions
@@ -155,6 +208,13 @@ dictionary IccExchangeAPDUOptions
   [EnforceRange] long p3 = 0;
   DOMString data;
   DOMString? data2 = null;
+};
+
+dictionary IccExchangeAPDUResult
+{
+  long sw1 = 0;
+  long sw2 = 0;
+  DOMString response = "";
 };
 
 [Pref="dom.icc.enabled"]
@@ -267,9 +327,9 @@ interface MozIcc : EventTarget
    *        the FDN lock.
    *
    * @return a DOMRequest.
-   *         The request's result will be an object containing
-   *         information about the specified lock's status,
-   *         e.g. {lockType: "pin", enabled: true}.
+   *         The request's result will be an IccGetCardLockResult when
+   *         succeeded. Otherwise, a DOMError with its name set to one of
+   *         IccErrorNames is fired.
    */
   [Throws]
   DOMRequest getCardLock(IccCardLockType lockType);
@@ -285,25 +345,8 @@ interface MozIcc : EventTarget
    *        the lock type. See IccUnlockCardLockOptions.
    *
    * @return a DOMRequest.
-   *         The request's result will be an object containing
-   *         information about the unlock operation.
-   *
-   * Examples:
-   *
-   * (1) Unlocking failed:
-   *
-   *     {
-   *       lockType:   "pin",
-   *       success:    false,
-   *       retryCount: 2
-   *     }
-   *
-   * (2) Unlocking succeeded:
-   *
-   *     {
-   *       lockType:  "pin",
-   *       success:   true
-   *     }
+   *         The request's result will be an IccCardLockResult when succeeded.
+   *         succeeded. Otherwise, an IccCardLockError is fired.
    */
   [Throws]
   DOMRequest unlockCardLock(optional IccUnlockCardLockOptions info);
@@ -343,25 +386,8 @@ interface MozIcc : EventTarget
    *                newPin: "..."});
    *
    * @return a DOMRequest.
-   *         The request's result will be an object containing
-   *         information about the operation.
-   *
-   * Examples:
-   *
-   * (1) Enabling/Disabling card lock failed or change card lock failed.
-   *
-   *     {
-   *       lockType: "pin",
-   *       success: false,
-   *       retryCount: 2
-   *     }
-   *
-   * (2) Enabling/Disabling card lock succeed or change card lock succeed.
-   *
-   *     {
-   *       lockType: "pin",
-   *       success: true
-   *     }
+   *         The request's result will be an IccCardLockResult when succeeded.
+   *         succeeded. Otherwise, an IccCardLockError is fired.
    */
   [Throws]
   DOMRequest setCardLock(optional IccSetCardLockOptions info);
@@ -374,9 +400,9 @@ interface MozIcc : EventTarget
    *        the PUK lock.
    *
    * @return a DOMRequest.
-   *         If the lock type is "pin", or "puk", the request's result will be
-   *         an object containing the number of retries for the specified
-   *         lock. For any other lock type, the result is undefined.
+   *         The request's result will be an IccGetCardLockRetryCountResult
+   *         when succeeded. Otherwise, a DOMError with its name set to one of
+   *         IccErrorNames is fired.
    */
   [Throws]
   DOMRequest getCardLockRetryCount(IccCardLockType lockType);
@@ -387,6 +413,9 @@ interface MozIcc : EventTarget
    * Read ICC contacts.
    *
    * @return a DOMRequest.
+   *         The request's result will be an array of mozContact instances read
+   *         when succeeded. Otherwise, a DOMError with its name set to one of
+   *         IccErrorNames is fired.
    */
   [Throws]
   DOMRequest readContacts(IccContactType contactType);
@@ -401,6 +430,9 @@ interface MozIcc : EventTarget
    *        PIN2 is only required for 'fdn'.
    *
    * @return a DOMRequest.
+   *         The request's result will be a mozContact instances updated when
+   *         succeeded. Otherwise, a DOMError with its name set to one of
+   *         IccErrorNames is fired.
    */
   [Throws]
   DOMRequest updateContact(IccContactType contactType,
@@ -425,8 +457,9 @@ interface MozIcc : EventTarget
    *        channel.
    *
    * @return a DOMRequest.
-   *         The request's result will be an instance of channel (channelID)
-   *         if available or null.
+   *         The request's result will be a numeric number representing the
+   *         channel ID when succeeded. Otherwise, a DOMError with its name set
+   *         to one of IccErrorNames is fired.
    */
   [Throws]
   DOMRequest iccOpenChannel(DOMString aid);
@@ -442,7 +475,9 @@ interface MozIcc : EventTarget
    *        Application protocol data unit.
    *
    * @return a DOMRequest.
-   *         The request's result will be response APDU.
+   *         The request's result will be an instance of IccExchangeAPDUResult
+   *         when succeeded. Otherwise, a DOMError with its name set to one of
+   *         IccErrorNames is fired.
    */
   [Throws]
   DOMRequest iccExchangeAPDU(long channel,
@@ -456,6 +491,8 @@ interface MozIcc : EventTarget
    *        The application identifier of the applet, to be closed.
    *
    * @return a DOMRequest.
+   *         The request's result is undefined when succeeded. Otherwise, a
+   *         DOMError with its name set to one of IccErrorNames is fired.
    */
   [Throws]
   DOMRequest iccCloseChannel(long channel);
@@ -473,7 +510,8 @@ interface MozIcc : EventTarget
    *
    * @return a DOMRequest.
    *         The request's result will be a boolean indicating the matching
-   *         result.
+   *         result when succeeded. Otherwise, a DOMError with its name set to
+   *         one of IccErrorNames is fired.
    */
   [Throws]
   DOMRequest matchMvno(IccMvnoType mvnoType,

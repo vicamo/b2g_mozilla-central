@@ -33,6 +33,45 @@ interface nsIRilContext : nsISupports
   readonly attribute nsIDOMMozIccInfo iccInfo;
 };
 
+[scriptable, uuid(1b65079b-579c-47c7-8ac1-b74a1bf1f90c)]
+interface nsIRilCallback : nsISupports
+{
+  const unsigned long SUCCESS = 0;
+
+  const unsigned long ERROR_RADIO_NOT_AVAILABLE = 1;
+  const unsigned long ERROR_GENERIC_FAILURE = 2;
+  const unsigned long ERROR_INCORRECT_PASSWORD = 3;
+  const unsigned long ERROR_SIM_PIN2 = 4;
+  const unsigned long ERROR_SIM_PUK2 = 5;
+  const unsigned long ERROR_REQUEST_NOT_SUPPORTED = 6;
+  const unsigned long ERROR_CANCELLED = 7;
+  const unsigned long ERROR_OP_NOT_ALLOWED_DURING_VOICE_CALL = 8;
+  const unsigned long ERROR_OP_NOT_ALLOWED_BEFORE_REG_TO_NW = 9;
+  const unsigned long ERROR_SMS_SEND_FAIL_RETRY = 10;
+  const unsigned long ERROR_SIM_ABSENT = 11;
+  const unsigned long ERROR_SUBSCRIPTION_NOT_AVAILABLE = 12;
+  const unsigned long ERROR_MODE_NOT_SUPPORTED = 13;
+  const unsigned long ERROR_FDN_CHECK_FAILURE = 14;
+  const unsigned long ERROR_ILLEGAL_SIM_OR_ME = 15;
+  const unsigned long ERROR_MISSING_RESOURCE = 16;
+  const unsigned long ERROR_DIAL_MODIFIED_TO_USSD = 17;
+  const unsigned long ERROR_DIAL_MODIFIED_TO_SS = 18;
+  const unsigned long ERROR_DIAL_MODIFIED_TO_DIAL = 19;
+  const unsigned long ERROR_USSD_MODIFIED_TO_DIAL = 20;
+  const unsigned long ERROR_USSD_MODIFIED_TO_SS = 21;
+  const unsigned long ERROR_USSD_MODIFIED_TO_USSD = 22;
+  const unsigned long ERROR_SS_MODIFIED_TO_DIAL = 23;
+  const unsigned long ERROR_SS_MODIFIED_TO_USSD = 24;
+  const unsigned long ERROR_SS_MODIFIED_TO_SS = 25;
+  const unsigned long ERROR_SUBSCRIPTION_NOT_SUPPORTED = 26;
+  const unsigned long ERROR_INVALID_PARAMETER = 27;
+  const unsigned long ERROR_REJECTED_BY_REMOTE = 28;
+  const unsigned long ERROR_NO_SUCH_ELEMENT = 29;
+  const unsigned long ERROR_UNSUPPORTED_CARD_LOCK = 30;
+
+  void handleResponse(in unsigned long error);
+};
+
 [scriptable, function, uuid(3bc96351-53b0-47a1-a888-c74c64b60f25)]
 interface nsIRilSendWorkerMessageCallback : nsISupports
 {

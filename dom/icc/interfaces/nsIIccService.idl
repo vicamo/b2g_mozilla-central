@@ -4,9 +4,92 @@
 
 #include "nsISupports.idl"
 
-interface nsIDOMDOMRequest;
+interface nsICursorContinueCallback;
 interface nsIDOMMozIccInfo;
-interface nsIDOMWindow;
+
+[scriptable, uuid(c343d213-8c2b-4d19-83a6-de3b37aa5672)]
+interface nsIIccCallback : nsISupports
+{
+  const short RETRY_COUNT_UNSPECIFIED = -1;
+
+  void notifySuccess();
+
+  /**
+   * @param error
+   *        Either nsIRilCallback::SUCCESS, or nsIRilCallback::ERROR_*.
+   */
+  void notifyError(in unsigned long error);
+
+  /**
+   * @param lockType
+   *        A nsIIccServcie::CARD_LOCK_TYPE_*.
+   * @param enabled
+   *        True if card lock of specified type has been enabled. False
+   *        otherwise.
+   *
+   * @see WebIDL IccGetCardLockResult.
+   */
+  void notifyGetCardLockStateSuccess(in unsigned long lockType,
+                                     in boolean enabled);
+
+  /**
+   * @param lockType
+   *        A nsIIccServcie::CARD_LOCK_TYPE_*.
+   *
+   * @see WebIDL IccUnlockCardLockResult/IccSetCardLockResult.
+   */
+  void notifySetCardLockSuccess(in unsigned long lockType);
+
+  /**
+   * @param lockType
+   *        A nsIIccServcie::CARD_LOCK_TYPE_*.
+   * @param error
+   *        See |notifyError| for possible values.
+   * @param retryCount
+   *        Remaining retries before getting locked. RETRY_COUNT_UNSPECIFIED if
+   *        not available.
+   *
+   * @see WebIDL IccCardLockError.
+   */
+  void notifySetCardLockError(in unsigned long lockType,
+                              in unsigned long error,
+                              in short retryCount);
+
+  /**
+   * @param lockType
+   *        A nsIIccServcie::CARD_LOCK_TYPE_*.
+   * @param retryCount
+   *        Remaining retries before getting locked.
+   *
+   * @see WebIDL IccGetCardLockRetryCountResult.
+   */
+  void notifyGetCardLockRetryCountSuccess(in unsigned long lockType,
+                                          in short retryCount);
+
+  void notifyContactSuccess(in AString id,
+                            [array, size_is(nameCount)] in wstring names,
+                            in uint32_t nameCount,
+                            [array, size_is(telCount)] in wstring tels,
+                            in uint32_t telCount,
+                            [array, size_is(emailCount)] in wstring emails,
+                            in uint32_t emailCount);
+
+  /**
+   * @param channel
+   *        An integer channel id.
+   */
+  void notifyOpenChannelSuccess(in long channel);
+
+  void notifyExchangeAPDUSuccess(in long sw1,
+                                 in long sw2,
+                                 in AString response);
+
+  /**
+   * @param match
+   *        True if the result of a matchMvno call is positive. False otherwise.
+   */
+  void notifyMatchMvnoSuccess(in boolean match);
+};
 
 [scriptable, uuid(7c0ada3d-d8d4-493e-9243-fa3df39855e4)]
 interface nsIIccListener : nsISupports
@@ -20,7 +103,7 @@ interface nsIIccListener : nsISupports
 /**
  * XPCOM component (in the content process) that provides the ICC information.
  */
-[scriptable, uuid(83a37b3f-e1c1-48ce-b9b8-da9f80a20fd3)]
+[scriptable, uuid(a336f9dc-7a77-426b-9781-20d11051af78)]
 interface nsIIccService : nsISupports
 {
   // MUST match enum IccCardState in MozIcc.webidl!
@@ -111,97 +194,157 @@ interface nsIIccService : nsISupports
    * STK interfaces.
    */
   void sendStkResponse(in unsigned long clientId,
-                       in nsIDOMWindow window,
                        in jsval command,
                        in jsval response);
   void sendStkMenuSelection(in unsigned long clientId,
-                            in nsIDOMWindow window,
                             in unsigned short itemIdentifier,
                             in boolean helpRequested);
   void sendStkTimerExpiration(in unsigned long clientId,
-                              in nsIDOMWindow window,
                               in octet timerId,
                               in unsigned long timerValue);
   void sendStkEventDownload(in unsigned long clientId,
-                            in nsIDOMWindow window,
                             in jsval event);
 
   /**
    * Card lock interfaces.
    */
-  nsIDOMDOMRequest getCardLockState(in unsigned long clientId,
-                                    in nsIDOMWindow window,
-                                    in unsigned long lockType,
-                                    [optional] in AString aid);
-  nsIDOMDOMRequest unlockCardLock(in unsigned long clientId,
-                                  in nsIDOMWindow window,
-                                  in unsigned long lockType,
-                                  in AString password,
-                                  in AString newPassword,
-                                  [optional] in AString aid);
-  nsIDOMDOMRequest enableCardLock(in unsigned long clientId,
-                                  in nsIDOMWindow window,
-                                  in unsigned long lockType,
-                                  in AString password,
-                                  in bool enabled,
-                                  [optional] in AString aid);
-  nsIDOMDOMRequest changeCardLockPassword(in unsigned long clientId,
-                                          in nsIDOMWindow window,
-                                          in unsigned long lockType,
-                                          in AString password,
-                                          in AString newPassword,
-                                          [optional] in AString aid);
-  nsIDOMDOMRequest getCardLockRetryCount(in unsigned long clientId,
-                                         in nsIDOMWindow window,
-                                         in unsigned long lockType);
+
+  /**
+   * When error occurred, |nsIIccCallback.notifyError| is called. Otherwise,
+   * |nsIIccCallback.notifyGetCardLockStateSuccess|.
+   */
+  void getCardLockState(in unsigned long clientId,
+                        in nsIIccCallback callback,
+                        in unsigned long lockType,
+                        [optional] in AString aid);
+
+  /**
+   * When error occurred, |nsIIccCallback.notifySetCardLockError| is called.
+   * Otherwise, |nsIIccCallback.notifySetCardLockSuccess|.
+   */
+  void unlockCardLock(in unsigned long clientId,
+                      in nsIIccCallback callback,
+                      in unsigned long lockType,
+                      in AString password,
+                      in AString newPassword,
+                      [optional] in AString aid);
+
+  /**
+   * When error occurred, |nsIIccCallback.notifySetCardLockError| is called.
+   * Otherwise, |nsIIccCallback.notifySetCardLockSuccess|.
+   */
+  void enableCardLock(in unsigned long clientId,
+                      in nsIIccCallback callback,
+                      in unsigned long lockType,
+                      in AString password,
+                      in bool enabled,
+                      [optional] in AString aid);
+
+  /**
+   * When error occurred, |nsIIccCallback.notifySetCardLockError| is called.
+   * Otherwise, |nsIIccCallback.notifySetCardLockSuccess|.
+   */
+  void changeCardLockPassword(in unsigned long clientId,
+                              in nsIIccCallback callback,
+                              in unsigned long lockType,
+                              in AString password,
+                              in AString newPassword,
+                              [optional] in AString aid);
+
+  /**
+   * When error occurred, |nsIIccCallback.notifyError| is called.
+   * Otherwise, |nsIIccCallback.notifyGetCardLockRetryCountSuccess|.
+   */
+  void getCardLockRetryCount(in unsigned long clientId,
+                             in nsIIccCallback callback,
+                             in unsigned long lockType);
 
   /**
    * Phonebook interfaces.
    */
-  nsIDOMDOMRequest readContacts(in unsigned long clientId,
-                                in nsIDOMWindow window,
-                                in unsigned long contactType);
 
-  nsIDOMDOMRequest updateContact(in unsigned long clientId,
-                                 in nsIDOMWindow window,
-                                 in unsigned long contactType,
-                                 in AString id,
-                                 [array, size_is(nameCount)] in wstring names,
-                                 in uint32_t nameCount,
-                                 [array, size_is(telCount)] in wstring tels,
-                                 in uint32_t telCount,
-                                 [array, size_is(emailCount)] in wstring emails,
-                                 in uint32_t emailCount,
-                                 in DOMString pin2);
+  /**
+   * This method provides cursor based access to ICC contacts.
+   *
+   * The client first calls this method with a valid nsIIccCallback implementing
+   * callback, and this method returns a nsICursorContinueCallback for further
+   * retrieval.
+   *
+   * |readContacts| will at least call to some member functions of that passed
+   * callback once. When no more contact available, it calls to
+   * |nsIIccCallback.notifySuccess| indicating session ended. When some error
+   * occurs, it calls to |nsIIccCallback.notifyError| and terminates the session
+   * as well. Otherwise, it calls to |nsIIccCallback.notifyContactSuccess| with
+   * the first ICC contact read.
+   *
+   * The client MAY only call |nsICursorContinueCallback.handleContinue| once
+   * after a |nsIIccCallback.notifyContactSuccess| call, and only after
+   * |nsIIccCallback.notifyContactSuccess| is called will the back end start
+   * reading the next one and hence call to
+   * |nsIIccCallback.notifyContactSuccess| again.
+   */
+  nsICursorContinueCallback readContacts(in unsigned long clientId,
+                                         in nsIIccCallback callback,
+                                         in unsigned long contactType);
+
+  /**
+   * When error occurred, |nsIIccCallback.notifyError| is called.
+   * Otherwise, |nsIIccCallback.notifyContactSuccess|.
+   */
+  void updateContact(in unsigned long clientId,
+                     in nsIIccCallback callback,
+                     in unsigned long contactType,
+                     in AString id,
+                     [array, size_is(nameCount)] in wstring names,
+                     in uint32_t nameCount,
+                     [array, size_is(telCount)] in wstring tels,
+                     in uint32_t telCount,
+                     [array, size_is(emailCount)] in wstring emails,
+                     in uint32_t emailCount,
+                     in DOMString pin2);
 
   /**
    * Secure Card Icc communication channel
    */
-  nsIDOMDOMRequest iccOpenChannel(in unsigned long clientId,
-                                  in nsIDOMWindow window,
-                                  in DOMString aid);
-
-  nsIDOMDOMRequest iccExchangeAPDU(in unsigned long clientId,
-                                   in nsIDOMWindow window,
-                                   in long channel,
-                                   in long cla,
-                                   in long command,
-                                   in AString path,
-                                   in long p1,
-                                   in long p2,
-                                   in long p3,
-                                   in AString data,
-                                   in AString data2);
-
-  nsIDOMDOMRequest iccCloseChannel(in unsigned long clientId,
-                                   in nsIDOMWindow window,
-                                   in long channel);
 
   /**
-   * Helpers
+   * When error occurred, |nsIIccCallback.notifyError| is called.
+   * Otherwise, |nsIIccCallback.notifyOpenChannelSuccess|.
    */
-  nsIDOMDOMRequest matchMvno(in unsigned long clientId,
-                             in nsIDOMWindow window,
-                             in unsigned long mvnoType,
-                             in DOMString mvnoData);
+  void iccOpenChannel(in unsigned long clientId,
+                      in nsIIccCallback callback,
+                      in DOMString aid);
+
+  /**
+   * When error occurred, |nsIIccCallback.notifyError| is called.
+   * Otherwise, |nsIIccCallback.notifyExchangeAPDUSuccess|.
+   */
+  void iccExchangeAPDU(in unsigned long clientId,
+                       in nsIIccCallback callback,
+                       in long channel,
+                       in long cla,
+                       in long command,
+                       in AString path,
+                       in long p1,
+                       in long p2,
+                       in long p3,
+                       in AString data,
+                       in AString data2);
+
+  /**
+   * When error occurred, |nsIIccCallback.notifyError| is called.
+   * Otherwise, |nsIIccCallback.notifySuccess|.
+   */
+  void iccCloseChannel(in unsigned long clientId,
+                       in nsIIccCallback callback,
+                       in long channel);
+
+  /**
+   * When error occurred, |nsIIccCallback.notifyError| is called.
+   * Otherwise, |nsIIccCallback.notifyMatchMvnoSuccess|.
+   */
+  void matchMvno(in unsigned long clientId,
+                 in nsIIccCallback callback,
+                 in unsigned long mvnoType,
+                 in DOMString mvnoData);
 };

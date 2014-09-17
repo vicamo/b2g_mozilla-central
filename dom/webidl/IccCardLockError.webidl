@@ -4,7 +4,6 @@
 * You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-[Constructor(IccCardLockType lockType, DOMString errorName, short retryCount)]
 interface IccCardLockError : DOMError {
   readonly attribute IccCardLockType lockType;
   readonly attribute short retryCount;
