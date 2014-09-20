@@ -339,6 +339,7 @@ MobileConnectionProvider.prototype = {
       if (aDestInfo[key] !== aSrcInfo[key]) {
         isUpdated = true;
         aDestInfo[key] = aSrcInfo[key];
+        debug("_updateConnectionInfo: updated '" + key + "' to " + aDestInfo[key]);
       }
     }
 
@@ -376,6 +377,7 @@ MobileConnectionProvider.prototype = {
       if (aDestInfo[key] !== aSrcInfo[key]) {
         isUpdated = true;
         aDestInfo[key] = aSrcInfo[key];
+        debug("_updateInfo: updated '" + key + "' to " + aDestInfo[key]);
       }
     }
     return isUpdated;
