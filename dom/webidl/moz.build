@@ -86,6 +86,7 @@ WEBIDL_FILES = [
     'DataStore.webidl',
     'DataStoreImpl.webidl',
     'DataTransfer.webidl',
+    'DBus.webidl',
     'DedicatedWorkerGlobalScope.webidl',
     'DelayNode.webidl',
     'DesktopNotification.webidl',
